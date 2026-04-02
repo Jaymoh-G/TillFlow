@@ -3,19 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Tenant extends Model
+class Brand extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
+        'tenant_id',
         'name',
         'slug',
-        'status',
+        'logo_url',
     ];
 
-    public function users(): HasMany
+    public function tenant(): BelongsTo
     {
-        return $this->hasMany(User::class);
+        return $this->belongsTo(Tenant::class);
     }
 
     public function products(): HasMany

@@ -40,5 +40,23 @@ class DatabaseSeeder extends Seeder
         if ($ownerRole) {
             $admin->roles()->syncWithoutDetaching([$ownerRole->id]);
         }
+
+        $cashierRole = Role::query()->where('slug', 'cashier')->first();
+
+        User::query()->updateOrCreate(
+            ['email' => 'cashier@tillflow.local'],
+            [
+                'tenant_id' => $tenant->id,
+                'name' => 'TillFlow Cashier',
+                'password' => 'password',
+            ]
+        )->roles()->sync($cashierRole ? [$cashierRole->id] : []);
+
+        $this->call(CategorySeeder::class);
+        $this->call(BrandSeeder::class);
+        $this->call(UnitSeeder::class);
+        $this->call(VariantAttributeSeeder::class);
+        $this->call(WarrantySeeder::class);
+        $this->call(ProductSeeder::class);
     }
 }
