@@ -1,0 +1,1210 @@
+/* Typography: DreamsPOS (Nunito / Poppins). Brand: primary #419EDD, secondary #F89624. */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+
+.tillflow-root {
+  color-scheme: dark;
+  /* Dark surfaces — $darkmode-* + $input-bg */
+  --tf-bg: #0d0d0d;
+  --tf-surface: #171717;
+  --tf-surface-2: #1f2228;
+  --tf-surface-input: #2c2c50;
+  --tf-border: #1f2228;
+  --tf-text: #d8dfee;
+  --tf-muted: #9ca3af;
+  /* Primary #419EDD — links, focus, active nav / buttons */
+  --tf-secondary: #f89624;
+  --tf-accent: #419edd;
+  --tf-accent-bright: #7ec4f0;
+  --tf-accent-dim: rgba(65, 158, 221, 0.15);
+  --tf-accent-border: rgba(65, 158, 221, 0.38);
+  --tf-accent-border-strong: rgba(65, 158, 221, 0.52);
+  --tf-accent-hover-bg: rgba(65, 158, 221, 0.22);
+  --tf-accent-hover-bg-strong: rgba(65, 158, 221, 0.32);
+  --tf-pos-bg: #0a0a0a;
+  --tf-danger: #ff5e4d;
+  --tf-radius-sm: 5px;
+  --tf-radius-md: 8px;
+  --tf-shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+  /* Solid buttons — label contrast per theme */
+  --tf-btn-on-primary: #ffffff;
+  --tf-btn-on-secondary: #ffffff;
+  --tf-btn-primary-hover-bg: #5aacf0;
+  --tf-btn-secondary-hover-bg: #ffb04a;
+
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--tf-text);
+  background: var(--tf-bg);
+  min-height: 100vh;
+}
+
+.tillflow-root a {
+  color: var(--tf-accent);
+  text-decoration: none;
+}
+
+.tillflow-root a:hover {
+  color: var(--tf-accent-bright);
+}
+
+.tf-mono {
+  font-family: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
+}
+
+.tf-heading {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+}
+
+.tf-landing {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -25%, rgba(65, 158, 221, 0.14), transparent),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(248, 150, 36, 0.1), transparent),
+    var(--tf-bg);
+}
+
+.tf-landing__badge {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tf-muted);
+  margin-bottom: 0.75rem;
+}
+
+.tf-landing__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.tf-landing__subtitle {
+  color: var(--tf-muted);
+  max-width: 28rem;
+  text-align: center;
+  margin: 0 0 2.5rem;
+  line-height: 1.5;
+}
+
+.tf-landing__grid {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 42rem;
+}
+
+@media (min-width: 560px) {
+  .tf-landing__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tf-card {
+  display: block;
+  padding: 1.5rem;
+  border-radius: var(--tf-radius-md);
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  color: inherit;
+}
+
+.tf-card:hover {
+  border-color: var(--tf-accent-border);
+  transform: translateY(-2px);
+  box-shadow: var(--tf-shadow-card);
+}
+
+.tf-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tf-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.tf-card__label .feather {
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.tf-card__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.tf-card__desc {
+  font-size: 0.9rem;
+  color: var(--tf-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.tf-admin {
+  display: grid;
+  grid-template-columns: 15rem 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .tf-admin {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.tf-admin__sidebar {
+  background: var(--tf-surface);
+  border-right: 1px solid var(--tf-border);
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .tf-admin__sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--tf-border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+
+.tf-brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  color: var(--tf-text);
+}
+
+.tf-brand span {
+  color: var(--tf-secondary);
+}
+
+.tf-brand--link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tf-brand--link:hover .tf-brand__product {
+  color: var(--tf-accent-bright);
+}
+
+.tf-brand__logo {
+  display: block;
+  height: auto;
+  width: auto;
+  max-height: 2.35rem;
+  max-width: 100%;
+}
+
+.tf-brand__product {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tf-muted);
+}
+
+.tf-brand-logo {
+  display: block;
+  height: auto;
+  width: auto;
+  max-width: 100%;
+}
+
+.tf-brand-logo--hero {
+  max-height: 3.75rem;
+  margin: 0 auto 1rem;
+}
+
+.tf-brand-logo--bar {
+  max-height: 1.85rem;
+}
+
+.tf-landing__top-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+}
+
+@media (max-width: 480px) {
+  .tf-landing__top-actions {
+    position: static;
+    align-self: flex-end;
+    margin: 0 0 0.5rem;
+  }
+}
+
+.tf-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tf-theme-toggle__icon {
+  display: flex;
+  line-height: 0;
+  color: var(--tf-muted);
+}
+
+.tf-theme-toggle__icon .feather {
+  font-size: 1.1rem;
+}
+
+.tf-theme-toggle:hover .tf-theme-toggle__icon {
+  color: inherit;
+}
+
+.tf-theme-toggle__text {
+  font-size: 0.8rem;
+}
+
+.tf-landing__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tf-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .tf-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.tf-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--tf-radius-sm);
+  color: var(--tf-muted);
+  font-size: 0.9rem;
+}
+
+.tf-nav a .feather,
+.tf-nav__icon {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.tf-nav a:hover {
+  color: var(--tf-text);
+  background: var(--tf-surface-2);
+}
+
+.tf-nav a.active {
+  color: var(--tf-text);
+  background: var(--tf-accent-dim);
+  color: var(--tf-accent);
+}
+
+.tf-admin__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tf-admin__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.5rem;
+  background: var(--tf-surface-2);
+  border-bottom: 1px solid var(--tf-border);
+  gap: 1rem;
+}
+
+.tf-admin__topbar-title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--tf-muted);
+}
+
+.tf-pill {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--tf-radius-sm);
+  background: var(--tf-accent-dim);
+  color: var(--tf-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tf-admin__body {
+  padding: 1.5rem;
+  flex: 1;
+}
+
+/* DreamsPOS pages embedded here use .page-wrapper with margin for the main-app sidebar; reset inside TillFlow. */
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page > .content {
+  padding: 0 !important;
+  min-height: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .page-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .card {
+  border-radius: var(--tf-radius-md);
+  border-color: var(--tf-border);
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .footer {
+  display: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .table-responsive {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .p-datatable {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page > .content {
+  padding: 0 !important;
+  min-height: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .page-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .card {
+  border-radius: var(--tf-radius-md);
+  border-color: var(--tf-border);
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .footer {
+  display: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .table-responsive {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .p-datatable {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page > .content {
+  padding: 0 !important;
+  min-height: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .page-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .card {
+  border-radius: var(--tf-radius-md);
+  border-color: var(--tf-border);
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .footer {
+  display: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .table-responsive {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .p-datatable {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page > .content {
+  padding: 0 !important;
+  min-height: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .page-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .card {
+  border-radius: var(--tf-radius-md);
+  border-color: var(--tf-border);
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .footer {
+  display: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .table-responsive {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .p-datatable {
+  width: 100%;
+}
+
+.tf-page-title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.tf-page-lead {
+  color: var(--tf-muted);
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.tf-panel {
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-md);
+  padding: 1.25rem;
+}
+
+.tf-panel--muted {
+  font-size: 0.9rem;
+  color: var(--tf-muted);
+  line-height: 1.5;
+}
+
+.tf-pos {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tf-pos-bg);
+}
+
+.tf-pos__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: var(--tf-surface);
+  border-bottom: 1px solid var(--tf-border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tf-pos__brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.tf-pos__brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.tf-pos__wordmark {
+  color: var(--tf-text);
+}
+
+.tf-pos__wordmark-accent {
+  color: var(--tf-secondary);
+}
+
+.tf-pos__pos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--tf-muted);
+  font-weight: 500;
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tf-pos__pos-badge .feather {
+  font-size: 1rem;
+  color: var(--tf-secondary);
+}
+
+.tf-pos__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.tf-pos__clock {
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+}
+
+.tf-pos__links {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.tf-pos__stage {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tf-pos-register {
+  flex: 1;
+  border-radius: var(--tf-radius-md);
+  border: 2px dashed var(--tf-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  color: var(--tf-muted);
+}
+
+.tf-pos-register__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  color: var(--tf-text);
+  margin: 0 0 0.5rem;
+}
+
+.tf-pos-register__hint {
+  max-width: 22rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tf-link-quiet {
+  color: var(--tf-muted);
+}
+
+.tf-link-quiet:hover {
+  color: var(--tf-text);
+}
+
+.tf-admin__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tf-admin__user {
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-auth-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--tf-muted);
+}
+
+.tf-muted {
+  color: var(--tf-muted);
+  margin: 0;
+}
+
+.tf-panel-title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--tf-text);
+}
+
+.tf-pre {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  overflow: auto;
+  max-height: 14rem;
+  padding: 0.75rem;
+  background: var(--tf-bg);
+  border-radius: var(--tf-radius-md);
+  border: 1px solid var(--tf-border);
+}
+
+.tf-alert {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--tf-radius-md);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.tf-alert--error {
+  background: rgba(240, 100, 100, 0.12);
+  border: 1px solid rgba(240, 100, 100, 0.35);
+  color: #f5a3a3;
+}
+
+.tf-form {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.tf-form--inline {
+  max-width: none;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .tf-form--inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.tf-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+}
+
+.tf-optional {
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.tf-input {
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--tf-radius-sm);
+  border: 1px solid var(--tf-border);
+  background: var(--tf-surface-input);
+  color: var(--tf-text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.tf-input:focus {
+  outline: none;
+  border-color: var(--tf-accent-border-strong);
+  box-shadow: 0 0 0 2px var(--tf-accent-dim);
+}
+
+.tf-field-error {
+  font-size: 0.8rem;
+  color: #f5a3a3;
+}
+
+.tf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--tf-radius-sm);
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--tf-border);
+  background: var(--tf-surface-2);
+  color: var(--tf-text);
+}
+
+.tf-btn__icon {
+  margin-right: 0.35rem;
+  vertical-align: -0.1em;
+}
+
+.tf-btn__icon.feather {
+  font-size: 1rem;
+}
+
+.tf-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tf-btn--primary {
+  background: var(--tf-accent);
+  border-color: var(--tf-accent);
+  color: var(--tf-btn-on-primary);
+  font-weight: 600;
+}
+
+.tf-btn--primary:hover:not(:disabled) {
+  background: var(--tf-btn-primary-hover-bg);
+  border-color: var(--tf-btn-primary-hover-bg);
+  color: var(--tf-btn-on-primary);
+}
+
+.tf-btn--secondary {
+  background: var(--tf-secondary);
+  border-color: var(--tf-secondary);
+  color: var(--tf-btn-on-secondary);
+  font-weight: 600;
+}
+
+.tf-btn--secondary:hover:not(:disabled) {
+  background: var(--tf-btn-secondary-hover-bg);
+  border-color: var(--tf-btn-secondary-hover-bg);
+  color: var(--tf-btn-on-secondary);
+}
+
+.tf-btn--ghost {
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+  border-color: var(--tf-border);
+}
+
+.tf-btn--ghost:hover:not(:disabled) {
+  color: var(--tf-text);
+  border-color: var(--tf-border);
+  background: var(--tf-surface-2);
+}
+
+.tf-btn--sm {
+  padding: 0.35rem 0.65rem;
+}
+
+.tf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tf-table th,
+.tf-table td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-table th {
+  color: var(--tf-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tf-table-wrap {
+  overflow-x: auto;
+}
+
+.tf-input--table {
+  width: 100%;
+  min-width: 8rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tf-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tf-btn--danger {
+  border-color: rgba(240, 100, 100, 0.45);
+  color: #f5a3a3;
+  background: rgba(240, 100, 100, 0.08);
+}
+
+.tf-btn--danger:hover:not(:disabled) {
+  background: rgba(240, 100, 100, 0.18);
+}
+
+.tf-nav-section {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tf-muted);
+  margin: 1rem 0 0.35rem;
+  padding: 0 0.75rem;
+}
+
+/* DreamsPOS-style collapsible nav categories (TillFlow admin) */
+.tf-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tf-nav-group__hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0.85rem 0 0.15rem;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-radius: var(--tf-radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--tf-muted);
+  cursor: pointer;
+  text-align: left;
+  gap: 0.35rem;
+}
+
+.tf-nav-group__hdr:hover {
+  color: var(--tf-text);
+  background: var(--tf-surface-2);
+}
+
+.tf-nav-group__hdr .feather {
+  font-size: 0.9rem;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.tf-nav-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tf-nav--placeholder {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tf-sidebar-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+/* DreamsPOS-style delete dialog (react-bootstrap Modal, portaled under .tillflow-root) */
+.tillflow-root > .modal-backdrop {
+  background: #000;
+}
+
+.tf-delete-modal .modal-dialog {
+  max-width: 400px;
+}
+
+.tf-delete-modal__content.modal-content {
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.tillflow-root--light .tf-delete-modal__content.modal-content {
+  box-shadow: 0 8px 32px rgba(9, 44, 76, 0.14);
+}
+
+.tf-delete-modal__body.modal-body {
+  padding: 2rem 1.25rem 1.75rem !important;
+  text-align: center;
+}
+
+.tf-delete-modal__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem;
+  border-radius: 50%;
+  background: rgba(240, 100, 100, 0.14);
+  margin-bottom: 0.75rem;
+}
+
+.tf-delete-modal__icon {
+  font-size: 1.5rem;
+  color: #f06464;
+}
+
+.tf-delete-modal__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--tf-text);
+  margin: 0 0 0.5rem;
+}
+
+.tf-delete-modal__message {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--tf-muted);
+}
+
+.tf-delete-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.tf-delete-modal__btn {
+  min-width: 6.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+}
+
+@import './tf-add-item';
+@import './tf-item-list';
+
+/* —— Light theme — DreamsPOS layout neutrals + brand primary/secondary —— */
+.tillflow-root--light {
+  color-scheme: light;
+  --tf-bg: #fafbfe;
+  --tf-surface: #ffffff;
+  --tf-surface-2: #f1f5f6;
+  --tf-surface-input: #ffffff;
+  --tf-border: #e6eaed;
+  --tf-text: #212b36;
+  --tf-muted: #000000;
+  --tf-secondary: #f89624;
+  --tf-accent: #419edd;
+  --tf-accent-bright: #2b8fd4;
+  --tf-accent-dim: rgba(65, 158, 221, 0.14);
+  --tf-accent-border: rgba(65, 158, 221, 0.42);
+  --tf-accent-border-strong: rgba(65, 158, 221, 0.55);
+  --tf-accent-hover-bg: rgba(65, 158, 221, 0.18);
+  --tf-accent-hover-bg-strong: rgba(65, 158, 221, 0.26);
+  --tf-pos-bg: #f1f5f6;
+  --tf-shadow-card: 0 4px 24px rgba(65, 158, 221, 0.1);
+  --tf-btn-on-primary: #ffffff;
+  --tf-btn-on-secondary: #ffffff;
+  --tf-btn-primary-hover-bg: #2d8ec8;
+  --tf-btn-secondary-hover-bg: #e88920;
+}
+
+.tillflow-root--light .tf-landing {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(65, 158, 221, 0.16), transparent),
+    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(248, 150, 36, 0.1), transparent),
+    var(--tf-bg);
+}
+
+.tillflow-root--light .tf-card:hover {
+  box-shadow: var(--tf-shadow-card);
+}
+
+.tillflow-root--light .tf-alert--error {
+  background: rgba(196, 60, 60, 0.1);
+  border-color: rgba(196, 60, 60, 0.28);
+  color: #9a2525;
+}
+
+.tillflow-root--light .tf-field-error {
+  color: #b02828;
+}
+
+.tillflow-root--light .tf-btn--danger {
+  border-color: rgba(196, 60, 60, 0.4);
+  color: #a02828;
+  background: rgba(196, 60, 60, 0.08);
+}
+
+.tillflow-root--light .tf-btn--danger:hover:not(:disabled) {
+  background: rgba(196, 60, 60, 0.16);
+}
+
+.tillflow-root.tillflow-root--light .tf-add-item .accordion-button::after {
+  filter: none;
+}
+
+.tillflow-root.tillflow-root--light .tf-add-item .alert-danger {
+  background: rgba(196, 60, 60, 0.1);
+  border-color: rgba(196, 60, 60, 0.28);
+  color: #8f2222;
+}
+
+.tillflow-root--light .tf-item-list-page .btn.btn-primary:disabled,
+.tillflow-root--light .tf-item-list-page .btn.btn-secondary:disabled {
+  background: #94a3b8;
+  border-color: #94a3b8;
+  color: #ffffff;
+}
+
+/* Barcode print sheet: on-screen it stays off-canvas so labels still render; print shows grid only */
+.tf-barcode-print-sheet {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 210mm;
+  max-width: 100%;
+  padding: 10mm 8mm;
+  background: #ffffff;
+  color: #111111;
+  box-sizing: border-box;
+  transform: translateX(-120vw);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.tf-barcode-print-sheet__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 10mm;
+}
+
+.tf-barcode-print-sheet__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10mm 8mm;
+  align-items: start;
+}
+
+.tf-barcode-print-label {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6mm 4mm;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.tf-barcode-print-label__name {
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 2mm;
+  line-height: 1.25;
+  max-height: 2.5em;
+  overflow: hidden;
+}
+
+.tf-barcode-print-label__code {
+  font-size: 9px;
+  margin-top: 2mm;
+  color: #334155;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  .tf-admin__sidebar,
+  .tf-admin__topbar,
+  .tf-print-barcode-ui,
+  .modal,
+  .modal-backdrop {
+    display: none !important;
+  }
+
+  .tf-admin__body {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .tf-admin__main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .tf-barcode-print-sheet {
+    position: static !important;
+    transform: none !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .tillflow-root {
+    background: #fff !important;
+    color: #111 !important;
+  }
+}
+
+@media screen and (max-width: 991.98px) {
+  .tf-barcode-print-sheet__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

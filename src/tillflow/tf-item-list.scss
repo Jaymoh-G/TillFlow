@@ -1,0 +1,310 @@
+/* DreamsPOS product-list style inside TillFlow admin */
+.tillflow-root .tf-item-list-page {
+  min-width: 0;
+
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .page-title h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--tf-text);
+  }
+
+  .page-title h6 {
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--tf-muted);
+    font-weight: 400;
+  }
+
+  .table-top-head {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .table-top-head a,
+  .table-top-head button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    border: 1px solid var(--tf-border);
+    background: var(--tf-surface-2);
+    color: var(--tf-muted);
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .table-top-head a:hover,
+  .table-top-head button:hover:not(:disabled) {
+    color: var(--tf-accent);
+    border-color: var(--tf-accent-border);
+  }
+
+  .table-top-head button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .page-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn.btn-primary,
+  .btn.btn-secondary {
+    color: #ffffff;
+  }
+
+  .btn.btn-primary i,
+  .btn.btn-secondary i {
+    color: inherit;
+  }
+
+  .btn.btn-primary {
+    background: var(--tf-accent);
+    border-color: var(--tf-accent);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .btn.btn-primary:hover:not(:disabled) {
+    background: var(--tf-btn-primary-hover-bg);
+    border-color: var(--tf-btn-primary-hover-bg);
+    color: #ffffff;
+  }
+
+  .btn.btn-primary:disabled {
+    opacity: 1;
+    background: #4b5563;
+    border-color: #4b5563;
+    color: #ffffff;
+    cursor: not-allowed;
+  }
+
+  .btn.btn-secondary.color,
+  .btn.btn-secondary {
+    background: var(--tf-secondary);
+    border-color: var(--tf-secondary);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .btn.btn-secondary:hover:not(:disabled) {
+    background: var(--tf-btn-secondary-hover-bg);
+    border-color: var(--tf-btn-secondary-hover-bg);
+    color: #ffffff;
+  }
+
+  .btn.btn-secondary:disabled {
+    opacity: 1;
+    background: #4b5563;
+    border-color: #4b5563;
+    color: #ffffff;
+    cursor: not-allowed;
+  }
+
+  .pagination-block .btn.btn-sm {
+    min-width: 5.5rem;
+  }
+
+  .card.table-list-card {
+    background: var(--tf-surface);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* Autocomplete / dropdowns inside the card need to extend past the rounded box */
+  .card.table-list-card.table-list-card--overflow-visible {
+    overflow: visible;
+    position: relative;
+    z-index: 5;
+  }
+
+  .card-header {
+    background: var(--tf-surface);
+    border-bottom: 1px solid var(--tf-border);
+    color: var(--tf-text);
+  }
+
+  .card-body {
+    background: var(--tf-surface);
+    color: var(--tf-text);
+  }
+
+  .search-set .form-control {
+    background: var(--tf-surface-input);
+    border-color: var(--tf-border);
+    color: var(--tf-text);
+    min-width: 12rem;
+  }
+
+  .btn-white {
+    background: var(--tf-surface-2) !important;
+    border: 1px solid var(--tf-border) !important;
+    color: var(--tf-text) !important;
+  }
+
+  .dropdown-menu {
+    background: var(--tf-surface-2);
+    border-color: var(--tf-border);
+  }
+
+  .dropdown-item {
+    color: var(--tf-text);
+  }
+
+  .dropdown-item:hover {
+    background: var(--tf-surface);
+    color: var(--tf-accent);
+  }
+
+  .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--tf-text);
+    --bs-table-border-color: var(--tf-border);
+    margin-bottom: 0;
+  }
+
+  .table thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tf-muted);
+    font-weight: 600;
+    white-space: nowrap;
+    border-bottom-color: var(--tf-border);
+    background: var(--tf-surface-2);
+  }
+
+  .table tbody td {
+    vertical-align: middle;
+    border-color: var(--tf-border);
+  }
+
+  .avatar.avatar-md {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--tf-accent-dim);
+    color: var(--tf-accent);
+  }
+
+  .avatar.avatar-md img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .userimgname {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .userimgname .product-img,
+  .userimgname img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .edit-delete-action a,
+  .edit-delete-action button {
+    border-color: var(--tf-border) !important;
+    color: var(--tf-muted) !important;
+    background: transparent !important;
+  }
+
+  .edit-delete-action a:hover,
+  .edit-delete-action button:hover {
+    color: var(--tf-accent) !important;
+    border-color: var(--tf-accent-border) !important;
+  }
+
+  .pagination-block {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--tf-border);
+    margin-top: 0;
+    font-size: 0.85rem;
+    color: var(--tf-muted);
+  }
+
+  .form-select.form-select-sm {
+    background: var(--tf-surface-2);
+    border-color: var(--tf-border);
+    color: var(--tf-text);
+    width: auto;
+  }
+
+  .checkboxs {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+  }
+
+  .checkboxs input {
+    opacity: 0;
+    position: absolute;
+  }
+
+  .checkmarks {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--tf-border);
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .checkboxs input:checked + .checkmarks {
+    background: var(--tf-accent);
+    border-color: var(--tf-accent);
+  }
+
+  .tf-print-barcode-suggest {
+    background: var(--tf-surface-2);
+    border-color: var(--tf-border) !important;
+  }
+
+  .tf-print-barcode-suggest .list-group-item {
+    background: var(--tf-surface-2);
+    color: var(--tf-text);
+    border-color: var(--tf-border) !important;
+  }
+
+  .tf-print-barcode-suggest .list-group-item:hover {
+    background: var(--tf-surface);
+    color: var(--tf-accent);
+  }
+}

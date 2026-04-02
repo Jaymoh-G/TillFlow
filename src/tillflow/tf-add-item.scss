@@ -1,0 +1,213 @@
+/* DreamsPOS-like add form inside TillFlow dark admin (Bootstrap grid + accordion). */
+.tillflow-root .tf-add-item {
+  max-width: 100%;
+
+  .content-inner {
+    min-width: 0;
+  }
+
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .page-title h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    color: var(--tf-text);
+  }
+
+  .page-title h6 {
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--tf-muted);
+    font-weight: 400;
+  }
+
+  .table-top-head {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .accordion-item {
+    background: var(--tf-surface);
+    border-color: var(--tf-border) !important;
+  }
+
+  .accordion-button {
+    background: var(--tf-surface) !important;
+    color: var(--tf-text) !important;
+    box-shadow: none !important;
+  }
+
+  .accordion-button:not(.collapsed) {
+    background: var(--tf-surface-2) !important;
+  }
+
+  .accordion-button::after {
+    filter: invert(0.85);
+  }
+
+  .accordion-body {
+    background: var(--tf-surface);
+    color: var(--tf-text);
+  }
+
+  .form-label {
+    color: var(--tf-muted);
+    font-size: 0.85rem;
+  }
+
+  .form-control,
+  .form-select {
+    background: var(--tf-surface-input);
+    border-color: var(--tf-border);
+    color: var(--tf-text);
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    background: var(--tf-surface-input);
+    border-color: var(--tf-accent-border-strong);
+    color: var(--tf-text);
+    box-shadow: 0 0 0 2px var(--tf-accent-dim);
+  }
+
+  .btn-primaryadd {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.25rem 0.65rem;
+    font-size: 0.8rem;
+    border-radius: 6px;
+    border: 1px solid var(--tf-accent);
+    background: var(--tf-accent);
+    color: var(--tf-btn-on-primary);
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .btn-primaryadd:hover {
+    background: var(--tf-btn-primary-hover-bg);
+    border-color: var(--tf-btn-primary-hover-bg);
+    color: var(--tf-btn-on-primary);
+  }
+
+  .list.position-relative .form-control {
+    padding-right: 5.5rem;
+  }
+
+  .add-newplus {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .plus-down-add {
+    font-size: 1rem;
+  }
+
+  .single-pill-product .custom_radio {
+    cursor: pointer;
+    color: var(--tf-muted);
+    font-size: 0.9rem;
+  }
+
+  .single-pill-product .custom_radio.active {
+    color: var(--tf-accent);
+  }
+
+  .table {
+    --bs-table-bg: var(--tf-surface-2);
+    --bs-table-color: var(--tf-text);
+    border-color: var(--tf-border);
+  }
+
+  .bg-light {
+    background: var(--tf-surface-2) !important;
+    color: var(--tf-text);
+    border-color: var(--tf-border) !important;
+  }
+
+  .btn.btn-secondary {
+    background: var(--tf-secondary);
+    border-color: var(--tf-secondary);
+    color: var(--tf-btn-on-secondary);
+    font-weight: 600;
+  }
+
+  .btn.btn-secondary:hover:not(:disabled) {
+    background: var(--tf-btn-secondary-hover-bg);
+    border-color: var(--tf-btn-secondary-hover-bg);
+    color: var(--tf-btn-on-secondary);
+  }
+
+  .btn.btn-secondary:disabled {
+    opacity: 1;
+    background: var(--tf-surface-2);
+    border-color: var(--tf-border);
+    color: var(--tf-muted);
+    cursor: not-allowed;
+  }
+
+  .btn.btn-primary {
+    background: var(--tf-accent);
+    border-color: var(--tf-accent);
+    color: var(--tf-btn-on-primary);
+    font-weight: 600;
+  }
+
+  .btn.btn-primary:hover:not(:disabled) {
+    background: var(--tf-btn-primary-hover-bg);
+    border-color: var(--tf-btn-primary-hover-bg);
+    color: var(--tf-btn-on-primary);
+  }
+
+  .btn.btn-primary:disabled {
+    opacity: 1;
+    background: var(--tf-surface-2);
+    border-color: var(--tf-border);
+    color: var(--tf-muted);
+    cursor: not-allowed;
+  }
+
+  .image-uploads {
+    border: 2px dashed var(--tf-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--tf-muted);
+  }
+
+  .text-primary {
+    color: var(--tf-accent) !important;
+  }
+
+  .text-muted {
+    color: var(--tf-muted) !important;
+  }
+
+  .alert-danger {
+    background: rgba(240, 100, 100, 0.12);
+    border-color: rgba(240, 100, 100, 0.35);
+    color: #f5a3a3;
+  }
+
+  .custom_radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+  }
+
+  .custom_radio input {
+    margin: 0;
+  }
+}
