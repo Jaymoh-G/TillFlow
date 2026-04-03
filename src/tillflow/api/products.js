@@ -4,6 +4,11 @@ export function listProductsRequest(token) {
   return tillflowFetch('/products', { token });
 }
 
+/** Same payload as GET /products, but allowed with sales.manage only (for quotations / POS). */
+export function listSalesCatalogProductsRequest(token) {
+  return tillflowFetch('/sales/catalog-products', { token });
+}
+
 export function getProductRequest(token, id) {
   return tillflowFetch(`/products/${id}`, { token });
 }
