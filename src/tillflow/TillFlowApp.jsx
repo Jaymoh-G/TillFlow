@@ -18,6 +18,15 @@ import ManageStock from '../feature-module/stock/manage-stock';
 import StockAdjustment from '../feature-module/stock/stock-adjustment';
 import StockTransfer from '../feature-module/stock/stock-transfer';
 import ManageStores from '../feature-module/stores/manage-stores';
+import PosOrder from '../feature-module/sales/pos-order/posOrder';
+import OnlineOrder from '../feature-module/sales/online-order/online-orders';
+import QuotationList from '../feature-module/sales/quotationlist';
+import Invoice from '../feature-module/sales/invoicereport';
+import SalesReturn from '../feature-module/sales/salesreturn';
+import Customers from '../feature-module/people/customers';
+import Biller from '../feature-module/people/billers';
+import Suppliers from '../feature-module/people/suppliers';
+import StoreList from '../feature-module/people/store-list';
 import PosRegister from './pages/PosRegister';
 import TillFlowLanding from './pages/TillFlowLanding';
 import TillFlowLogin from './pages/TillFlowLogin';
@@ -51,6 +60,15 @@ export default function TillFlowApp() {
                 <Route path="stock-transfer" element={<StockTransfer />} />
                 <Route path="stores" element={<ManageStores />} />
                 <Route path="print-barcode" element={<AdminPrintBarcode />} />
+                <Route path="pos-orders" element={<PosOrder />} />
+                <Route path="online-orders" element={<OnlineOrder />} />
+                <Route path="quotations" element={<QuotationList />} />
+                <Route path="invoices" element={<Invoice />} />
+                <Route path="sales-returns" element={<SalesReturn />} />
+                <Route path="customers" element={<Customers />} />
+                <Route path="billers" element={<Biller />} />
+                <Route path="suppliers" element={<Suppliers />} />
+                <Route path="store-managers" element={<StoreList />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="brands" element={<AdminBrands />} />
                 <Route path="units" element={<AdminUnits />} />

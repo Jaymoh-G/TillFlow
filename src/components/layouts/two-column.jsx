@@ -603,7 +603,7 @@ const TwoColumnSidebar = () => {
                     </li>
                     <li>
                       <Link to={route.storelist}>
-                        <span>Stores</span>
+                        <span>Store managers</span>
                       </Link>
                     </li>
                     <li>

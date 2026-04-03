@@ -96,3 +96,9 @@ export function useAuth() {
   }
   return ctx;
 }
+
+/** Null outside TillFlow `AuthProvider` — use for screens shared with the legacy app router. */
+export function useOptionalAuth() {
+  return useContext(AuthContext);
+}
+

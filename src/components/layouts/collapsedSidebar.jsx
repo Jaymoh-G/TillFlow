@@ -336,6 +336,16 @@ const CollapsedSidebar = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/online-orders">
+                  <span>Online Orders</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/pos-orders">
+                  <span>POS Orders</span>
+                </Link>
+              </li>
+              <li>
                 <Link to="invoice-report">
                   <span>Invoices</span>
                 </Link>
@@ -409,7 +419,7 @@ const CollapsedSidebar = () => {
               </li>
               <li>
                 <Link to="store-list">
-                  <span>Stores</span>
+                  <span>Store managers</span>
                 </Link>
               </li>
             </ul>

@@ -67,7 +67,8 @@ export async function tillflowFetch(path, options = {}) {
  * @returns {Promise<any>}
  */
 export async function tillflowUpload(path, options = {}) {
-  const { method = 'POST', formData, token = null } = options;
+  let method = String(options.method || 'POST').toUpperCase();
+  const { formData, token = null } = options;
   const url = `${TILLFLOW_API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
   /** @type {Record<string, string>} */
@@ -76,7 +77,20 @@ export async function tillflowUpload(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { method, headers, body: formData });
+  // Real HTTP PATCH/PUT with multipart bodies often leaves $_FILES empty on PHP.
+  // POST + method override matches HTML forms and ensures file uploads are parsed.
+  let fetchMethod = method;
+  if (method === 'PATCH' || method === 'PUT') {
+    headers['X-HTTP-Method-Override'] = method;
+    fetchMethod = 'POST';
+    const hasMethodField =
+      typeof formData.has === 'function' && formData.has('_method');
+    if (!hasMethodField) {
+      formData.append('_method', method);
+    }
+  }
+
+  const res = await fetch(url, { method: fetchMethod, headers, body: formData });
   let json = null;
   try {
     json = await res.json();

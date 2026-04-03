@@ -8,6 +8,10 @@ const INVENTORY_PATH_RE =
   /\/tillflow\/admin\/(items|add-product|expired-items|low-stock|categories|brands|units|variant-attributes|warranties)(\/|$)/;
 const STOCK_PATH_RE =
   /\/tillflow\/admin\/(manage-stocks|stock-adjustment|stock-transfer|stores|print-barcode)(\/|$)/;
+const SALES_PATH_RE =
+  /\/tillflow\/admin\/(pos-orders|online-orders|quotations|invoices|sales-returns)(\/|$)/;
+const PEOPLE_PATH_RE =
+  /\/tillflow\/admin\/(customers|billers|suppliers|store-managers)(\/|$)/;
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -16,6 +20,8 @@ export default function AdminLayout() {
 
   const [inventoryOpen, setInventoryOpen] = useState(true);
   const [stockOpen, setStockOpen] = useState(true);
+  const [salesOpen, setSalesOpen] = useState(true);
+  const [peopleOpen, setPeopleOpen] = useState(true);
 
   const syncSectionsToPath = useCallback((pathname) => {
     if (INVENTORY_PATH_RE.test(pathname)) {
@@ -23,6 +29,12 @@ export default function AdminLayout() {
     }
     if (STOCK_PATH_RE.test(pathname)) {
       setStockOpen(true);
+    }
+    if (SALES_PATH_RE.test(pathname)) {
+      setSalesOpen(true);
+    }
+    if (PEOPLE_PATH_RE.test(pathname)) {
+      setPeopleOpen(true);
     }
   }, []);
 
@@ -152,6 +164,90 @@ export default function AdminLayout() {
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-printer tf-nav__icon" aria-hidden />
                   Print barcode
+                </NavLink>
+              </div>
+            ) : null}
+          </div>
+          <div className="tf-nav-group">
+            <button
+              type="button"
+              className="tf-nav-group__hdr"
+              onClick={() => setSalesOpen((v) => !v)}
+              aria-expanded={salesOpen}
+            >
+              Sales
+              <i className={`feather icon-chevron-${salesOpen ? 'up' : 'down'}`} aria-hidden />
+            </button>
+            {salesOpen ? (
+              <div className="tf-nav-group__body">
+                <NavLink
+                  to="/tillflow/admin/online-orders"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-shopping-cart tf-nav__icon" aria-hidden />
+                  Online orders
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/pos-orders"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-file-text tf-nav__icon" aria-hidden />
+                  POS orders
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/quotations"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-clipboard tf-nav__icon" aria-hidden />
+                  Quotations
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/invoices"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-credit-card tf-nav__icon" aria-hidden />
+                  Invoices
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/sales-returns"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-repeat tf-nav__icon" aria-hidden />
+                  Sales returns
+                </NavLink>
+              </div>
+            ) : null}
+          </div>
+          <div className="tf-nav-group">
+            <button
+              type="button"
+              className="tf-nav-group__hdr"
+              onClick={() => setPeopleOpen((v) => !v)}
+              aria-expanded={peopleOpen}
+            >
+              People
+              <i className={`feather icon-chevron-${peopleOpen ? 'up' : 'down'}`} aria-hidden />
+            </button>
+            {peopleOpen ? (
+              <div className="tf-nav-group__body">
+                <NavLink
+                  to="/tillflow/admin/customers"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-users tf-nav__icon" aria-hidden />
+                  Customers
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/billers"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-user-check tf-nav__icon" aria-hidden />
+                  Billers
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/suppliers"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-truck tf-nav__icon" aria-hidden />
+                  Suppliers
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/store-managers"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-shopping-bag tf-nav__icon" aria-hidden />
+                  Store managers
                 </NavLink>
               </div>
             ) : null}

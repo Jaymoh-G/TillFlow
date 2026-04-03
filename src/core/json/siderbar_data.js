@@ -233,18 +233,18 @@ export const SidebarData = [
     showSubRoute: false,
     submenuItems: [
       {
-        label: "Sales",
-        icon: "layout-grid",
+        label: "Online Orders",
+        link: route.onlineorder,
+        icon: "shopping-cart",
         showSubRoute: false,
-        submenu: true,
-        submenuItems: [
-          {
-            label: "Online Orders",
-            link: route.onlineorder,
-            showSubRoute: false,
-          },
-          { label: "POS Orders", link: route.posorder, showSubRoute: false },
-        ],
+        submenu: false,
+      },
+      {
+        label: "POS Orders",
+        link: route.posorder,
+        icon: "receipt",
+        showSubRoute: false,
+        submenu: false,
       },
       {
         label: "Invoices",
@@ -457,7 +457,7 @@ export const SidebarData = [
         submenu: false,
       },
       {
-        label: "Stores",
+        label: "Store managers",
         link: "/store-list",
         icon: "home-bolt",
         showSubRoute: false,

@@ -4,7 +4,12 @@ import { Provider } from "react-redux";
 import { PrimeReactProvider } from "primereact/api";
 import store from "./core/redux/store";
 import AppRouter from "./app.router";
-import "bootstrap/dist/js/bootstrap.bundle.min.js";
+// Single Bootstrap ESM instance: `bootstrap.bundle.min` + `import { Modal } from "bootstrap"`
+// use separate JS heaps and break programmatic hide() after data-bs-toggle open (stuck backdrop).
+import * as bootstrap from "bootstrap";
+if (typeof window !== "undefined") {
+  window.bootstrap = bootstrap;
+}
 import "@tabler/icons-webfont/tabler-icons.min.css";
 import "primereact/resources/themes/saga-blue/theme.css";
 import "primereact/resources/primereact.min.css";

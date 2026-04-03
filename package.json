@@ -17,6 +17,8 @@
     "@tabler/icons-webfont": "^2.47.0",
     "antd": "^5.28.1",
     "jsbarcode": "^3.12.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "react": "^19.2.0",
     "react-bootstrap": "^2.10.10",
     "react-country-flag": "^3.1.0",
@@ -24,7 +26,8 @@
     "react-feather": "^2.0.10",
     "react-select": "^5.10.2",
     "react-simple-wysiwyg": "^3.4.1",
-    "react-star-ratings": "^2.3.0"
+    "react-star-ratings": "^2.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/cli": "^7.28.3",

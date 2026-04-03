@@ -1,15 +1,32 @@
+import { ChevronDown, ChevronUp, RefreshCw } from "react-feather";
 import { excel, pdf } from "../../utils/imagepath";
 import { Tooltip } from "primereact/tooltip";
 import { useSelector } from "react-redux";
 import { useDispatch } from "react-redux";
 import { setToggleHeader } from "../../core/redux/sidebarSlice";
 
-const TableTopHead = ({ onRefresh }) => {
+/**
+ * @param {object} props
+ * @param {() => void} [props.onRefresh]
+ * @param {() => void} [props.onExportPdf]
+ * @param {() => void} [props.onExportExcel]
+ */
+const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel }) => {
   const dispatch = useDispatch();
   const { toggleHeader } = useSelector((state) => state.sidebar);
   const handleToggleHeader = () => {
     dispatch(setToggleHeader(!toggleHeader));
   };
+
+  const exportPdfEnabled = typeof onExportPdf === "function";
+  const exportExcelEnabled = typeof onExportExcel === "function";
+
+  const iconProps = {
+    size: 20,
+    strokeWidth: 1.75,
+    style: { color: "var(--tf-text, currentColor)" }
+  };
+
   return (
     <>
       <Tooltip target=".pr-tooltip" />
@@ -21,9 +38,10 @@ const TableTopHead = ({ onRefresh }) => {
             data-pr-tooltip="Pdf"
             data-pr-position="top"
             aria-label="Pdf"
-            disabled
-            title="Export PDF (coming soon)">
-            <img src={pdf} alt="" />
+            disabled={!exportPdfEnabled}
+            title={exportPdfEnabled ? "Export PDF" : "Export PDF (not available)"}
+            onClick={exportPdfEnabled ? onExportPdf : undefined}>
+            <img src={pdf} alt="" style={{ opacity: exportPdfEnabled ? 1 : 0.45 }} />
           </button>
         </li>
         <li>
@@ -33,48 +51,49 @@ const TableTopHead = ({ onRefresh }) => {
             data-pr-tooltip="Excel"
             data-pr-position="top"
             aria-label="Excel"
-            disabled
-            title="Export Excel (coming soon)">
-            <img src={excel} alt="" />
+            disabled={!exportExcelEnabled}
+            title={exportExcelEnabled ? "Export Excel" : "Export Excel (not available)"}
+            onClick={exportExcelEnabled ? onExportExcel : undefined}>
+            <img src={excel} alt="" style={{ opacity: exportExcelEnabled ? 1 : 0.45 }} />
           </button>
         </li>
         <li>
           {typeof onRefresh === "function" ? (
             <button
               type="button"
-              className="pr-tooltip border-0 bg-transparent p-0"
+              className="pr-tooltip border-0 bg-transparent p-0 d-inline-flex align-items-center justify-content-center"
               data-pr-tooltip="Refresh"
               data-pr-position="top"
               onClick={onRefresh}
               title="Refresh">
-              <i className="ti ti-refresh" />
+              <RefreshCw {...iconProps} />
             </button>
           ) : (
             <span
-              className="pr-tooltip d-inline-flex"
+              className="pr-tooltip d-inline-flex align-items-center justify-content-center"
               data-pr-tooltip="Refresh"
               data-pr-position="top"
               aria-hidden>
-              <i className="ti ti-refresh text-muted" />
+              <RefreshCw size={20} strokeWidth={1.75} className="text-muted" />
             </span>
           )}
         </li>
         <li>
           <button
             type="button"
-            className="pr-tooltip border-0 bg-transparent p-0"
+            className="pr-tooltip border-0 bg-transparent p-0 d-inline-flex align-items-center justify-content-center"
             data-pr-tooltip="Collapse"
             data-pr-position="top"
             id="collapse-header"
             onClick={handleToggleHeader}
-            aria-label="Toggle header collapse">
-            <i
-              className={`ti  ${toggleHeader ? "ti-chevron-down" : "ti-chevron-up"}`} />
+            aria-label="Toggle header collapse"
+            title="Collapse header">
+            {toggleHeader ? <ChevronDown {...iconProps} /> : <ChevronUp {...iconProps} />}
           </button>
         </li>
       </ul>
-    </>);
-
+    </>
+  );
 };
 
 export default TableTopHead;
