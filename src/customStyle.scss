@@ -2583,3 +2583,56 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
   background: #ffeddc;
 }
 
+.page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
+  min-height: 2.75rem;
+  width: 100%;
+}
+
+.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table thead th {
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .quote-line-col-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-right: -2px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+
+  &:hover {
+    background: rgba(254, 159, 67, 0.25);
+  }
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-row-drag {
+  cursor: grab;
+  user-select: none;
+  vertical-align: middle !important;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+

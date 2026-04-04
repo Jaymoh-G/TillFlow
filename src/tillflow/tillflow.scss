@@ -639,6 +639,61 @@
   width: 100%;
 }
 
+/* Quotation form: catalog quick-add dropdown must stay visible (Prime dropdown trigger height). */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
+  min-height: 2.75rem;
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table thead th {
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .quote-line-col-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-right: -2px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+
+  &:hover {
+    background: rgba(254, 159, 67, 0.25);
+  }
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-row-drag {
+  cursor: grab;
+  user-select: none;
+  vertical-align: middle !important;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+
 .tf-admin .tf-admin__body .page-wrapper.sales-return-page {
   margin-left: 0 !important;
   margin-right: 0 !important;

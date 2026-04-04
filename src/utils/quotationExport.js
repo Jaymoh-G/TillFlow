@@ -7,12 +7,13 @@ function formatMoney(n) {
 }
 
 /**
- * @param {Array<{ quoteRef?: string, quotedDate?: string, Product_Name?: string, Custmer_Name?: string, Total?: string | number, Status?: string }>} rows
+ * @param {Array<{ quoteRef?: string, quotedDate?: string, expiresAtIso?: string | null, Product_Name?: string, Custmer_Name?: string, Total?: string | number, Status?: string }>} rows
  */
 function rowsToExportRecords(rows) {
   return rows.map((r) => ({
     "Quote #": String(r.quoteRef ?? ""),
     Date: String(r.quotedDate ?? ""),
+    Expiry: r.expiresAtIso ? String(r.expiresAtIso) : "",
     Product: String(r.productsExportLabel ?? r.Product_Name ?? ""),
     Customer: String(r.Custmer_Name ?? ""),
     Total: typeof r.Total === "number" ? formatMoney(r.Total) : String(r.Total ?? ""),
@@ -39,6 +40,7 @@ export async function downloadQuotationsPdf(rows) {
   const body = rows.map((r) => [
     String(r.quoteRef ?? ""),
     String(r.quotedDate ?? ""),
+    r.expiresAtIso ? String(r.expiresAtIso) : "—",
     String(r.productsExportLabel ?? r.Product_Name ?? ""),
     String(r.Custmer_Name ?? ""),
     typeof r.Total === "number" ? formatMoney(r.Total) : String(r.Total ?? ""),
@@ -46,7 +48,7 @@ export async function downloadQuotationsPdf(rows) {
   ]);
   autoTable(doc, {
     startY: 22,
-    head: [["Quote #", "Date", "Product", "Customer", "Total", "Status"]],
+    head: [["Quote #", "Date", "Expiry", "Product", "Customer", "Total", "Status"]],
     body,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [65, 158, 221] }
