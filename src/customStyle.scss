@@ -2602,6 +2602,13 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
 .page-wrapper.quotation-list-page .quotation-line-items-table {
   table-layout: fixed;
   width: 100%;
+
+  &.table > :not(caption) > * > * {
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
 }
 
 .page-wrapper.quotation-list-page .quotation-line-items-table thead th {
@@ -2615,8 +2622,8 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 8px;
-  margin-right: -2px;
+  width: 5px;
+  margin-right: -1px;
   cursor: col-resize;
   z-index: 2;
   touch-action: none;
@@ -2627,12 +2634,239 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
 }
 
 .page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-row-drag {
-  cursor: grab;
+  cursor: default;
   user-select: none;
   vertical-align: middle !important;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  color: inherit;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
 
   &:active {
     cursor: grabbing;
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+  }
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table textarea.qt-line-desc-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table textarea.qt-line-item-textarea {
+  resize: vertical;
+  min-height: 2.75rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-action-group {
+  gap: 0.125rem;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-action-btn {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Line-item add (+): TillFlow blue — vars + !important beat DreamsPOS [data-color] .btn-outline-primary rules */
+.page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-action-btn.btn-outline-primary {
+  --bs-btn-color: var(--tf-accent, #419edd);
+  --bs-btn-border-color: var(--tf-accent, #419edd);
+  --bs-btn-hover-color: var(--tf-btn-on-primary, #fff);
+  --bs-btn-hover-bg: var(--tf-accent, #419edd);
+  --bs-btn-hover-border-color: var(--tf-accent, #419edd);
+  --bs-btn-focus-shadow-rgb: 65, 158, 221;
+  --bs-btn-active-color: var(--tf-btn-on-primary, #fff);
+  --bs-btn-active-bg: var(--tf-accent, #419edd);
+  --bs-btn-active-border-color: var(--tf-accent, #419edd);
+  --bs-btn-disabled-color: var(--tf-accent, #419edd);
+  --bs-btn-disabled-border-color: var(--tf-accent, #419edd);
+  color: var(--tf-accent, #419edd) !important;
+  border-color: var(--tf-accent, #419edd) !important;
+}
+
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-action-btn.btn-outline-primary:hover:not(:disabled),
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-action-btn.btn-outline-primary:focus,
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-action-btn.btn-outline-primary:focus-visible,
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-action-btn.btn-outline-primary:active {
+  color: var(--tf-btn-on-primary, #fff) !important;
+  background-color: var(--tf-accent, #419edd) !important;
+  border-color: var(--tf-accent, #419edd) !important;
+}
+
+.page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-item-row--empty .btn-outline-primary {
+  --bs-btn-color: var(--tf-accent, #419edd);
+  --bs-btn-border-color: var(--tf-accent, #419edd);
+  --bs-btn-hover-color: var(--tf-btn-on-primary, #fff);
+  --bs-btn-hover-bg: var(--tf-accent, #419edd);
+  --bs-btn-hover-border-color: var(--tf-accent, #419edd);
+  --bs-btn-focus-shadow-rgb: 65, 158, 221;
+  --bs-btn-active-color: var(--tf-btn-on-primary, #fff);
+  --bs-btn-active-bg: var(--tf-accent, #419edd);
+  --bs-btn-active-border-color: var(--tf-accent, #419edd);
+  --bs-btn-disabled-color: var(--tf-accent, #419edd);
+  --bs-btn-disabled-border-color: var(--tf-accent, #419edd);
+  color: var(--tf-accent, #419edd) !important;
+  border-color: var(--tf-accent, #419edd) !important;
+}
+
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-item-row--empty
+  .btn-outline-primary:hover:not(:disabled),
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-item-row--empty
+  .btn-outline-primary:focus,
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-item-row--empty
+  .btn-outline-primary:focus-visible,
+.page-wrapper.quotation-list-page
+  .quotation-line-items-table
+  .quotation-line-item-row--empty
+  .btn-outline-primary:active {
+  color: var(--tf-btn-on-primary, #fff) !important;
+  background-color: var(--tf-accent, #419edd) !important;
+  border-color: var(--tf-accent, #419edd) !important;
+}
+
+/* Quotation view modal: print only the document card (hide chrome, backdrop noise) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .quotation-view-print-root,
+  .quotation-view-print-root * {
+    visibility: visible;
+  }
+
+  .quotation-view-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .quotation-view-modal.modal,
+  .quotation-view-modal .modal-dialog,
+  .quotation-view-modal .modal-content,
+  .quotation-view-modal .modal-body {
+    all: unset;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .quotation-view-modal .modal-body .p-3 {
+    padding: 0 !important;
+  }
+
+  .quotation-view-no-print {
+    display: none !important;
+  }
+
+  .modal-backdrop {
+    display: none !important;
+  }
+
+  body.modal-open {
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+}
+
+/* Settings: keep the left nav column from stretching; remove extra gap before the form/card. */
+.settings-wrapper.d-flex {
+  gap: 24px;
+  align-items: flex-start;
+
+  > .settings-layout__nav {
+    flex: 0 0 auto;
+    width: 309px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  > .settings-layout__nav .settings-sidebar {
+    width: 100% !important;
+    max-width: 100%;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  > .settings-layout__nav .settings-sidebar .slimScrollDiv {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  > .card.flex-fill {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Bank list (and similar) uses a wrapper instead of .card — fill remaining row width */
+  > .settings-page-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+  }
+
+  @media (max-width: 1398.98px) {
+    > .settings-layout__nav {
+      width: 250px;
+    }
+  }
+
+  @media (max-width: 1199.96px) {
+    > .settings-layout__nav {
+      width: 200px;
+    }
+  }
+}
+
+.settings-sidebar__scroll {
+  max-height: min(70vh, calc(100vh - 140px));
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 

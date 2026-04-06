@@ -1,11 +1,89 @@
-import { useState } from "react";
-import { Scrollbar } from "react-scrollbars-custom";
+import { useEffect, useState } from "react";
 import { all_routes } from "../../../routes/all_routes";
 import { Link, useLocation } from "react-router-dom";
 
 const SettingsSideBar = (props) => {
   const route = all_routes;
   const location = useLocation();
+  const profileSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminProfile
+    : route.generalsettings;
+  const companySettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminCompanySettings
+    : route.companysettings;
+  const securitySettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSecurity
+    : route.securitysettings;
+  const systemSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSystemSettings
+    : route.systemsettings;
+  const preferenceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminPreference
+    : route.preference;
+  const appearanceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminAppearance
+    : route.appearance;
+  const socialAuthSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSocialAuth
+    : route.socialauthendication;
+  const notificationSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminNotification
+    : route.notification;
+  const connectedAppsSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminConnectedApps
+    : route.connectedapps;
+  const invoiceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminInvoiceSettings
+    : route.invoicesettings;
+  const printerSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminPrinterSettings
+    : route.printersettings;
+  const posSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminPosSettings
+    : route.possettings;
+  const signaturesSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSignatures
+    : route.signatures;
+  const customFieldsSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminCustomFields
+    : route.customfields;
+  const emailSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminEmailSettings
+    : route.emailsettings;
+  const emailTemplatesPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminEmailTemplates
+    : route.emailtemplate;
+  const smsGatewayPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSmsGateway
+    : route.smssettings;
+  const smsTemplatesPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminSmsTemplates
+    : route.smstemplate;
+  const otpSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminOtpSettings
+    : route.otpsettings;
+  const gdprSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminGdprSettings
+    : route.gdbrsettings;
+  const paymentGatewayPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminPaymentGateway
+    : route.paymentgateway;
+  const bankAccountsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminBankAccounts
+    : route.banksettingsgrid;
+  const taxRatesPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminTaxRates
+    : route.taxrates;
+  const currencySettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminCurrencySettings
+    : route.currencysettings;
+  const storageSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminStorageSettings
+    : route.storagesettings;
+  const banIpAddressPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminBanIpAddress
+    : route.banipaddress;
+
   const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState(false);
   const [isWebsiteSettingsOpen, setIsWebsiteSettingsOpen] = useState(false);
 
@@ -46,17 +124,92 @@ const SettingsSideBar = (props) => {
   const toggleSms = () => {
     setSms((prev) => !prev);
   };
+
+  useEffect(() => {
+    const p = location.pathname;
+    if (
+      p === route.generalsettings ||
+      p === route.tillflowAdminProfile ||
+      p === route.securitysettings ||
+      p === route.tillflowAdminSecurity ||
+      p === route.notification ||
+      p === route.tillflowAdminNotification ||
+      p === route.connectedapps ||
+      p === route.tillflowAdminConnectedApps
+    ) {
+      setIsGeneralSettingsOpen(true);
+    }
+    if (
+      p === route.systemsettings ||
+      p === route.tillflowAdminSystemSettings ||
+      p === route.companysettings ||
+      p === route.tillflowAdminCompanySettings ||
+      p === route.preference ||
+      p === route.tillflowAdminPreference ||
+      p === route.appearance ||
+      p === route.tillflowAdminAppearance ||
+      p === route.socialauthendication ||
+      p === route.tillflowAdminSocialAuth
+    ) {
+      setIsWebsiteSettingsOpen(true);
+    }
+    if (
+      p === route.invoicesettings ||
+      p === route.tillflowAdminInvoiceSettings ||
+      p === route.printersettings ||
+      p === route.tillflowAdminPrinterSettings ||
+      p === route.possettings ||
+      p === route.tillflowAdminPosSettings ||
+      p === route.signatures ||
+      p === route.tillflowAdminSignatures ||
+      p === route.customfields ||
+      p === route.tillflowAdminCustomFields
+    ) {
+      setIsAppSettingsOpen(true);
+    }
+    if (
+      p === route.emailsettings ||
+      p === route.tillflowAdminEmailSettings ||
+      p === route.emailtemplate ||
+      p === route.tillflowAdminEmailTemplates ||
+      p === route.smssettings ||
+      p === route.tillflowAdminSmsGateway ||
+      p === route.smstemplate ||
+      p === route.tillflowAdminSmsTemplates ||
+      p === route.otpsettings ||
+      p === route.tillflowAdminOtpSettings ||
+      p === route.gdbrsettings ||
+      p === route.tillflowAdminGdprSettings
+    ) {
+      setIsSystemSettingsOpen(true);
+    }
+    if (
+      p === route.paymentgateway ||
+      p === route.tillflowAdminPaymentGateway ||
+      p === route.banksettingslist ||
+      p === route.banksettingsgrid ||
+      p === route.tillflowAdminBankAccounts ||
+      p === route.taxrates ||
+      p === route.tillflowAdminTaxRates ||
+      p === route.currencysettings ||
+      p === route.tillflowAdminCurrencySettings
+    ) {
+      setIsFinancialSettingsOpen(true);
+    }
+    if (
+      p === route.storagesettings ||
+      p === route.tillflowAdminStorageSettings ||
+      p === route.banipaddress ||
+      p === route.tillflowAdminBanIpAddress
+    ) {
+      setIsOtherSettingsOpen(true);
+    }
+  }, [location.pathname, route]);
+
   return (
-    <div>
+    <div className="settings-layout__nav" {...props}>
       <div className="settings-sidebar" id="sidebar2">
-        <div className="sidebar-inner slimscroll">
-          <Scrollbar
-            style={{ marginRight: -5, height: 800 }}
-            autoHide
-            autoHeight
-            autoHeightMin={400}
-            {...props}>
-            
+        <div className="sidebar-inner slimscroll settings-sidebar__scroll">
             <div id="sidebar-menu5" className="sidebar-menu">
               <h4 className="fw-bold fs-18 mb-2 pb-2">Settings</h4>
               <ul>
@@ -68,13 +221,17 @@ const SettingsSideBar = (props) => {
                         onClick={toggleGeneralSettings}
                         className={
                         location.pathname === route.generalsettings ||
+                        location.pathname === route.tillflowAdminProfile ||
                         location.pathname === route.securitysettings ||
+                        location.pathname === route.tillflowAdminSecurity ||
                         location.pathname === route.notification ||
-                        location.pathname == route.connectedapps ?
+                        location.pathname === route.tillflowAdminNotification ||
+                        location.pathname === route.connectedapps ||
+                        location.pathname === route.tillflowAdminConnectedApps ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-settings fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           General Settings
@@ -85,52 +242,56 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isGeneralSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
-                            to={route.generalsettings}
+                            to={profileSettingsPath}
                             className={
-                            location.pathname === route.generalsettings ?
+                            location.pathname === route.generalsettings ||
+                            location.pathname === route.tillflowAdminProfile ?
                             "active" :
                             ""
                             }>
-                            
+
                             Profile
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.securitysettings}
+                            to={securitySettingsPath}
                             className={
-                            location.pathname === route.securitysettings ?
+                            location.pathname === route.securitysettings ||
+                            location.pathname === route.tillflowAdminSecurity ?
                             "active" :
                             ""
                             }>
-                            
+
                             Security
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.notification}
+                            to={notificationSettingsPath}
                             className={
-                            location.pathname === route.notification ?
+                            location.pathname === route.notification ||
+                            location.pathname === route.tillflowAdminNotification ?
                             "active" :
                             ""
                             }>
-                            
+
                             Notifications
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.connectedapps}
+                            to={connectedAppsSettingsPath}
                             className={
-                            location.pathname === route.connectedapps ?
+                            location.pathname === route.connectedapps ||
+                            location.pathname === route.tillflowAdminConnectedApps ?
                             "active" :
                             ""
                             }>
-                            
+
                             Connected Apps
                           </Link>
                         </li>
@@ -142,17 +303,19 @@ const SettingsSideBar = (props) => {
                         onClick={toggleWebsiteSettings}
                         className={
                         location.pathname === route.systemsettings ||
+                        location.pathname === route.tillflowAdminSystemSettings ||
                         location.pathname === route.companysettings ||
-                        location.pathname === route.localizationsettings ||
-                        location.pathname == route.prefixes ||
-                        location.pathname == route.preference ||
-                        location.pathname == route.appearance ||
-                        location.pathname == route.socialauthendication ||
-                        location.pathname == route.languagesettings ?
+                        location.pathname === route.tillflowAdminCompanySettings ||
+                        location.pathname === route.preference ||
+                        location.pathname === route.tillflowAdminPreference ||
+                        location.pathname === route.appearance ||
+                        location.pathname === route.tillflowAdminAppearance ||
+                        location.pathname === route.socialauthendication ||
+                        location.pathname === route.tillflowAdminSocialAuth ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-world fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           Website Settings
@@ -163,101 +326,70 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isWebsiteSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
-                            to={route.systemsettings}
+                            to={systemSettingsPath}
                             className={
-                            location.pathname === route.systemsettings ?
+                            location.pathname === route.systemsettings ||
+                            location.pathname === route.tillflowAdminSystemSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             System Settings
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.companysettings}
+                            to={companySettingsPath}
                             className={
-                            location.pathname === route.companysettings ?
+                            location.pathname === route.companysettings ||
+                            location.pathname === route.tillflowAdminCompanySettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             Company Settings
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.localizationsettings}
+                            to={preferenceSettingsPath}
                             className={
-                            location.pathname === route.localizationsettings ?
+                            location.pathname === route.preference ||
+                            location.pathname === route.tillflowAdminPreference ?
                             "active" :
                             ""
                             }>
-                            
-                            Localization
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to={route.prefixes}
-                            className={
-                            location.pathname === route.prefixes ?
-                            "active" :
-                            ""
-                            }>
-                            
-                            Prefixes
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to={route.preference}
-                            className={
-                            location.pathname === route.preference ?
-                            "active" :
-                            ""
-                            }>
-                            
+
                             Preference
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.appearance}
+                            to={appearanceSettingsPath}
                             className={
-                            location.pathname === route.appearance ?
+                            location.pathname === route.appearance ||
+                            location.pathname === route.tillflowAdminAppearance ?
                             "active" :
                             ""
                             }>
-                            
+
                             Appearance
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.socialauthendication}
+                            to={socialAuthSettingsPath}
                             className={
-                            location.pathname === route.socialauthendication ?
+                            location.pathname === route.socialauthendication ||
+                            location.pathname === route.tillflowAdminSocialAuth ?
                             "active" :
                             ""
                             }>
-                            
+
                             Social Authentication
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to={route.languagesettings}
-                            className={
-                            location.pathname === route.languagesettings ?
-                            "active" :
-                            ""
-                            }>
-                            
-                            Language
                           </Link>
                         </li>
                       </ul>
@@ -268,15 +400,19 @@ const SettingsSideBar = (props) => {
                         onClick={toggleAppSettings}
                         className={
                         location.pathname === route.invoicesettings ||
-                        location.pathname === route.invoicetemplate ||
+                        location.pathname === route.tillflowAdminInvoiceSettings ||
                         location.pathname === route.printersettings ||
-                        location.pathname == route.possettings ||
-                        location.pathname == route.signatures ||
-                        location.pathname == route.customfields ?
+                        location.pathname === route.tillflowAdminPrinterSettings ||
+                        location.pathname === route.possettings ||
+                        location.pathname === route.tillflowAdminPosSettings ||
+                        location.pathname === route.signatures ||
+                        location.pathname === route.tillflowAdminSignatures ||
+                        location.pathname === route.customfields ||
+                        location.pathname === route.tillflowAdminCustomFields ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-device-mobile fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           App Settings
@@ -287,76 +423,69 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isAppSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
-                            to={route.invoicesettings}
+                            to={invoiceSettingsPath}
                             className={
-                            location.pathname === route.invoicesettings ?
+                            location.pathname === route.invoicesettings ||
+                            location.pathname === route.tillflowAdminInvoiceSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             Invoice
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.invoicetemplate}
+                            to={printerSettingsPath}
                             className={
-                            location.pathname === route.invoicetemplate ?
+                            location.pathname === route.printersettings ||
+                            location.pathname === route.tillflowAdminPrinterSettings ?
                             "active" :
                             ""
                             }>
-                            
-                            Invoice Templates
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to={route.printersettings}
-                            className={
-                            location.pathname === route.printersettings ?
-                            "active" :
-                            ""
-                            }>
-                            
+
                             Printer
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.possettings}
+                            to={posSettingsPath}
                             className={
-                            location.pathname === route.possettings ?
+                            location.pathname === route.possettings ||
+                            location.pathname === route.tillflowAdminPosSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             POS
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.signatures}
+                            to={signaturesSettingsPath}
                             className={
-                            location.pathname === route.signatures ?
+                            location.pathname === route.signatures ||
+                            location.pathname === route.tillflowAdminSignatures ?
                             "active" :
                             ""
                             }>
-                            
+
                             Signatures
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.customfields}
+                            to={customFieldsSettingsPath}
                             className={
-                            location.pathname === route.customfields ?
+                            location.pathname === route.customfields ||
+                            location.pathname === route.tillflowAdminCustomFields ?
                             "active" :
                             ""
                             }>
-                            
+
                             Custom Fields
                           </Link>
                         </li>
@@ -367,20 +496,22 @@ const SettingsSideBar = (props) => {
                         to="#"
                         onClick={toggleSystemSettings}
                         className={
-                        location.pathname === route.invoicesettings ||
-                        location.pathname === route.invoicetemplate ||
-                        location.pathname === route.printersettings ||
-                        location.pathname == route.possettings ||
-                        location.pathname == route.signatures ||
-                        location.pathname == route.customfields ||
-                        location.pathname == route.emailsettings ||
-                        location.pathname == route.emailtemplate ||
-                        location.pathname == route.smssettings ||
-                        location.pathname == route.smstemplate ?
+                        location.pathname === route.emailsettings ||
+                        location.pathname === route.tillflowAdminEmailSettings ||
+                        location.pathname === route.emailtemplate ||
+                        location.pathname === route.tillflowAdminEmailTemplates ||
+                        location.pathname === route.smssettings ||
+                        location.pathname === route.tillflowAdminSmsGateway ||
+                        location.pathname === route.smstemplate ||
+                        location.pathname === route.tillflowAdminSmsTemplates ||
+                        location.pathname === route.otpsettings ||
+                        location.pathname === route.tillflowAdminOtpSettings ||
+                        location.pathname === route.gdbrsettings ||
+                        location.pathname === route.tillflowAdminGdprSettings ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-device-desktop fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           System Settings
@@ -391,32 +522,32 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isSystemSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
                             to="#"
-                            className={`submenu-two ${location.pathname === route.emailsettings || location.pathname === route.emailtemplate ? "active" : ""}`}
+                            className={`submenu-two ${location.pathname === route.emailsettings || location.pathname === route.tillflowAdminEmailSettings || location.pathname === route.emailtemplate || location.pathname === route.tillflowAdminEmailTemplates ? "active" : ""}`}
                             onClick={toggleSubmenutwo}>
-                            
+
                             Email
                             <span className="menu-arrow inside-submenu"></span>
                           </Link>
                           <ul
                             style={{ display: isSubmenutwo ? "block" : "none" }}>
-                            
+
                             <li>
                               <Link
-                                to={route.emailsettings}
-                                className={`${location.pathname === route.emailsettings ? "active" : ""}`}>
-                                
+                                to={emailSettingsPath}
+                                className={`${location.pathname === route.emailsettings || location.pathname === route.tillflowAdminEmailSettings ? "active" : ""}`}>
+
                                 Email Settings
                               </Link>
                             </li>
                             <li>
                               <Link
-                                to={route.emailtemplate}
-                                className={`${location.pathname === route.emailtemplate ? "active" : ""}`}>
-                                
+                                to={emailTemplatesPath}
+                                className={`${location.pathname === route.emailtemplate || location.pathname === route.tillflowAdminEmailTemplates ? "active" : ""}`}>
+
                                 Email Templates
                               </Link>
                             </li>
@@ -425,47 +556,58 @@ const SettingsSideBar = (props) => {
                         <li>
                           <Link
                             to="#"
-                            className={`submenu-two ${location.pathname === route.smssettings || location.pathname == route.smstemplate ? "active" : ""}`}
+                            className={`submenu-two ${location.pathname === route.smssettings || location.pathname === route.tillflowAdminSmsGateway || location.pathname === route.smstemplate || location.pathname === route.tillflowAdminSmsTemplates ? "active" : ""}`}
                             onClick={toggleSms}>
-                            
+
                             SMS Gateways
                             <span className="menu-arrow inside-submenu"></span>
                           </Link>
                           <ul style={{ display: isSms ? "block" : "none" }}>
                             <li>
                               <Link
-                                to={route.smssettings}
-                                className={`${location.pathname === route.smssettings ? "active" : ""}`}>
-                                
+                                to={smsGatewayPath}
+                                className={`${location.pathname === route.smssettings || location.pathname === route.tillflowAdminSmsGateway ? "active" : ""}`}>
+
                                 SMS Settings
                               </Link>
                             </li>
                             <li>
-                              <Link to={route.smstemplate}>SMS Templates</Link>
+                              <Link
+                                to={smsTemplatesPath}
+                                className={
+                                  location.pathname === route.smstemplate ||
+                                  location.pathname === route.tillflowAdminSmsTemplates
+                                    ? "active"
+                                    : ""
+                                }>
+                                SMS Templates
+                              </Link>
                             </li>
                           </ul>
                         </li>
                         <li>
                           <Link
-                            to={route.otpsettings}
+                            to={otpSettingsPath}
                             className={
-                            location.pathname === route.otpsettings ?
+                            location.pathname === route.otpsettings ||
+                            location.pathname === route.tillflowAdminOtpSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             OTP
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.gdbrsettings}
+                            to={gdprSettingsPath}
                             className={
-                            location.pathname === route.gdbrsettings ?
+                            location.pathname === route.gdbrsettings ||
+                            location.pathname === route.tillflowAdminGdprSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             GDPR Cookies
                           </Link>
                         </li>
@@ -480,13 +622,18 @@ const SettingsSideBar = (props) => {
                         onClick={toggleFinancialSettings}
                         className={
                         location.pathname === route.paymentgateway ||
+                        location.pathname === route.tillflowAdminPaymentGateway ||
                         location.pathname === route.banksettingslist ||
+                        location.pathname === route.banksettingsgrid ||
+                        location.pathname === route.tillflowAdminBankAccounts ||
                         location.pathname === route.taxrates ||
-                        location.pathname == route.currencysettings ?
+                        location.pathname === route.tillflowAdminTaxRates ||
+                        location.pathname === route.currencysettings ||
+                        location.pathname === route.tillflowAdminCurrencySettings ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-settings-dollar fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           Financial Settings
@@ -497,52 +644,56 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isFinancialSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
-                            to={route.paymentgateway}
+                            to={paymentGatewayPath}
                             className={
-                            location.pathname === route.paymentgateway ?
+                            location.pathname === route.paymentgateway ||
+                            location.pathname === route.tillflowAdminPaymentGateway ?
                             "active" :
                             ""
                             }>
-                            
+
                             Payment Gateway
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.banksettingsgrid}
+                            to={bankAccountsPath}
                             className={
-                            location.pathname === route.banksettingsgrid ?
+                            location.pathname === route.banksettingsgrid ||
+                            location.pathname === route.tillflowAdminBankAccounts ?
                             "active" :
                             ""
                             }>
-                            
+
                             Bank Accounts
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.taxrates}
+                            to={taxRatesPath}
                             className={
-                            location.pathname === route.taxrates ?
+                            location.pathname === route.taxrates ||
+                            location.pathname === route.tillflowAdminTaxRates ?
                             "active" :
                             ""
                             }>
-                            
+
                             Tax Rates
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.currencysettings}
+                            to={currencySettingsPath}
                             className={
-                            location.pathname === route.currencysettings ?
+                            location.pathname === route.currencysettings ||
+                            location.pathname === route.tillflowAdminCurrencySettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             Currencies
                           </Link>
                         </li>
@@ -554,11 +705,13 @@ const SettingsSideBar = (props) => {
                         onClick={toggleOtherSettings}
                         className={
                         location.pathname === route.storagesettings ||
-                        location.pathname === route.banipaddress ?
+                        location.pathname === route.tillflowAdminStorageSettings ||
+                        location.pathname === route.banipaddress ||
+                        location.pathname === route.tillflowAdminBanIpAddress ?
                         "active subdrop" :
                         ""
                         }>
-                        
+
                         <i className="ti ti-settings-2 fs-18"></i>
                         <span className="fs-14 fw-medium ms-2">
                           Other Settings
@@ -569,28 +722,30 @@ const SettingsSideBar = (props) => {
                         style={{
                           display: isOtherSettingsOpen ? "block" : "none"
                         }}>
-                        
+
                         <li>
                           <Link
-                            to={route.storagesettings}
+                            to={storageSettingsPath}
                             className={
-                            location.pathname === route.storagesettings ?
+                            location.pathname === route.storagesettings ||
+                            location.pathname === route.tillflowAdminStorageSettings ?
                             "active" :
                             ""
                             }>
-                            
+
                             Storage
                           </Link>
                         </li>
                         <li>
                           <Link
-                            to={route.banipaddress}
+                            to={banIpAddressPath}
                             className={
-                            location.pathname === route.banipaddress ?
+                            location.pathname === route.banipaddress ||
+                            location.pathname === route.tillflowAdminBanIpAddress ?
                             "active" :
                             ""
                             }>
-                            
+
                             Ban IP Address
                           </Link>
                         </li>
@@ -600,7 +755,6 @@ const SettingsSideBar = (props) => {
                 </li>
               </ul>
             </div>
-          </Scrollbar>
         </div>
       </div>
     </div>);

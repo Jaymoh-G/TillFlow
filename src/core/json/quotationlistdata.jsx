@@ -21,14 +21,6 @@ import {
   user27
 } from "../../utils/imagepath";
 
-function normStatus(s) {
-  if (!s) {
-    return "Pending";
-  }
-  const t = String(s);
-  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-}
-
 export const quotationlistdata = [
   {
     id: "1",
@@ -60,7 +52,7 @@ export const quotationlistdata = [
     Product_Name: "Nike Jordan",
     customerImg: user05,
     Custmer_Name: "Robert Lamon",
-    Status: "Ordered",
+    Status: "Accepted",
     Total: "$260"
   },
   {
@@ -71,7 +63,7 @@ export const quotationlistdata = [
     Product_Name: "Apple Series 5 Watch",
     customerImg: user03,
     Custmer_Name: "Mark Joslyn",
-    Status: normStatus("sent"),
+    Status: "Sent",
     Total: "$470"
   },
   {
@@ -82,7 +74,7 @@ export const quotationlistdata = [
     Product_Name: "Amazon Echo Dot",
     customerImg: user22,
     Custmer_Name: "Patricia Lewis",
-    Status: "Pending",
+    Status: "Draft",
     Total: "$380"
   },
   {
@@ -104,7 +96,7 @@ export const quotationlistdata = [
     Product_Name: "Red Premium Handy",
     customerImg: user06,
     Custmer_Name: "Daniel Jude",
-    Status: "Pending",
+    Status: "Draft",
     Total: "$540"
   },
   {
@@ -115,7 +107,7 @@ export const quotationlistdata = [
     Product_Name: "Iphone 14 Pro",
     customerImg: user21,
     Custmer_Name: "Emma Bates",
-    Status: "Ordered",
+    Status: "Accepted",
     Total: "$610"
   },
   {
@@ -126,7 +118,7 @@ export const quotationlistdata = [
     Product_Name: "Black Slim 200",
     customerImg: user16,
     Custmer_Name: "Richard Fralick",
-    Status: "Pending",
+    Status: "Expired",
     Total: "$220"
   },
   {
@@ -148,7 +140,7 @@ export const quotationlistdata = [
     Product_Name: "Lobar Handy",
     customerImg: user03,
     Custmer_Name: "Mark Joslyn",
-    Status: "Pending",
+    Status: "Declined",
     Total: "$250"
   },
   {

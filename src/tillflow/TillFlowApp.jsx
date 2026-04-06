@@ -27,10 +27,41 @@ import Customers from '../feature-module/people/customers';
 import Biller from '../feature-module/people/billers';
 import Suppliers from '../feature-module/people/suppliers';
 import StoreList from '../feature-module/people/store-list';
+import PurchasesList from '../feature-module/purchases/purchase-list';
+import PurchaseOrderReport from '../feature-module/purchases/purchase-order-report';
+import PurchaseReturns from '../feature-module/purchases/purchase-returns';
+import GeneralSettings from '../feature-module/settings/generalsettings/generalsettings';
+import SecuritySettings from '../feature-module/settings/generalsettings/securitysettings';
+import Notification from '../feature-module/settings/generalsettings/notification';
+import ConnectedApps from '../feature-module/settings/generalsettings/connectedapps';
+import SystemSettings from '../feature-module/settings/websitesettings/systemsettings';
+import CompanySettings from '../feature-module/settings/websitesettings/companysettings';
+import Preference from '../feature-module/settings/websitesettings/preference';
+import Appearance from '../feature-module/settings/websitesettings/appearance';
+import SocialAuthentication from '../feature-module/settings/websitesettings/socialauthentication';
+import InvoiceSettings from '../feature-module/settings/appsetting/invoicesettings';
+import PrinterSettings from '../feature-module/settings/appsetting/printersettings';
+import PosSettings from '../feature-module/settings/websitesettings/possettings';
+import Signature from '../feature-module/settings/appsetting/signature';
+import CustomFields from '../feature-module/settings/websitesettings/customfields';
+import EmailSettings from '../feature-module/settings/systemsettings/emailsettings';
+import Emailtemplatesettings from '../feature-module/settings/systemsettings/emailtemplatesettings';
+import SmsGateway from '../feature-module/settings/systemsettings/smsgateway';
+import Smstemplate from '../feature-module/settings/systemsettings/smstemplate';
+import OtpSettings from '../feature-module/settings/systemsettings/otpsettings';
+import GdprSettings from '../feature-module/settings/systemsettings/gdprsettings';
+import PaymentGateway from '../feature-module/settings/financialsettings/paymentgateway';
+import BankSettingGrid from '../feature-module/settings/financialsettings/banksettinggrid';
+import TaxRates from '../feature-module/settings/financialsettings/taxrates';
+import CurrencySettings from '../feature-module/settings/financialsettings/currencysettings';
+import StorageSettings from '../feature-module/settings/othersettings/storagesettings';
+import BanIpaddress from '../feature-module/settings/othersettings/ban-ipaddress';
 import PosRegister from './pages/PosRegister';
 import TillFlowLanding from './pages/TillFlowLanding';
 import TillFlowLogin from './pages/TillFlowLogin';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import TenantUiSettingsBridge from './tenantUiSettings/TenantUiSettingsBridge';
+import TenantUiSettingsSyncBanner from './tenantUiSettings/TenantUiSettingsSyncBanner';
 import './tillflow.scss';
 
 function TillFlowRoot({ children }) {
@@ -43,6 +74,8 @@ export default function TillFlowApp() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <TenantUiSettingsBridge />
+        <TenantUiSettingsSyncBanner />
         <TillFlowRoot>
           <Routes>
             <Route index element={<TillFlowLanding />} />
@@ -62,6 +95,8 @@ export default function TillFlowApp() {
                 <Route path="print-barcode" element={<AdminPrintBarcode />} />
                 <Route path="pos-orders" element={<PosOrder />} />
                 <Route path="online-orders" element={<OnlineOrder />} />
+                <Route path="quotations/new" element={<QuotationList />} />
+                <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
                 <Route path="quotations" element={<QuotationList />} />
                 <Route path="invoices" element={<Invoice />} />
                 <Route path="sales-returns" element={<SalesReturn />} />
@@ -69,11 +104,41 @@ export default function TillFlowApp() {
                 <Route path="billers" element={<Biller />} />
                 <Route path="suppliers" element={<Suppliers />} />
                 <Route path="store-managers" element={<StoreList />} />
+                <Route path="purchases/new" element={<PurchasesList />} />
+                <Route path="purchases" element={<PurchasesList />} />
+                <Route path="purchase-orders" element={<PurchaseOrderReport />} />
+                <Route path="purchase-returns" element={<PurchaseReturns />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="brands" element={<AdminBrands />} />
                 <Route path="units" element={<AdminUnits />} />
                 <Route path="variant-attributes" element={<AdminVariantAttributes />} />
                 <Route path="warranties" element={<AdminWarranties />} />
+                <Route path="settings/profile" element={<GeneralSettings />} />
+                <Route path="settings/security" element={<SecuritySettings />} />
+                <Route path="settings/notifications" element={<Notification />} />
+                <Route path="settings/connected-apps" element={<ConnectedApps />} />
+                <Route path="settings/system" element={<SystemSettings />} />
+                <Route path="settings/company" element={<CompanySettings />} />
+                <Route path="settings/preference" element={<Preference />} />
+                <Route path="settings/appearance" element={<Appearance />} />
+                <Route path="settings/social-authentication" element={<SocialAuthentication />} />
+                <Route path="settings/invoice" element={<InvoiceSettings />} />
+                <Route path="settings/printer" element={<PrinterSettings />} />
+                <Route path="settings/pos" element={<PosSettings />} />
+                <Route path="settings/signatures" element={<Signature />} />
+                <Route path="settings/custom-fields" element={<CustomFields />} />
+                <Route path="settings/email" element={<EmailSettings />} />
+                <Route path="settings/email-templates" element={<Emailtemplatesettings />} />
+                <Route path="settings/sms-gateway" element={<SmsGateway />} />
+                <Route path="settings/sms-templates" element={<Smstemplate />} />
+                <Route path="settings/otp" element={<OtpSettings />} />
+                <Route path="settings/gdpr" element={<GdprSettings />} />
+                <Route path="settings/payment-gateway" element={<PaymentGateway />} />
+                <Route path="settings/bank-accounts" element={<BankSettingGrid />} />
+                <Route path="settings/tax-rates" element={<TaxRates />} />
+                <Route path="settings/currencies" element={<CurrencySettings />} />
+                <Route path="settings/storage" element={<StorageSettings />} />
+                <Route path="settings/ban-ip" element={<BanIpaddress />} />
               </Route>
             </Route>
             <Route path="pos" element={<PosLayout />}>

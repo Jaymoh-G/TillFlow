@@ -1,21 +1,20 @@
 import { Link } from "react-router-dom";
-import CommonFooter from "../../../components/footer/commonFooter";
 import RefreshIcon from "../../../components/tooltip-content/refresh";
 import CollapesIcon from "../../../components/tooltip-content/collapes";
 import SettingsSideBar from "../settingssidebar";
-import {
-  appIcon01,
-  appIcon02,
-  appIcon03,
-  appIcon04,
-  appIcon05,
-  appIcon06 } from
-"../../../utils/imagepath";
+import { all_routes } from "../../../routes/all_routes";
 
 const ConnectedApps = () => {
+  const routes = all_routes;
+
+  const showTillflowBackLink =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
+
+  const securityPath = showTillflowBackLink ? routes.tillflowAdminSecurity : routes.securitysettings;
+
   return (
-    <div>
-      <div className="page-wrapper">
+    <>
+      <div className="page-wrapper settings-connected-apps-page">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
             <div className="add-item d-flex">
@@ -34,232 +33,51 @@ const ConnectedApps = () => {
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
                 <div className="card flex-fill mb-0">
-                  <div className="card-header">
-                    <h4 className="fs-18 fw-bold">Connected Apps</h4>
+                  <div className="card-header d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                    <h4 className="fs-18 fw-bold mb-0">Connected apps</h4>
+                    {showTillflowBackLink ? (
+                      <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm">
+                        Back to admin
+                      </Link>
+                    ) : null}
                   </div>
-                  <div className="card-body pb-0">
-                    <div className="row">
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon01} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Calendar</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user1"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user1" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon02} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Figma</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user2"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user2" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon03} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Dropbox</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user3"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user3" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon04} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Slack</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user4"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user4" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon05} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Github</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user5"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user5" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-xl-4 col-lg-6 col-md-4 col-sm-6">
-                        <div className="card">
-                          <div className="card-body">
-                            <div className="d-flex align-items-center justify-content-between mb-3">
-                              <div className="app-icon">
-                                <img src={appIcon06} alt="Img" />
-                              </div>
-                              <div className="connect-btn">
-                                <Link
-                                  to="#"
-                                  className="badge bg-outline-success">
-                                  
-                                  Connected
-                                </Link>
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <h5 className="fs-16 fw-medium">Figma</h5>
-                              </div>
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                                <input
-                                  type="checkbox"
-                                  id="user6"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label htmlFor="user6" className="checktoggle">
-                                  {" "}
-                                </label>
-                              </div>
-                            </div>
-                          </div>
+                  <div className="card-body">
+                    <p className="fs-14 text-muted mb-4">
+                      TillFlow does not use third-party OAuth connections (Calendar, Slack, etc.) in this version.
+                      Access to the API is via your account sign-in and personal API tokens.
+                    </p>
+
+                    <div className="border rounded p-3 mb-3 bg-light">
+                      <div className="d-flex align-items-start gap-3">
+                        <span className="security-settings-page__icon security-settings-page__icon--lg flex-shrink-0">
+                          <i className="feather icon-link" aria-hidden />
+                        </span>
+                        <div>
+                          <h5 className="fs-16 fw-medium mb-1">API &amp; sign-ins</h5>
+                          <p className="fs-14 text-muted mb-3 mb-md-0">
+                            Each login creates a token (shown as a device or client name). You can review and revoke
+                            sessions under Security.
+                          </p>
+                          <Link to={securityPath} className="btn btn-primary btn-sm">
+                            Open security settings
+                          </Link>
                         </div>
                       </div>
                     </div>
+
+                    <p className="fs-13 text-muted mb-0">
+                      Future releases may add integrations (accounting, messaging, identity). Those will appear here when
+                      available.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <CommonFooter />
       </div>
-    </div>);
-
+    </>
+  );
 };
 
 export default ConnectedApps;

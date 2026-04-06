@@ -9,7 +9,7 @@ import DeleteModal from "../../../components/delete-modal";
 
 const BankSettingGrid = () => {
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -28,7 +28,7 @@ const BankSettingGrid = () => {
             <div className="col-xl-12">
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
-                <div className="card flex-fill mb-0 w-50">
+                <div className="card flex-fill mb-0 min-w-0">
                   <div className="card-header d-flex align-items-center justify-content-between">
                     <h4>Bank Account</h4>
                     <div className="page-btn">
@@ -160,7 +160,7 @@ const BankSettingGrid = () => {
       <AddBankAccount />
       <EditBankAccount />
    <DeleteModal />
-    </div>);
+    </>);
 
 };
 

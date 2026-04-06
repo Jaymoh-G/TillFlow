@@ -8,7 +8,7 @@ import CommonFooter from "../../../components/footer/commonFooter";
 import DeleteModal from "../../../components/delete-modal";
 const TaxRates = () => {
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -27,7 +27,7 @@ const TaxRates = () => {
             <div className="col-xl-12">
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
-                <div className="card flex-fill mb-0 w-50">
+                <div className="card flex-fill mb-0 min-w-0">
                   <div className="card-header d-flex align-items-center justify-content-between">
                     <h4>Tax Rates</h4>
                     <Link
@@ -142,7 +142,7 @@ const TaxRates = () => {
       <AddTaxRates />
       <EditTaxRates />
     <DeleteModal />
-    </div>);
+    </>);
 
 };
 

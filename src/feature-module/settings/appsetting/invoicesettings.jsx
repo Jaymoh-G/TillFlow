@@ -1,23 +1,92 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import SettingsSideBar from "../settingssidebar";
 import RefreshIcon from "../../../components/tooltip-content/refresh";
 import CollapesIcon from "../../../components/tooltip-content/collapes";
 import { logoSmallPng } from "../../../utils/imagepath";
 import CommonSelect from "../../../components/select/common-select";
+import {
+  defaultInvoiceSettings,
+  loadAppSettings,
+  saveAppSettings
+} from "../../../utils/appSettingsStorage";
+import { useReloadFromTenantUiSettingsHydration } from "../../../tillflow/tenantUiSettings/useReloadFromTenantUiSettingsHydration";
+
+const DUE_OPTIONS = Array.from({ length: 90 }, (_, i) => ({
+  value: String(i + 1),
+  label: String(i + 1)
+}));
+
+const ROUNDOFF_OPTIONS = [
+  { value: "up", label: "Round up" },
+  { value: "down", label: "Round down" },
+  { value: "nearest", label: "Round to nearest" }
+];
 
 const InvoiceSettings = () => {
-  const [selectedDue, setSelectedDue] = useState(null);
-  const [selectedRoundoff, setSelectedRoundoff] = useState(null);
-  const listofnumbers = [
-  { value: "5", label: "5" },
-  { value: "6", label: "6" },
-  { value: "7", label: "7" }];
+  const location = useLocation();
+  const isTillflow = location.pathname.startsWith("/tillflow/admin");
 
-  const roundoff = [{ value: "Round Off Up", label: "Round Off Up" }];
+  const [form, setForm] = useState(() => loadAppSettings().invoice);
+  const [baseline, setBaseline] = useState(() => loadAppSettings().invoice);
+  const [savedMsg, setSavedMsg] = useState("");
+
+  const logoSrc = form.invoiceLogoDataUrl || logoSmallPng;
+
+  const update = useCallback((patch) => {
+    setForm((f) => ({ ...f, ...patch }));
+  }, []);
+
+  const handleLogo = useCallback((fileList) => {
+    const file = fileList?.[0];
+    if (!file || !file.type.startsWith("image/")) {
+      return;
+    }
+    if (file.size > 800 * 1024) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : null;
+      update({ invoiceLogoDataUrl: url });
+    };
+    reader.readAsDataURL(file);
+  }, [update]);
+
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      const app = loadAppSettings();
+      app.invoice = { ...form };
+      saveAppSettings(app);
+      setBaseline({ ...form });
+      setSavedMsg("Invoice settings saved.");
+      window.setTimeout(() => setSavedMsg(""), 4000);
+    },
+    [form]
+  );
+
+  const handleCancel = useCallback(() => {
+    setForm({ ...baseline });
+    setSavedMsg("");
+  }, [baseline]);
+
+  const handleResetDefaults = useCallback(() => {
+    const d = defaultInvoiceSettings();
+    setForm(d);
+    setSavedMsg("");
+  }, []);
+
+  const reloadInvoiceFromServerCache = useCallback(() => {
+    const inv = loadAppSettings().invoice;
+    setForm({ ...inv });
+    setBaseline({ ...inv });
+    setSavedMsg("");
+  }, []);
+  useReloadFromTenantUiSettingsHydration(reloadInvoiceFromServerCache);
 
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -37,21 +106,28 @@ const InvoiceSettings = () => {
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
                 <div className="card flex-fill mb-0">
-                  <form>
+                  <form onSubmit={handleSubmit}>
                     <div className="card-header">
-                      <h4>Invoice Settings</h4>
+                      <h4 className="mb-1">Invoice Settings</h4>
+                      {isTillflow ? (
+                        <p className="text-muted small mb-0">
+                          Saved in this browser (localStorage) until a tenant API is wired for invoicing.
+                        </p>
+                      ) : null}
                     </div>
                     <div className="card-body ">
+                      {savedMsg ? (
+                        <div className="alert alert-success py-2 mb-3" role="status">
+                          {savedMsg}
+                        </div>
+                      ) : null}
                       <ul className="logo-company">
                         <li>
                           <div className="row">
                             <div className="col-md-4">
                               <div className="logo-info me-0 mb-3 mb-md-0">
-                                <h6>Invoice Logo</h6>
-                                <p>
-                                  Upload Logo of your Company to display in
-                                  Invoice
-                                </p>
+                                <h6>Invoice logo</h6>
+                                <p>Image shown on PDFs and printed invoices (stored locally).</p>
                               </div>
                             </div>
                             <div className="col-md-6">
@@ -59,26 +135,27 @@ const InvoiceSettings = () => {
                                 <div className="new-employee-field">
                                   <div className="mb-3 mb-md-0">
                                     <div className="image-upload mb-0">
-                                      <input type="file" />
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleLogo(e.target.files)}
+                                      />
                                       <div className="image-uploads">
                                         <h4>
                                           <i className="feather icon-upload" />
-                                          Upload Photo
+                                          Upload photo
                                         </h4>
                                       </div>
                                     </div>
-                                    <span>
-                                      For better preview recommended size is
-                                      450px x 450px. Max size 5mb.
-                                    </span>
+                                    <span>For best results use a square logo, max 800 KB.</span>
                                   </div>
                                 </div>
                               </div>
                             </div>
                             <div className="col-md-2">
                               <div className="new-logo ms-auto">
-                                <Link to="#">
-                                  <img src={logoSmallPng} alt="Logo" />
+                                <Link to="#" onClick={(e) => e.preventDefault()}>
+                                  <img src={logoSrc} alt="Invoice logo preview" className="img-fluid" />
                                 </Link>
                               </div>
                             </div>
@@ -89,139 +166,130 @@ const InvoiceSettings = () => {
                         <div className="row align-items-center">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Invoice Prefix</h6>
-                              <p>Add prefix to your invoice</p>
+                              <h6>Invoice prefix</h6>
+                              <p>Prefix before the invoice number</p>
                             </div>
                           </div>
                           <div className="col-sm-4">
-                            <div className="localization-select">
-                              <input
-                                type="text"
-                                className="form-control"
-                                defaultValue="INV -" />
-                              
-                            </div>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={form.prefix}
+                              onChange={(e) => update({ prefix: e.target.value })}
+                            />
                           </div>
                         </div>
-                        <div className="row align-items-center">
+                        <div className="row align-items-center mt-3">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Invoice Due</h6>
-                              <p>Select due date to display in Invoice</p>
+                              <h6>Invoice due</h6>
+                              <p>Default payment due days on new invoices</p>
                             </div>
                           </div>
                           <div className="col-sm-4">
                             <div className="localization-select d-flex align-items-center fixed-width">
                               <CommonSelect
-                                filter={false}
-                                options={listofnumbers}
-                                value={selectedDue}
-                                onChange={(e) => setSelectedDue(e.value)}
-                                placeholder="Choose" />
-                              
-                              <span className="ms-2">Days</span>
+                                filter
+                                options={DUE_OPTIONS}
+                                value={form.dueDays}
+                                onChange={(e) => update({ dueDays: e?.value ?? "7" })}
+                                placeholder="Choose"
+                              />
+                              <span className="ms-2 text-muted">days</span>
                             </div>
                           </div>
                         </div>
-                        <div className="row align-items-center">
+                        <div className="row align-items-center mt-3">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Invoice Round Off</h6>
-                              <p>Value Roundoff in Invoice</p>
+                              <h6>Invoice round off</h6>
+                              <p>Adjust totals on invoices</p>
                             </div>
                           </div>
                           <div className="col-sm-4">
-                            <div className="localization-select d-flex align-items-center width-custom">
+                            <div className="localization-select d-flex align-items-center flex-wrap gap-2">
                               <div className="status-toggle modal-status d-flex justify-content-between align-items-center me-3">
                                 <input
                                   type="checkbox"
-                                  id="user3"
+                                  id="inv-roundoff"
                                   className="check"
-                                  defaultChecked />
-                                
-                                <label
-                                  htmlFor="user3"
-                                  className="checktoggle" />
-                                
+                                  checked={form.roundOffEnabled}
+                                  onChange={(e) => update({ roundOffEnabled: e.target.checked })}
+                                />
+                                <label htmlFor="inv-roundoff" className="checktoggle" />
                               </div>
                               <CommonSelect
                                 filter={false}
-                                options={roundoff}
-                                value={selectedRoundoff}
-                                onChange={(e) => setSelectedRoundoff(e.value)}
-                                placeholder="Choose" />
-                              
+                                options={ROUNDOFF_OPTIONS}
+                                value={form.roundOffMode}
+                                onChange={(e) => update({ roundOffMode: e?.value ?? "up" })}
+                                placeholder="Mode"
+                              />
                             </div>
                           </div>
                         </div>
-                        <div className="row align-items-center">
+                        <div className="row align-items-center mt-3">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Show Company Details</h6>
-                              <p>Show / Hide Company Details in Invoice</p>
+                              <h6>Show company details</h6>
+                              <p>Show your company block on invoices</p>
                             </div>
                           </div>
                           <div className="col-sm-4">
-                            <div className="localization-select d-flex align-items-center">
-                              <div className="status-toggle modal-status d-flex justify-content-between align-items-center me-3">
-                                <input
-                                  type="checkbox"
-                                  id="user4"
-                                  className="check"
-                                  defaultChecked />
-                                
-                                <label
-                                  htmlFor="user4"
-                                  className="checktoggle" />
-                                
-                              </div>
+                            <div className="status-toggle modal-status d-flex justify-content-between align-items-center me-3">
+                              <input
+                                type="checkbox"
+                                id="inv-company"
+                                className="check"
+                                checked={form.showCompanyDetails}
+                                onChange={(e) => update({ showCompanyDetails: e.target.checked })}
+                              />
+                              <label htmlFor="inv-company" className="checktoggle" />
                             </div>
                           </div>
                         </div>
-                        <div className="row">
+                        <div className="row mt-3">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Invoice Header Terms</h6>
+                              <h6>Invoice header terms</h6>
                             </div>
                           </div>
                           <div className="col-sm-8">
-                            <div className="mb-3">
-                              <textarea
-                                rows={4}
-                                className="form-control"
-                                placeholder="Type your message"
-                                defaultValue={""} />
-                              
-                            </div>
+                            <textarea
+                              rows={4}
+                              className="form-control"
+                              placeholder="Shown above line items"
+                              value={form.headerTerms}
+                              onChange={(e) => update({ headerTerms: e.target.value })}
+                            />
                           </div>
                         </div>
-                        <div className="row">
+                        <div className="row mt-3">
                           <div className="col-sm-4">
                             <div className="setting-info">
-                              <h6>Invoice Footer Terms</h6>
+                              <h6>Invoice footer terms</h6>
                             </div>
                           </div>
                           <div className="col-sm-8">
-                            <div className="mb-3">
-                              <textarea
-                                rows={4}
-                                className="form-control"
-                                placeholder="Type your message"
-                                defaultValue={""} />
-                              
-                            </div>
+                            <textarea
+                              rows={4}
+                              className="form-control"
+                              placeholder="Payment instructions, legal text, etc."
+                              value={form.footerTerms}
+                              onChange={(e) => update({ footerTerms: e.target.value })}
+                            />
                           </div>
                         </div>
                       </div>
-                      <div className="d-flex align-items-center justify-content-end">
-                        <button
-                          type="button"
-                          className="btn btn-secondary me-2">
-                          
+                      <div className="d-flex align-items-center justify-content-end flex-wrap gap-2 mt-3">
+                        <button type="button" className="btn btn-outline-secondary" onClick={handleResetDefaults}>
+                          Reset defaults
+                        </button>
+                        <button type="button" className="btn btn-secondary" onClick={handleCancel}>
                           Cancel
                         </button>
                         <button type="submit" className="btn btn-primary">
-                          Save Changes
+                          Save changes
                         </button>
                       </div>
                     </div>
@@ -232,8 +300,8 @@ const InvoiceSettings = () => {
           </div>
         </div>
       </div>
-    </div>);
-
+    </>
+  );
 };
 
 export default InvoiceSettings;

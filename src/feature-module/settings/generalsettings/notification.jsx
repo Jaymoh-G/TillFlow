@@ -1,12 +1,69 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import SettingsSideBar from "../settingssidebar";
 import CollapesIcon from "../../../components/tooltip-content/collapes";
 import RefreshIcon from "../../../components/tooltip-content/refresh";
+import { useOptionalAuth } from "../../../tillflow/auth/AuthContext";
+import {
+  defaultNotificationPreferences,
+  loadNotificationPreferences,
+  NOTIFICATION_TOPIC_ROWS,
+  saveNotificationPreferences
+} from "../../../utils/notificationPreferencesStorage";
+import { TILLFLOW_TENANT_UI_SETTINGS_HYDRATED } from "../../../tillflow/tenantUiSettings/events";
 
 const Notification = () => {
+  const auth = useOptionalAuth();
+  const userId = auth?.user?.id ?? null;
+
+  const [prefs, prefsDispatch] = useState(() => loadNotificationPreferences(userId));
+  const [savedMsg, setSavedMsg] = useState("");
+
+  useEffect(() => {
+    prefsDispatch(loadNotificationPreferences(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    const onHydrated = () => prefsDispatch(loadNotificationPreferences(userId));
+    window.addEventListener(TILLFLOW_TENANT_UI_SETTINGS_HYDRATED, onHydrated);
+    return () => window.removeEventListener(TILLFLOW_TENANT_UI_SETTINGS_HYDRATED, onHydrated);
+  }, [userId]);
+
+  const persist = useCallback(
+    (next) => {
+      prefsDispatch(next);
+      saveNotificationPreferences(userId, next);
+      setSavedMsg("Preferences saved on this device.");
+      window.setTimeout(() => setSavedMsg(""), 2500);
+    },
+    [userId]
+  );
+
+  const setChannel = (key, value) => {
+    persist({ ...prefs, [key]: value });
+  };
+
+  /** @param {string} topicId @param {'push'|'sms'|'email'} field */
+  const setTopic = (topicId, field, value) => {
+    const prev = prefs.topics[topicId] ?? defaultNotificationPreferences().topics[topicId];
+    if (!prev) {
+      return;
+    }
+    persist({
+      ...prefs,
+      topics: {
+        ...prefs.topics,
+        [topicId]: { ...prev, [field]: value }
+      }
+    });
+  };
+
+  const showTillflowBackLink =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
 
   return (
-    <div>
-      <div className="page-wrapper">
+    <>
+      <div className="page-wrapper settings-notifications-page">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
             <div className="add-item d-flex">
@@ -25,361 +82,146 @@ const Notification = () => {
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
                 <div className="card flex-fill mb-0">
-                  <div className="card-header">
-                    <h4 className="fs-18 fw-bold">Notification</h4>
+                  <div className="card-header d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                    <h4 className="fs-18 fw-bold mb-0">Notifications</h4>
+                    {showTillflowBackLink ? (
+                      <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm">
+                        Back to admin
+                      </Link>
+                    ) : null}
                   </div>
                   <div className="card-body">
-                    <div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <div>
-                          <h6 className="fw-medium">
-                            Mobile Push Notifications
-                          </h6>
-                        </div>
-                        <div className="status-toggle modal-status">
-                          <input
-                            type="checkbox"
-                            id="user1"
-                            className="check"
-                            defaultChecked={false} />
-                          
-                          <label htmlFor="user1" className="checktoggle">
-                            {" "}
-                          </label>
-                        </div>
+                    <p className="fs-14 text-muted mb-3">
+                      Choose how you want to be notified. These choices are stored in this browser for each signed-in
+                      account; the server does not sync them yet.
+                    </p>
+                    {savedMsg ? (
+                      <div className="alert alert-success py-2 mb-3" role="status">
+                        {savedMsg}
                       </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <div>
-                          <h6 className="fw-medium">Desktop Notifications</h6>
-                        </div>
-                        <div className="status-toggle modal-status">
-                          <input
-                            type="checkbox"
-                            id="user2"
-                            className="check"
-                            defaultChecked={false} />
-                          
-                          <label htmlFor="user2" className="checktoggle">
-                            {" "}
-                          </label>
-                        </div>
+                    ) : null}
+
+                    <h6 className="fw-medium mb-2">Channels</h6>
+                    <p className="fs-13 text-muted mb-3">
+                      In-app (browser) alerts will apply once push delivery is enabled for your tenant.
+                    </p>
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <div>
+                        <h6 className="fw-medium mb-0">In-app (browser)</h6>
+                        <p className="fs-13 text-muted mb-0">Alerts while you have the app open</p>
                       </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <div>
-                          <h6 className="fw-medium">Email Notifications</h6>
-                        </div>
-                        <div className="status-toggle modal-status">
-                          <input
-                            type="checkbox"
-                            id="user3"
-                            className="check"
-                            defaultChecked={false} />
-                          
-                          <label htmlFor="user3" className="checktoggle">
-                            {" "}
-                          </label>
-                        </div>
+                      <div className="status-toggle modal-status">
+                        <input
+                          type="checkbox"
+                          id="notif-channel-browser"
+                          className="check"
+                          checked={prefs.channelBrowser}
+                          onChange={(e) => setChannel("channelBrowser", e.target.checked)}
+                        />
+                        <label htmlFor="notif-channel-browser" className="checktoggle">
+                          {" "}
+                        </label>
                       </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <div>
-                          <h6 className="fw-medium">MSMS Notifications</h6>
-                        </div>
-                        <div className="status-toggle modal-status d-flex justify-content-between align-items-center ms-2">
-                          <input
-                            type="checkbox"
-                            id="user4"
-                            className="check"
-                            defaultChecked={false} />
-                          
-                          <label htmlFor="user4" className="checktoggle">
-                            {" "}
-                          </label>
-                        </div>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <div>
+                        <h6 className="fw-medium mb-0">Email</h6>
+                        <p className="fs-13 text-muted mb-0">Uses the address on your profile</p>
                       </div>
-                      <div className="table-responsive notification-table-responsive">
-                        <table className="table">
-                          <thead>
-                            <tr>
-                              <th>General Notification</th>
-                              <th>Push</th>
-                              <th>SMS</th>
-                              <th>Email</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>Payment</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="users4"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="users4"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="users5"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="users5"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="users6"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="users6"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td>Transaction</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user5"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user5"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user6"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user6"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user7"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user7"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td>Email Verification</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user8"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user8"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user9"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user9"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user10"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user10"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td>OTP</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user11"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user11"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user12"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user12"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user13"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user13"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td>Activity</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user14"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user14"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user15"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user15"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user16"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user16"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td>Account</td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user17"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user17"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user18"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user18"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                              <td>
-                                <div className="status-toggle modal-status">
-                                  <input
-                                    type="checkbox"
-                                    id="user19"
-                                    className="check"
-                                    defaultChecked={false} />
-                                  
-                                  <label
-                                    htmlFor="user19"
-                                    className="checktoggle" />
-                                  
-                                </div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div className="status-toggle modal-status">
+                        <input
+                          type="checkbox"
+                          id="notif-channel-email"
+                          className="check"
+                          checked={prefs.channelEmail}
+                          onChange={(e) => setChannel("channelEmail", e.target.checked)}
+                        />
+                        <label htmlFor="notif-channel-email" className="checktoggle">
+                          {" "}
+                        </label>
                       </div>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-between mb-4">
+                      <div>
+                        <h6 className="fw-medium mb-0">SMS</h6>
+                        <p className="fs-13 text-muted mb-0">Requires SMS gateway configuration</p>
+                      </div>
+                      <div className="status-toggle modal-status">
+                        <input
+                          type="checkbox"
+                          id="notif-channel-sms"
+                          className="check"
+                          checked={prefs.channelSms}
+                          onChange={(e) => setChannel("channelSms", e.target.checked)}
+                        />
+                        <label htmlFor="notif-channel-sms" className="checktoggle">
+                          {" "}
+                        </label>
+                      </div>
+                    </div>
+
+                    <h6 className="fw-medium mb-2">By topic</h6>
+                    <p className="fs-13 text-muted mb-3">Toggle delivery methods for each type of activity.</p>
+                    <div className="table-responsive notification-table-responsive">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Topic</th>
+                            <th>In-app</th>
+                            <th>SMS</th>
+                            <th>Email</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {NOTIFICATION_TOPIC_ROWS.map((row) => {
+                            const t = prefs.topics[row.id];
+                            if (!t) {
+                              return null;
+                            }
+                            return (
+                              <tr key={row.id}>
+                                <td>{row.label}</td>
+                                <td>
+                                  <div className="status-toggle modal-status">
+                                    <input
+                                      type="checkbox"
+                                      id={`notif-${row.id}-push`}
+                                      className="check"
+                                      checked={t.push}
+                                      onChange={(e) => setTopic(row.id, "push", e.target.checked)}
+                                    />
+                                    <label htmlFor={`notif-${row.id}-push`} className="checktoggle" />
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="status-toggle modal-status">
+                                    <input
+                                      type="checkbox"
+                                      id={`notif-${row.id}-sms`}
+                                      className="check"
+                                      checked={t.sms}
+                                      onChange={(e) => setTopic(row.id, "sms", e.target.checked)}
+                                    />
+                                    <label htmlFor={`notif-${row.id}-sms`} className="checktoggle" />
+                                  </div>
+                                </td>
+                                <td>
+                                  <div className="status-toggle modal-status">
+                                    <input
+                                      type="checkbox"
+                                      id={`notif-${row.id}-email`}
+                                      className="check"
+                                      checked={t.email}
+                                      onChange={(e) => setTopic(row.id, "email", e.target.checked)}
+                                    />
+                                    <label htmlFor={`notif-${row.id}-email`} className="checktoggle" />
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -388,8 +230,8 @@ const Notification = () => {
           </div>
         </div>
       </div>
-    </div>);
-
+    </>
+  );
 };
 
 export default Notification;

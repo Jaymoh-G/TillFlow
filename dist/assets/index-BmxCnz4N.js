@@ -1,1 +1,0 @@
-import{a9 as e,d4 as s,j as i}from"./index-Bh96-NCu.js";const h=a=>{const t=`${s}${a.src}`;return i.jsx("img",{className:a.className,src:t,height:a.height,alt:a.alt,width:a.width,id:a.id})},c=e.memo(h);export{c as I};

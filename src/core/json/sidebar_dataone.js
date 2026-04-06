@@ -1921,18 +1921,6 @@ export const SidebarData1 = [
             showSubRoute: false,
           },
           {
-            tittle: "Localization",
-            route: "/localization-settings",
-            hasSubRoute: false,
-            showSubRoute: false,
-          },
-          {
-            tittle: "Prefixes",
-            route: "/prefixes",
-            hasSubRoute: false,
-            showSubRoute: false,
-          },
-          {
             tittle: "Preference",
             route: "/preference",
             hasSubRoute: false,
@@ -1950,12 +1938,6 @@ export const SidebarData1 = [
             hasSubRoute: false,
             showSubRoute: false,
           },
-          {
-            tittle: "Language",
-            route: "/language-settings",
-            hasSubRoute: false,
-            showSubRoute: false,
-          },
         ],
       },
 
@@ -1967,24 +1949,9 @@ export const SidebarData1 = [
         subRoutes: [
           {
             tittle: "Invoice",
-            hasSubRoute: true,
-            showSubRoute: true,
-            subRoutes: [
-              {
-                tittle: "Invoice Settings",
-                route: "/invoice-settings",
-                hasSubRoute: true,
-                showSubRoute: true,
-                subRoutes: [],
-              },
-              {
-                tittle: "Invoice Template",
-                route: "/invoice-template",
-                hasSubRoute: true,
-                showSubRoute: true,
-                subRoutes: [],
-              },
-            ],
+            route: "/invoice-settings",
+            hasSubRoute: false,
+            showSubRoute: false,
           },
           {
             tittle: "Printer",

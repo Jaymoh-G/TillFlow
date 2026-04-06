@@ -10,7 +10,7 @@ import CommonFooter from "../../../components/footer/commonFooter";
 
 const StorageSettings = () => {
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -116,7 +116,7 @@ const StorageSettings = () => {
       </div>
 
       <AwsSettings />
-    </div>);
+    </>);
 
 };
 

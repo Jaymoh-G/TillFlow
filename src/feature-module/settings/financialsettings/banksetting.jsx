@@ -39,7 +39,7 @@ const BankSetting = () => {
 
 
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -58,7 +58,7 @@ const BankSetting = () => {
             <div className="col-xl-12">
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
-                <div className="settings-page-wrap w-50">
+                <div className="settings-page-wrap">
                   <div className="setting-title">
                     <h4>Bank Account</h4>
                   </div>
@@ -386,7 +386,7 @@ const BankSetting = () => {
       </div>
       <BankSettingList />
       <EditBankSettingList />
-    </div>);
+    </>);
 
 };
 

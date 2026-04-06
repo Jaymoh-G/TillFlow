@@ -9,12 +9,15 @@ const CommonSelect = ({
   className = "",
   disabled = false,
   filter = true,
+  optionLabel = "label",
+  optionValue = "value",
   /** `"self"` keeps panel inside parent (can clip). `"body"` attaches to document.body. */
   appendTo = "self",
   /** Open overlay when the control receives focus (e.g. Tab). */
   showOnFocus = false,
   /** When `filter` is on, move focus to the filter field as soon as the overlay opens. */
-  filterInputAutoFocus = false
+  filterInputAutoFocus = false,
+  ...rest
 }) => {
   const appendTarget =
     appendTo === "body" && typeof document !== "undefined" ? document.body : appendTo;
@@ -24,6 +27,8 @@ const CommonSelect = ({
       <Dropdown
         value={value}
         options={Array.isArray(options) ? options : []}
+        optionLabel={optionLabel}
+        optionValue={optionValue}
         onChange={onChange}
         placeholder={placeholder}
         className={className}
@@ -32,6 +37,7 @@ const CommonSelect = ({
         filter={filter}
         showOnFocus={showOnFocus}
         filterInputAutoFocus={filterInputAutoFocus}
+        {...rest}
       />
     </div>
   );

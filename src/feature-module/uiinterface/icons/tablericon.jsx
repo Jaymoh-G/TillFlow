@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 
 import { Link } from 'react-router-dom';
-import "@tabler/icons-webfont/tabler-icons.min.css";
+import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 const TablerIcon = () => {
   return (
     <div className="page-wrapper cardhead">

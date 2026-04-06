@@ -55574,7 +55574,8 @@ input:checked + .slider:before {
 
 .page-wrapper .content.settings-content {
   background-color: #f7f7f7;
-  padding-bottom: 24px;
+  padding: 16px 12px 24px;
+  min-height: 0;
 }
 
 .settings-wrapper .settings-sidebar {
@@ -55584,7 +55585,7 @@ input:checked + .slider:before {
   left: unset;
   bottom: unset;
   width: 309px;
-  margin-right: 24px;
+  margin-right: 12px;
   border-right: 0;
   border: 1px solid #e6eaed;
   border-radius: 5px;

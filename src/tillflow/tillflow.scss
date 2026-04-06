@@ -1,6 +1,14 @@
 /* Typography: DreamsPOS (Nunito / Poppins). Brand: primary #419EDD, secondary #F89624. */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
 
+/* Fill viewport: React #root often has no height, so TillFlow admin grid/sidebar shorten. */
+#root:has(.tillflow-root) {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 .tillflow-root {
   color-scheme: dark;
   /* Dark surfaces — $darkmode-* + $input-bg */
@@ -35,7 +43,12 @@
   font-size: 14px;
   color: var(--tf-text);
   background: var(--tf-bg);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .tillflow-root a {
@@ -153,9 +166,14 @@
 }
 
 .tf-admin {
+  flex: 1;
   display: grid;
   grid-template-columns: 15rem 1fr;
+  grid-template-rows: 1fr;
+  min-height: 0;
   min-height: 100vh;
+  min-height: 100dvh;
+  align-items: stretch;
 }
 
 @media (max-width: 768px) {
@@ -172,6 +190,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-height: 0;
+  align-self: stretch;
 }
 
 @media (max-width: 768px) {
@@ -290,12 +310,21 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
+  margin-right: -0.25rem;
 }
 
 @media (max-width: 768px) {
   .tf-nav {
+    flex: 0 1 auto;
     flex-direction: row;
     flex-wrap: wrap;
+    overflow-y: visible;
+    min-height: auto;
   }
 }
 
@@ -307,12 +336,27 @@
   border-radius: var(--tf-radius-sm);
   color: var(--tf-muted);
   font-size: 0.9rem;
+  font-weight: 400;
+}
+
+/* Top-level row (e.g. Dashboard): heavier + primary text vs nested links */
+.tf-nav > a {
+  font-weight: 700;
+  color: var(--tf-text);
+}
+
+.tf-nav-group__body a {
+  font-weight: 400;
 }
 
 .tf-nav a .feather,
 .tf-nav__icon {
   font-size: 1.1rem;
   opacity: 0.9;
+}
+
+.tf-nav > a .tf-nav__icon {
+  opacity: 1;
 }
 
 .tf-nav a:hover {
@@ -330,6 +374,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  align-self: stretch;
 }
 
 .tf-admin__topbar {
@@ -363,6 +409,157 @@
 .tf-admin__body {
   padding: 1.5rem;
   flex: 1;
+  min-height: 0;
+}
+
+/* Single admin footer: hide duplicate DreamsPOS .footer inside each embedded page */
+.tf-admin .tf-admin__body .page-wrapper .footer {
+  display: none !important;
+}
+
+.tf-admin__site-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.tf-admin__site-footer .footer {
+  background: var(--tf-surface-2) !important;
+  color: var(--tf-muted) !important;
+  border-color: var(--tf-border) !important;
+}
+
+.tf-admin__site-footer .footer a {
+  color: var(--tf-accent);
+}
+
+.tillflow-root--light .tf-admin__site-footer .footer {
+  background: #fff !important;
+  color: inherit !important;
+  border-color: #dee2e6 !important;
+}
+
+.tf-offline-wait {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 12rem;
+}
+
+.tf-offline-wait__card {
+  max-width: 32rem;
+  padding: 1.5rem 1.35rem;
+  border-radius: var(--tf-radius-md, 8px);
+  border: 1px solid var(--tf-border, rgba(0, 0, 0, 0.12));
+  background: var(--tf-surface-elevated, rgba(255, 255, 255, 0.06));
+}
+
+.tf-offline-wait__title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.65rem;
+}
+
+.tf-offline-wait__text {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+  color: var(--tf-muted, rgba(255, 255, 255, 0.72));
+}
+
+.tf-offline-wait__links {
+  margin: 0;
+  padding-left: 1.15rem;
+  line-height: 1.7;
+
+  a {
+    color: var(--tf-accent);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* Manual “Sync to server” bar when background tenant UI-settings PATCH is denied (401/403). */
+.tf-sync-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--tf-border, rgba(255, 255, 255, 0.12));
+  background: var(--tf-surface-elevated, rgba(28, 32, 40, 0.97));
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.tillflow-root--light .tf-sync-banner {
+  background: var(--tf-surface-elevated, #fff);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.tf-sync-banner__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.tf-sync-banner__text {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--tf-muted, rgba(255, 255, 255, 0.82));
+
+  strong {
+    color: var(--tf-text, inherit);
+    font-weight: 600;
+  }
+}
+
+.tf-sync-banner__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.tf-sync-banner__error {
+  max-width: 72rem;
+  margin: 0.6rem auto 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--tf-radius-sm, 6px);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #fecaca;
+  background: rgba(185, 28, 28, 0.22);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.tillflow-root--light .tf-sync-banner__error {
+  color: #991b1b;
+  background: rgba(254, 226, 226, 0.95);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+/* Legacy .page-wrapper adds margin-left + padding-top for the main DreamsPOS chrome; not needed inside TillFlow. */
+.tf-admin .tf-admin__body > .page-wrapper {
+  margin-left: 0 !important;
+  padding: 0 !important;
+}
+
+/*
+ * Settings embed: `.tf-admin__body` already pads the main column; DreamsPOS `.page-wrapper .content`
+ * adds another 24px on all sides — that reads as a wide empty band between the TillFlow nav and the settings UI.
+ */
+.tf-admin .tf-admin__body > .page-wrapper > .content.settings-content {
+  padding: 0 !important;
+  min-height: 0;
+  background: transparent;
 }
 
 /* DreamsPOS pages embedded here use .page-wrapper with margin for the main-app sidebar; reset inside TillFlow. */
@@ -392,16 +589,294 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.manage-stock-page .table-responsive {
   width: 100%;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.manage-stock-page .p-datatable {
   width: 100%;
+}
+
+/* Purchase list / order / returns — same embed treatment as stock pages */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page > .content,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page > .content,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page > .content {
+  padding: 0 !important;
+  min-height: auto;
+}
+
+/* Full-page create purchase (TillFlow) — restore horizontal padding over list layout */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page.purchase-list-page--create > .content {
+  padding: 1rem 1.25rem 1.5rem !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-form-sheet--crm {
+  max-width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-header .page-title h4 {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .page-header,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .page-header,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .page-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .card,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .card,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .card {
+  border-radius: var(--tf-radius-md);
+  border-color: var(--tf-border);
+  box-shadow: none;
+  background: var(--tf-surface);
+  color: var(--tf-text);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .card-header,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .card-header,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .card-header {
+  background: var(--tf-surface-2);
+  color: var(--tf-text);
+  border-bottom-color: var(--tf-border);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .card .text-muted,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .card .text-muted,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .card .text-muted {
+  color: var(--tf-muted) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .page-title h4,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .page-title h6,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .page-title h4,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .page-title h6,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .page-title h4,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .page-title h6 {
+  color: var(--tf-text);
+}
+
+/* DreamsPOS / Prime defaults are light-theme grids — align with TillFlow tokens */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table .p-datatable-table thead tr th,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .table .p-datatable-table thead tr th,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .table .p-datatable-table thead tr th {
+  background-color: var(--tf-surface-2) !important;
+  color: var(--tf-text) !important;
+  border-color: var(--tf-border) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table .p-datatable-table .p-datatable-thead,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .table .p-datatable-table .p-datatable-thead,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .table .p-datatable-table .p-datatable-thead {
+  border-bottom: 1px solid var(--tf-border) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table .p-datatable-table tbody > tr,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .table .p-datatable-table tbody > tr,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .table .p-datatable-table tbody > tr {
+  background: var(--tf-surface) !important;
+  color: var(--tf-text) !important;
+  border-color: var(--tf-border) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table .p-datatable-table tbody > tr > td,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .table .p-datatable-table tbody > tr > td,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .table .p-datatable-table tbody > tr > td {
+  color: var(--tf-text);
+  border-color: var(--tf-border);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .parent-class-datatable,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .parent-class-datatable,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .parent-class-datatable {
+  color: var(--tf-text);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-responsive,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .table-responsive,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .table-responsive {
+  width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .p-datatable,
+.tf-admin .tf-admin__body .page-wrapper.purchase-order-report-page .p-datatable,
+.tf-admin .tf-admin__body .page-wrapper.purchase-returns-page .p-datatable {
+  width: 100%;
+}
+
+/* Purchase create: + / × row actions (align with quotation line controls) */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .purchase-line-action-group {
+  gap: 0.125rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .purchase-line-action-btn {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Purchase add modal: catalog product search (matches quotation TillFlow styling). */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-sm);
+  background: var(--tf-surface-input);
+  overflow: hidden;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field:hover {
+  border-color: var(--tf-secondary);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field:hover
+  .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown {
+  border-left-color: var(--tf-secondary) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within {
+  border-color: var(--tf-secondary);
+  outline: 2px solid var(--tf-secondary);
+  outline-offset: 0;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within
+  .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown {
+  border-left-color: var(--tf-secondary) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field__icon {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: 0.65rem;
+  color: var(--bs-secondary-color, #8b949e);
+  pointer-events: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete.p-autocomplete {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-input-multiple {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus-visible {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+  flex-shrink: 0;
+  border: none !important;
+  border-left: 1px solid color-mix(in srgb, var(--tf-text) 22%, var(--tf-border)) !important;
+  box-shadow: none !important;
+  background: transparent;
+  color: var(--tf-text) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown .p-button-icon,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown svg {
+  color: inherit !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown:hover:not(:disabled) {
+  background: var(--tf-accent-hover-bg) !important;
+  color: var(--tf-text) !important;
+}
+
+/* Purchase create (CRM): search + add product row — match quotation CRM toolbar */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-search-with-action .quotation-catalog-autocomplete.p-autocomplete {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+  flex-wrap: nowrap;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-input-multiple,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-inputtext {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  min-height: 2.75rem;
+  width: 2.75rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary {
+  padding: 0.22rem 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible {
+  color: #fff;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited {
+  color: #fff;
+}
+
+@media (min-width: 768px) {
+  .tf-admin
+    .tf-admin__body
+    .page-wrapper.purchase-list-page
+    .quotation-crm-search-with-action
+    .quotation-crm-add-product-link.tf-btn.tf-btn--secondary {
+    width: auto !important;
+    max-width: 100%;
+  }
 }
 
 .tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page {
@@ -428,10 +903,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.stock-adjustment-page .table-responsive {
@@ -468,10 +939,6 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.stock-transfer-page .table-responsive {
   width: 100%;
 }
@@ -504,10 +971,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stores-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.manage-stores-page .table-responsive {
@@ -544,10 +1007,6 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.pos-orders-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.pos-orders-page .table-responsive {
   width: 100%;
 }
@@ -580,10 +1039,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.online-orders-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.online-orders-page .table-responsive {
@@ -624,11 +1079,6 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .footer,
-.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .table-responsive,
 .tf-admin .tf-admin__body .page-wrapper.invoice-list-page .table-responsive {
   width: 100%;
@@ -656,9 +1106,161 @@
   min-height: 2.75rem;
 }
 
+/* Catalog quick-add: search icon + thin outer border */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-sm);
+  background: var(--tf-surface-input);
+  overflow: hidden;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:hover {
+  border-color: var(--tf-secondary);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:hover
+  .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown {
+  border-left-color: var(--tf-secondary) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within {
+  border-color: var(--tf-secondary);
+  outline: 2px solid var(--tf-secondary);
+  outline-offset: 0;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within
+  .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown {
+  border-left-color: var(--tf-secondary) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field__icon {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: 0.65rem;
+  color: var(--bs-secondary-color, #8b949e);
+  pointer-events: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete.p-autocomplete {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-input-multiple {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus-visible {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+/* List/chevron: Prime default is light icon on filled button; transparent bg → force tf-text + no flex shrink */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+  flex-shrink: 0;
+  border: none !important;
+  border-left: 1px solid color-mix(in srgb, var(--tf-text) 22%, var(--tf-border)) !important;
+  box-shadow: none !important;
+  background: transparent;
+  color: var(--tf-text) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown .p-button-icon,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown svg {
+  color: inherit !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown:hover:not(:disabled) {
+  color: var(--tf-text) !important;
+  background: color-mix(in srgb, var(--tf-text) 8%, transparent);
+}
+
+/* CRM quotation: search + add product share one row (Bootstrap columns) */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-search-with-action .quotation-catalog-autocomplete.p-autocomplete {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+  flex-wrap: nowrap;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-input-multiple,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-inputtext {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  min-height: 2.75rem;
+  width: 2.75rem;
+}
+
+/* CRM: compact orange actions — “Add new product”, header Back (Feather uses currentColor) */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary {
+  padding: 0.22rem 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:hover,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:focus-visible {
+  color: #fff;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited {
+  color: #fff;
+}
+
+@media (min-width: 768px) {
+  .tf-admin
+    .tf-admin__body
+    .page-wrapper.quotation-list-page
+    .quotation-crm-search-with-action
+    .quotation-crm-add-product-link.tf-btn.tf-btn--secondary {
+    width: auto !important;
+    max-width: 100%;
+  }
+}
+
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table {
   table-layout: fixed;
   width: 100%;
+
+  &.table > :not(caption) > * > * {
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table thead th {
@@ -672,8 +1274,8 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 8px;
-  margin-right: -2px;
+  width: 5px;
+  margin-right: -1px;
   cursor: col-resize;
   z-index: 2;
   touch-action: none;
@@ -684,13 +1286,156 @@
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-row-drag {
-  cursor: grab;
+  cursor: default;
   user-select: none;
   vertical-align: middle !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .qt-line-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  color: inherit;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
 
   &:active {
     cursor: grabbing;
   }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-primary, #0d6efd);
+    outline-offset: 2px;
+  }
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table textarea.qt-line-desc-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table textarea.qt-line-item-textarea {
+  resize: vertical;
+  min-height: 2.75rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-action-group {
+  gap: 0.125rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-line-items-table .quotation-line-action-btn {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* TillFlow admin quotations: CRM-style quotation form (section cards, totals) */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-form-sheet--crm {
+  max-width: 100%;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header .page-title h4 {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-card .card-header {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  border-color: var(--tf-border) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-card .card-header h5 {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+}
+
+/* Quotation form: bottom summary (Sub Total / Discount / Tax / Total) — CRM-style, above action buttons */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar {
+  background: var(--tf-surface-2);
+  border: 1px solid var(--tf-border) !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__figures {
+  min-width: min(100%, 22rem);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1.25rem;
+  padding: 0.4rem 0;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__row--muted {
+  font-size: 0.875rem;
+  color: var(--tf-muted, #6c757d);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__row--total {
+  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--tf-border);
+  font-size: 1rem;
+  color: var(--tf-text);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__label {
+  flex: 0 0 auto;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: inherit;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__row--total .quotation-crm-summary-bar__label {
+  font-weight: 600;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__discount-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  min-width: 7.5rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--tf-text);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__disc-amt {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  opacity: 0.88;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__disc-amt--off {
+  color: var(--tf-danger, #dc3545);
+  opacity: 1;
+  font-weight: 500;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__amount {
+  font-variant-numeric: tabular-nums;
+  min-width: 7.5rem;
+  text-align: right;
+  font-weight: 500;
+  color: var(--tf-text);
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-summary-bar__amount--grand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
 }
 
 
@@ -718,10 +1463,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.sales-return-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.sales-return-page .table-responsive {
@@ -758,10 +1499,6 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.customers-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.customers-page .table-responsive {
   width: 100%;
 }
@@ -794,10 +1531,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.billers-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.billers-page .table-responsive {
@@ -834,10 +1567,6 @@
   box-shadow: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.suppliers-page .footer {
-  display: none;
-}
-
 .tf-admin .tf-admin__body .page-wrapper.suppliers-page .table-responsive {
   width: 100%;
 }
@@ -870,10 +1599,6 @@
   border-radius: var(--tf-radius-md);
   border-color: var(--tf-border);
   box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page .footer {
-  display: none;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.store-managers-page .table-responsive {
@@ -1032,6 +1757,39 @@
   font-size: 0.85rem;
   color: var(--tf-muted);
   max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.tf-admin__user-link {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 4px;
+  padding: 0.15rem 0.35rem;
+  margin: -0.15rem -0.35rem;
+}
+
+a.tf-admin__user-link:hover {
+  color: var(--tf-text);
+  text-decoration: underline;
+}
+
+.tf-admin__user-with-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 16rem;
+}
+
+.tf-admin__user-avatar {
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tf-admin__user-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1257,9 +2015,10 @@
 }
 
 .tf-nav-section {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--tf-muted);
   margin: 1rem 0 0.35rem;
   padding: 0 0.75rem;
@@ -1283,14 +2042,30 @@
   border-radius: var(--tf-radius-sm);
   background: transparent;
   font: inherit;
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--tf-muted);
   cursor: pointer;
   text-align: left;
   gap: 0.35rem;
+}
+
+/* Main sidebar sections (Inventory, Settings, …): stronger than nested settings rows */
+.tf-nav-group:not(.tf-nav-group--settings) > .tf-nav-group__hdr {
+  font-weight: 700;
+  color: var(--tf-text);
+}
+
+.tf-nav-group:not(.tf-nav-group--settings) > .tf-nav-group__hdr .feather {
+  opacity: 0.92;
+}
+
+/* Settings sub-categories: smaller / lighter than main sections (Inventory, Settings, …) */
+.tf-nav-group--settings .tf-nav-group__hdr {
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .tf-nav-group__hdr:hover {
@@ -1308,6 +2083,42 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.tf-nav-group__label {
+  display: block;
+  padding: 0.65rem 0.75rem 0.15rem;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tf-muted);
+  opacity: 0.85;
+}
+
+/* Settings: outer “Settings” group wraps nested category accordions */
+.tf-nav-settings-nested {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+  padding-left: 0.35rem;
+  border-left: 2px solid var(--tf-accent-dim);
+}
+
+.tf-nav-settings-nested .tf-nav-group--settings:first-child .tf-nav-group__hdr {
+  margin-top: 0.2rem;
+}
+
+.tf-nav-group--settings + .tf-nav-group--settings .tf-nav-group__hdr {
+  margin-top: 0.45rem;
+}
+
+.tf-nav-group--settings .tf-nav-group__body {
+  padding-left: 0.35rem;
+  margin-left: 0.25rem;
+  border-left: 1px solid var(--tf-border);
 }
 
 .tf-nav--placeholder {
@@ -1393,6 +2204,70 @@
   font-size: 0.8125rem;
   font-weight: 600;
   padding: 0.45rem 0.9rem;
+}
+
+/* Quotation form: friendly hint when staging row is empty (Bootstrap modal) */
+.tf-hint-modal .modal-dialog {
+  max-width: 420px;
+}
+
+.tf-hint-modal__content.modal-content {
+  background: var(--tf-surface, #ffffff);
+  border: 1px solid var(--tf-border, #e6eaed);
+  border-radius: var(--tf-radius-md, 8px);
+  box-shadow: var(--tf-shadow-card, 0 8px 32px rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+}
+
+.tillflow-root--light .tf-hint-modal__content.modal-content {
+  box-shadow: 0 8px 32px rgba(9, 44, 76, 0.12);
+}
+
+.tf-hint-modal__body.modal-body {
+  padding: 1.75rem 1.35rem 1.5rem !important;
+}
+
+.tf-hint-modal__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--tf-accent-dim, rgba(65, 158, 221, 0.14));
+}
+
+.tf-hint-modal__icon {
+  color: var(--tf-accent, #419edd);
+}
+
+.tf-hint-modal__title {
+  font-family: 'Poppins', 'Nunito', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--tf-text, #212b36);
+  margin: 0 0 0.65rem;
+  letter-spacing: -0.02em;
+}
+
+.tf-hint-modal__message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--tf-muted, #5c6f82);
+}
+
+.tf-hint-modal__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.35rem;
+}
+
+.tf-hint-modal__btn {
+  min-width: 7rem;
+  border-radius: var(--tf-radius-sm, 5px);
+  padding: 0.5rem 1rem;
 }
 
 @import './tf-add-item';

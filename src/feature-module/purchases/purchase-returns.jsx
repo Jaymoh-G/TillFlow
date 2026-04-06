@@ -141,7 +141,7 @@ const PurchaseReturns = () => {
 
   return (
     <div>
-      <div className="page-wrapper">
+      <div className="page-wrapper purchase-returns-page">
         <div className="content">
           <div className="page-header">
             <div className="add-item d-flex">

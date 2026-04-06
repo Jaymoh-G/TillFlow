@@ -5,7 +5,10 @@
     .content {
         &.settings-content {
             background-color: variables.$light-500;
-            padding-bottom: 24px;
+            /* Tighter than default `.page-wrapper .content` (24px) — less dead space beside the primary sidebar */
+            padding: 16px 12px 24px;
+            /* Override global `.page-wrapper .content` viewport min-height — avoids a tall empty area below settings cards */
+            min-height: 0;
         }
     }
 }
@@ -17,7 +20,7 @@
         left: unset;
         bottom: unset;
         width: 309px;
-        margin-right: 24px;
+        margin-right: 12px;
         border-right: 0;
         border: 1px solid variables.$secondary-transparent;
         border-radius: 5px;
@@ -141,9 +144,9 @@
                                 }
                             }
                         }
-                    }     
+                    }
                 }
-                
+
             }
         }
     }
@@ -197,15 +200,15 @@
                     .submenu {
                         .menu-arrow {
                             display: block !important;
-                        } 
+                        }
                         .subdrop ~ ul{
                             display: block !important;
                         }
-                    } 
+                    }
                 }
-            } 
-        } 
-    } 
+            }
+        }
+    }
 }
 .settings-bottom-btn {
     margin-top: 40px;
@@ -504,7 +507,7 @@ svg {
         width: 18px;
         height: 18px;
         color: variables.$white;
-    } 
+    }
 }
 .search-path .btn-filter.setclose > .filter-icon {
     display: none;
@@ -609,7 +612,7 @@ th {
     -webkit-box-align: center;
     -ms-flex-align: center;
 }
-.poor-active span.active#poor, 
+.poor-active span.active#poor,
 .poor-active span.active#poors {
     background: variables.$danger;
 }
@@ -696,7 +699,7 @@ th {
         }
     }
 }
-.delete-account-modal { 
+.delete-account-modal {
     .delete-header {
         margin-bottom: 15px;
         p {
@@ -704,7 +707,7 @@ th {
             @include mixins.respond-below(custom767) {
                 font-size: variables.$font-size-14;
             }
-        }      
+        }
     }
 }
 .notification-table-responsive {
@@ -765,13 +768,13 @@ th {
             //     -ms-transform: translateY(-50%);
             // }
         }
-    } 
+    }
 }
 
 .circle-progress {
     width: 21px;
     height: 21px !important;
-    float: left; 
+    float: left;
     line-height: 21px;
     background: none;
     box-shadow: none;
@@ -862,7 +865,7 @@ th {
     > ul {
         padding: 0 28px;
     }
-} 
+}
 .settings-wrapper .settings-sidebar .sidebar-menu .submenu-open ul .submenu ul li.submenu-two {
     > ul {
         padding: 0;
@@ -870,7 +873,7 @@ th {
     a.active::after {
         display: none;
     }
-} 
+}
 .pricing-check {
     width: 14px;
     height: 14px;
@@ -949,7 +952,7 @@ th {
             right: 4px;
             top: 4px;
             &:hover {
-                background-color: variables.$danger-hover;   
+                background-color: variables.$danger-hover;
             }
         }
     }
@@ -969,5 +972,27 @@ th {
                 color: variables.$white;
             }
         }
+    }
+}
+
+/* Security settings — Feather icon tiles (reliable in TillFlow + main app) */
+.security-settings-page__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid variables.$secondary-transparent;
+    border-radius: 8px;
+    background-color: variables.$light-900;
+    margin-right: 12px;
+    color: variables.$title-color;
+
+    .feather {
+        font-size: 1.125rem;
+    }
+
+    &--lg {
+        width: 3rem;
+        height: 3rem;
     }
 }

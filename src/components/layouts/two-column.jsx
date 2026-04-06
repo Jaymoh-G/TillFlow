@@ -1102,14 +1102,6 @@ const TwoColumnSidebar = () => {
                           </Link>
                         </li>
                         <li>
-                          <Link to={route.localizationsettings}>
-                            Localization
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to={route.prefixes}>Prefixes</Link>
-                        </li>
-                        <li>
                           <Link to={route.preference}>Preference</Link>
                         </li>
                         <li>
@@ -1120,9 +1112,6 @@ const TwoColumnSidebar = () => {
                             Social Authentication
                           </Link>
                         </li>
-                        <li>
-                          <Link to={route.languagesettings}>Language</Link>
-                        </li>
                       </ul>
                     </li>
                     <li className="submenu">
@@ -1131,21 +1120,8 @@ const TwoColumnSidebar = () => {
                         <span className="menu-arrow" />
                       </Link>
                       <ul>
-                        <li className="submenu submenu-two">
-                          <Link to="#">
-                            Invoice
-                            <span className="menu-arrow inside-submenu" />
-                          </Link>
-                          <ul>
-                            <li>
-                              <Link to={route.invoicesettings}>
-                                Invoice Settings
-                              </Link>
-                            </li>
-                            <li>
-                              <Link to={route.invoice}>Invoice Template</Link>
-                            </li>
-                          </ul>
+                        <li>
+                          <Link to={route.invoicesettings}>Invoice</Link>
                         </li>
                         <li>
                           <Link to={route.printersettings}>Printer</Link>

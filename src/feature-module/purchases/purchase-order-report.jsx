@@ -12,6 +12,7 @@ const PurchaseOrderReport = () => {
   const [totalRecords, _setTotalRecords] = useState(5);
   const [rows, setRows] = useState(10);
   const [_searchQuery, setSearchQuery] = useState(undefined);
+  const [selectedReports, setSelectedReports] = useState([]);
 
   const columns = [
   {
@@ -41,7 +42,7 @@ const PurchaseOrderReport = () => {
 
   return (
     <div>
-      <div className="page-wrapper">
+      <div className="page-wrapper purchase-order-report-page">
         <div className="content">
           <div className="page-header">
             <div className="add-item d-flex">

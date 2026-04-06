@@ -109,9 +109,6 @@ const SocialAuthentication = lazy(
   () =>
   import("../feature-module/settings/websitesettings/socialauthentication")
 );
-const LanguageSettings = lazy(
-  () => import("../feature-module/settings/websitesettings/languagesettings")
-);
 const InvoiceSettings = lazy(
   () => import("../feature-module/settings/appsetting/invoicesettings")
 );
@@ -193,13 +190,6 @@ const SystemSettings = lazy(
 );
 const CompanySettings = lazy(
   () => import("../feature-module/settings/websitesettings/companysettings")
-);
-const LocalizationSettings = lazy(
-  () =>
-  import("../feature-module/settings/websitesettings/localizationsettings")
-);
-const Prefixes = lazy(
-  () => import("../feature-module/settings/websitesettings/prefixes")
 );
 const Preference = lazy(
   () => import("../feature-module/settings/websitesettings/preference")
@@ -387,10 +377,6 @@ const BestSeller = lazy(() => import("../feature-module/Reports/bestseller"));
 const Invoicereportnew = lazy(
   () => import("../feature-module/Reports/invoicereportnew")
 );
-const Languagesetteingsweb = lazy(
-  () =>
-  import("../feature-module/settings/websitesettings/languagesetteingsweb")
-);
 const Success = lazy(() => import("../feature-module/pages/authentication/success/success"));
 const SuccessTwo = lazy(
   () => import("../feature-module/pages/authentication/success/successTwo")
@@ -457,9 +443,6 @@ const ProductQualityreport = lazy(
 );
 const Salestax = lazy(() => import("../feature-module/Reports/salestax"));
 const Annualreport = lazy(() => import("../feature-module/Reports/annualreport"));
-const InvoiceTemplate = lazy(
-  () => import("../feature-module/settings/appsetting/invoicetemplate")
-);
 const Signature = lazy(
   () => import("../feature-module/settings/appsetting/signature")
 );
@@ -807,13 +790,6 @@ export const authRoutes = [
   route: Route
 },
 {
-  id: 73,
-  path: routes.languagesettings,
-  name: "languagesettings",
-  element: <LanguageSettings />,
-  route: Route
-},
-{
   id: 74,
   path: routes.invoicesettings,
   name: "invoicesettings",
@@ -1042,20 +1018,6 @@ export const authRoutes = [
   path: routes.companysettings,
   name: "companysettings",
   element: <CompanySettings />,
-  route: Route
-},
-{
-  id: 94,
-  path: routes.localizationsettings,
-  name: "localizationsettings",
-  element: <LocalizationSettings />,
-  route: Route
-},
-{
-  id: 95,
-  path: routes.prefixes,
-  name: "prefixes",
-  element: <Prefixes />,
   route: Route
 },
 {
@@ -1417,13 +1379,6 @@ export const authRoutes = [
   route: Route
 },
 {
-  id: 135,
-  path: routes.languagesettingsweb,
-  name: "language-settings-web",
-  element: <Languagesetteingsweb />,
-  route: Route
-},
-{
   id: 150,
   path: routes.employeelist,
   name: "employees-list",
@@ -1646,13 +1601,6 @@ export const authRoutes = [
   path: routes.annualreport,
   name: "annual-report",
   element: <Annualreport />,
-  route: Route
-},
-{
-  id: 158,
-  path: routes.invoicetemplate,
-  name: "invoice-template",
-  element: <InvoiceTemplate />,
   route: Route
 },
 {

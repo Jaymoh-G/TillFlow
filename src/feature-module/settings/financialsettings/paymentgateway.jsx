@@ -24,7 +24,7 @@ import {
 
 const PaymentGateway = () => {
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -689,7 +689,7 @@ const PaymentGateway = () => {
       </div>
 
       <Paypal />
-    </div>);
+    </>);
 
 };
 

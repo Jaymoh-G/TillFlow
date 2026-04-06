@@ -29,7 +29,7 @@ const BanIpaddress = () => {
             <div className="col-xl-12">
               <div className="settings-wrapper d-flex">
                 <SettingsSideBar />
-                <div className="card flex-fill mb-0 w-50">
+                <div className="card flex-fill mb-0 min-w-0">
                   <div className="card-header d-flex align-items-center">
                     <h5 className="card-title flex-grow-1 mb-0">
                       Ban IP Address

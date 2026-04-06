@@ -1056,12 +1056,6 @@ const CollapsedSidebar = () => {
                     <Link to="company-settings">Company Settings </Link>
                   </li>
                   <li>
-                    <Link to="localization-settings">Localization</Link>
-                  </li>
-                  <li>
-                    <Link to="prefixes">Prefixes</Link>
-                  </li>
-                  <li>
                     <Link to="preference">Preference</Link>
                   </li>
                   <li>
@@ -1071,9 +1065,6 @@ const CollapsedSidebar = () => {
                     <Link to="social-authentication">
                       Social Authentication
                     </Link>
-                  </li>
-                  <li>
-                    <Link to="language-settings">Language</Link>
                   </li>
                 </ul>
               </li>

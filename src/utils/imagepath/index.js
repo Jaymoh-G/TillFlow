@@ -261,8 +261,6 @@ export { default as flag02Icon } from "../../assets/img/icons/flag-02.svg";
 export { default as flag03Icon } from "../../assets/img/icons/flag-03.svg";
 export { default as flag04Icon } from "../../assets/img/icons/flag-04.svg";
 
-export { default as invoiceTemplate01 } from "../../assets/img/invoice-templates/invoice-01.svg";
-export { default as invoiceTemplate02 } from "../../assets/img/invoice-templates/invoice-02.svg";
 export { default as invoiceSignature01 } from "../../assets/img/invoice-templates/signature.svg";
 export { default as signatureImage } from "../../assets/img/invoice/signature.svg";
 

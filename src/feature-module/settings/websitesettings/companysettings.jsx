@@ -1,35 +1,258 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import CommonFooter from "../../../components/footer/commonFooter";
 import { companyLogo, logoSmall, whiteCompanyLogo } from "../../../utils/imagepath";
-import CommonSelect from "../../../components/select/common-select";
 import RefreshIcon from "../../../components/tooltip-content/refresh";
 import CollapesIcon from "../../../components/tooltip-content/collapes";
 import SettingsSideBar from "../settingssidebar";
+import {
+  formToCompanyProfileApiBody,
+  loadCompanySettings,
+  profileApiToForm,
+  saveCompanySettings
+} from "../../../utils/companySettingsStorage";
+import { useOptionalAuth } from "../../../tillflow/auth/AuthContext";
+import { TillFlowApiError } from "../../../tillflow/api/errors";
+import {
+  getTenantCompanyProfileRequest,
+  updateTenantCompanyProfileRequest
+} from "../../../tillflow/api/tenantCompany";
+
+const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
+
+function useObjectUrls() {
+  const urlsRef = useRef([]);
+  const register = useCallback((blobUrl) => {
+    if (blobUrl) {
+      urlsRef.current.push(blobUrl);
+    }
+    return blobUrl;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      for (const u of urlsRef.current) {
+        try {
+          URL.revokeObjectURL(u);
+        } catch {
+          /* ignore */
+        }
+      }
+      urlsRef.current = [];
+    };
+  }, []);
+
+  const revokeAll = useCallback(() => {
+    for (const u of urlsRef.current) {
+      try {
+        URL.revokeObjectURL(u);
+      } catch {
+        /* ignore */
+      }
+    }
+    urlsRef.current = [];
+  }, []);
+
+  return { register, revokeAll };
+}
 
 const CompanySettings = () => {
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
-  const [selectedCity, setSelectedCity] = useState(null);
-  const Country = [
-  { label: "USA", value: "1" },
-  { label: "India", value: "2" },
-  { label: "French", value: "3" },
-  { label: "Australia", value: "4" }];
+  const auth = useOptionalAuth();
+  const token = auth?.token ?? sessionStorage.getItem(TILLFLOW_TOKEN_KEY);
+  const refreshUser = auth?.refreshUser;
 
-  const State = [
-  { label: "Alaska", value: "1" },
-  { label: "Mexico", value: "2" },
-  { label: "Tasmania", value: "3" }];
+  const [form, setForm] = useState(() => loadCompanySettings());
+  const [baseline, setBaseline] = useState(() => loadCompanySettings());
+  const [savedMsg, setSavedMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [apiLoading, setApiLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [storageSource, setStorageSource] = useState(/** @type {"server" | "local"} */ ("local"));
+  const { register, revokeAll } = useObjectUrls();
 
-  const City = [
-  { label: "Anchorage", value: "1" },
-  { label: "Tijuana", value: "2" },
-  { label: "Hobart", value: "3" }];
+  useEffect(() => {
+    if (!token) {
+      setStorageSource("local");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setApiLoading(true);
+      setErrorMsg("");
+      try {
+        const data = await getTenantCompanyProfileRequest(token);
+        if (cancelled) {
+          return;
+        }
+        const f = profileApiToForm(data.profile);
+        setForm(f);
+        setBaseline({ ...f });
+        saveCompanySettings(f);
+        setStorageSource("server");
+      } catch (e) {
+        if (!cancelled) {
+          setStorageSource("local");
+          const msg = e instanceof Error ? e.message : "Could not load company profile.";
+          setErrorMsg(`${msg} Showing data saved in this browser.`);
+        }
+      } finally {
+        if (!cancelled) {
+          setApiLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
+  const [previews, setPreviews] = useState({
+    icon: null,
+    favicon: null,
+    logo: null,
+    darkLogo: null
+  });
+
+  const updateField = useCallback((key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+  }, []);
+
+  const handleFile = useCallback(
+    (field, fileList) => {
+      const file = fileList?.[0];
+      if (!file || !file.type.startsWith("image/")) {
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMsg("Image must be 5 MB or smaller.");
+        return;
+      }
+      setErrorMsg("");
+      const url = register(URL.createObjectURL(file));
+      setPreviews((p) => {
+        if (p[field]) {
+          try {
+            URL.revokeObjectURL(p[field]);
+          } catch {
+            /* ignore */
+          }
+        }
+        return { ...p, [field]: url };
+      });
+    },
+    [register]
+  );
+
+  const clearPreview = useCallback(
+    (field) => {
+      setPreviews((p) => {
+        if (p[field]) {
+          try {
+            URL.revokeObjectURL(p[field]);
+          } catch {
+            /* ignore */
+          }
+        }
+        return { ...p, [field]: null };
+      });
+    },
+    []
+  );
+
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setSavedMsg("");
+      setErrorMsg("");
+      const name = form.companyName.trim();
+      const email = form.email.trim();
+      const phone = form.phone.trim();
+      if (!name) {
+        setErrorMsg("Company name is required.");
+        return;
+      }
+      if (!email) {
+        setErrorMsg("Company email is required.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setErrorMsg("Enter a valid email address.");
+        return;
+      }
+      if (!phone) {
+        setErrorMsg("Phone number is required.");
+        return;
+      }
+      if (!form.location.trim()) {
+        setErrorMsg("Location is required.");
+        return;
+      }
+
+      const next = {
+        ...form,
+        companyName: name,
+        email,
+        phone,
+        website: form.website.trim(),
+        location: form.location.trim()
+      };
+
+      if (token) {
+        setSaving(true);
+        try {
+          const body = formToCompanyProfileApiBody(next);
+          await updateTenantCompanyProfileRequest(token, body);
+          saveCompanySettings(next);
+          setForm(next);
+          setBaseline({ ...next });
+          setStorageSource("server");
+          setSavedMsg("Company profile saved to the database for your store.");
+          await refreshUser?.();
+        } catch (e) {
+          if (e instanceof TillFlowApiError && e.status === 403) {
+            setErrorMsg(
+              "You do not have permission to update company settings. Ask an owner or administrator."
+            );
+          } else {
+            setErrorMsg(
+              e instanceof Error ? e.message : "Could not save to the server. Try again."
+            );
+          }
+        } finally {
+          setSaving(false);
+        }
+        return;
+      }
+
+      saveCompanySettings(next);
+      setForm(next);
+      setBaseline({ ...next });
+      setSavedMsg("Company settings saved in this browser only. Sign in via TillFlow to sync to the database.");
+    },
+    [form, token, refreshUser]
+  );
+
+  const handleCancel = useCallback(() => {
+    setSavedMsg("");
+    setErrorMsg("");
+    revokeAll();
+    const b = { ...baseline };
+    setForm(b);
+    setPreviews({ icon: null, favicon: null, logo: null, darkLogo: null });
+  }, [baseline, revokeAll]);
+
+  const defaultFor = {
+    icon: logoSmall,
+    favicon: logoSmall,
+    logo: companyLogo,
+    darkLogo: whiteCompanyLogo
+  };
+
+  const showTillflowBackLink =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
 
   return (
-    <div>
+    <>
       <div className="page-wrapper">
         <div className="content settings-content">
           <div className="page-header settings-pg-header">
@@ -50,10 +273,53 @@ const CompanySettings = () => {
                 <SettingsSideBar />
                 <div className="card flex-fill mb-0">
                   <div className="card-header">
-                    <h4 className="fs-18 fw-bold">Company Settings</h4>
+                    <div className="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                      <h4 className="fs-18 fw-bold mb-0">Company Settings</h4>
+                      {showTillflowBackLink ? (
+                        <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm flex-shrink-0">
+                          Back to admin
+                        </Link>
+                      ) : null}
+                    </div>
+                    <p className="text-muted small mb-0">
+                      {token ? (
+                        storageSource === "server" ? (
+                          <>
+                            Signed in — profile loads from your{" "}
+                            <strong>tenant database</strong>. Saving updates the server (requires admin /
+                            owner permission).
+                          </>
+                        ) : (
+                          <>
+                            Signed in — using <strong>browser backup</strong> because the server profile
+                            could not be loaded. Saves stay local until the API is available.
+                          </>
+                        )
+                      ) : (
+                        <>
+                          Not signed in to TillFlow — data is kept in <strong>this browser only</strong>.
+                          Log in through TillFlow to save company details to the database for all users.
+                        </>
+                      )}
+                    </p>
                   </div>
                   <div className="card-body">
-                    <form>
+                    {apiLoading ? (
+                      <div className="alert alert-light border py-2 mb-3" role="status">
+                        Loading company profile…
+                      </div>
+                    ) : null}
+                    {savedMsg ? (
+                      <div className="alert alert-success py-2" role="status">
+                        {savedMsg}
+                      </div>
+                    ) : null}
+                    {errorMsg ? (
+                      <div className="alert alert-danger py-2" role="alert">
+                        {errorMsg}
+                      </div>
+                    ) : null}
+                    <form onSubmit={handleSubmit} aria-busy={saving || apiLoading}>
                       <div className="border-bottom mb-3">
                         <div className="card-title-head">
                           <h6 className="fs-16 fw-bold mb-2">
@@ -66,45 +332,62 @@ const CompanySettings = () => {
                         <div className="row">
                           <div className="col-xl-4 col-lg-6 col-md-4">
                             <div className="mb-3">
-                              <label className="form-label">
-                                Company Name{" "}
-                                <span className="text-danger">*</span>
+                              <label className="form-label" htmlFor="co-name">
+                                Company Name <span className="text-danger">*</span>
                               </label>
-                              <input type="text" className="form-control" />
+                              <input
+                                id="co-name"
+                                type="text"
+                                className="form-control"
+                                autoComplete="organization"
+                                value={form.companyName}
+                                onChange={(e) => updateField("companyName", e.target.value)}
+                              />
                             </div>
                           </div>
                           <div className="col-xl-4 col-lg-6 col-md-4">
                             <div className="mb-3">
-                              <label className="form-label">
-                                Company Email Address{" "}
-                                <span className="text-danger">*</span>
+                              <label className="form-label" htmlFor="co-email">
+                                Company Email Address <span className="text-danger">*</span>
                               </label>
-                              <input type="email" className="form-control" />
+                              <input
+                                id="co-email"
+                                type="email"
+                                className="form-control"
+                                autoComplete="email"
+                                value={form.email}
+                                onChange={(e) => updateField("email", e.target.value)}
+                              />
                             </div>
                           </div>
                           <div className="col-md-4">
                             <div className="mb-3">
-                              <label className="form-label">
-                                Phone Number{" "}
-                                <span className="text-danger">*</span>
+                              <label className="form-label" htmlFor="co-phone">
+                                Phone Number <span className="text-danger">*</span>
                               </label>
-                              <input type="text" className="form-control" />
+                              <input
+                                id="co-phone"
+                                type="text"
+                                className="form-control"
+                                autoComplete="tel"
+                                value={form.phone}
+                                onChange={(e) => updateField("phone", e.target.value)}
+                              />
                             </div>
                           </div>
                           <div className="col-md-4">
                             <div className="mb-3">
-                              <label className="form-label">
-                                Fax <span className="text-danger">*</span>
+                              <label className="form-label" htmlFor="co-web">
+                                Website <span className="text-muted fw-normal">(optional)</span>
                               </label>
-                              <input type="text" className="form-control" />
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Website <span className="text-danger">*</span>
-                              </label>
-                              <input type="text" className="form-control" />
+                              <input
+                                id="co-web"
+                                type="url"
+                                className="form-control"
+                                placeholder="https://"
+                                value={form.website}
+                                onChange={(e) => updateField("website", e.target.value)}
+                              />
                             </div>
                           </div>
                         </div>
@@ -117,174 +400,71 @@ const CompanySettings = () => {
                             </span>
                             Company Images
                           </h6>
+                          <p className="text-muted small">
+                            Previews are for this session only until file upload is wired to storage.
+                          </p>
                         </div>
                         <div className="row align-items-center gy-3">
-                          <div className="col-xl-9">
-                            <div className="row gy-3 align-items-center">
-                              <div className="col-lg-4">
-                                <div className="logo-info">
-                                  <h6 className="fw-medium">Company Icon</h6>
-                                  <p>Upload Icon of your Company</p>
-                                </div>
-                              </div>
-                              <div className="col-lg-8">
-                                <div className="profile-pic-upload mb-0 justify-content-lg-end">
-                                  <div className="new-employee-field">
-                                    <div className="mb-0">
-                                      <div className="image-upload mb-0">
-                                        <input type="file" />
-                                        <div className="image-uploads">
-                                          <h4>
-                                            <i className="ti ti-upload me-1" />
-                                            Upload Image
-                                          </h4>
+                          {[
+                            { key: "icon", title: "Company Icon", hint: "Company icon / avatar" },
+                            { key: "favicon", title: "Favicon", hint: "Browser tab icon" },
+                            { key: "logo", title: "Company Logo", hint: "Primary logo" },
+                            { key: "darkLogo", title: "Company Dark Logo", hint: "For dark backgrounds", darkBg: true }
+                          ].map(({ key, title, hint, darkBg }) => (
+                            <div className="col-12" key={key}>
+                              <div className="row align-items-center gy-2">
+                              <div className="col-xl-9">
+                                <div className="row gy-3 align-items-center">
+                                  <div className="col-lg-4">
+                                    <div className="logo-info">
+                                      <h6 className="fw-medium">{title}</h6>
+                                      <p className="mb-0">{hint}</p>
+                                    </div>
+                                  </div>
+                                  <div className="col-lg-8">
+                                    <div className="profile-pic-upload mb-0 justify-content-lg-end">
+                                      <div className="new-employee-field">
+                                        <div className="mb-0">
+                                          <div className="image-upload mb-0">
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              onChange={(e) => handleFile(key, e.target.files)}
+                                            />
+                                            <div className="image-uploads">
+                                              <h4>
+                                                <i className="ti ti-upload me-1" />
+                                                Upload Image
+                                              </h4>
+                                            </div>
+                                          </div>
+                                          <span className="mt-1 d-inline-block">
+                                            Recommended 450×450 px or similar. Max 5 MB.
+                                          </span>
                                         </div>
                                       </div>
-                                      <span className="mt-1">
-                                        Recommended size is 450px x 450px. Max
-                                        size 5mb.
-                                      </span>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          </div>
-                          <div className="col-xl-3">
-                            <div className="new-logo ms-xl-auto">
-                              <Link to="#">
-                                <img src={logoSmall} alt="Logo" />
-                                <span>
-                                  <i className="ti ti-x" />
-                                </span>
-                              </Link>
-                            </div>
-                          </div>
-                          <div className="col-xl-9">
-                            <div className="row gy-3 align-items-center">
-                              <div className="col-lg-4">
-                                <div className="logo-info">
-                                  <h6 className="fw-medium">Favicon</h6>
-                                  <p>Upload Favicon of your Company</p>
+                              <div className="col-xl-3">
+                                <div className={`new-logo ms-xl-auto ${darkBg ? "bg-secondary rounded p-1" : ""}`}>
+                                  <button
+                                    type="button"
+                                    className="border-0 bg-transparent p-0 text-start w-100"
+                                    onClick={() => clearPreview(key)}
+                                    title="Clear preview">
+                                    <img src={previews[key] || defaultFor[key]} alt="" className="img-fluid" />
+                                    <span className="d-inline-flex align-items-center text-danger small mt-1">
+                                      <i className="ti ti-x me-1" />
+                                      Clear preview
+                                    </span>
+                                  </button>
                                 </div>
                               </div>
-                              <div className="col-lg-8">
-                                <div className="profile-pic-upload mb-0 justify-content-lg-end">
-                                  <div className="new-employee-field">
-                                    <div className="mb-0">
-                                      <div className="image-upload mb-0">
-                                        <input type="file" />
-                                        <div className="image-uploads">
-                                          <h4>
-                                            <i className="ti ti-upload me-1" />
-                                            Upload Image
-                                          </h4>
-                                        </div>
-                                      </div>
-                                      <span className="mt-1">
-                                        Recommended size is 450px x 450px. Max
-                                        size 5mb.
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="col-xl-3">
-                            <div className="new-logo ms-xl-auto">
-                              <Link to="#">
-                                <img src={logoSmall} alt="Logo" />
-                                <span>
-                                  <i className="ti ti-x" />
-                                </span>
-                              </Link>
-                            </div>
-                          </div>
-                          <div className="col-xl-9">
-                            <div className="row gy-3 align-items-center">
-                              <div className="col-lg-4">
-                                <div className="logo-info">
-                                  <h6 className="fw-medium">Company Logo</h6>
-                                  <p>Upload Logo of your Company</p>
-                                </div>
-                              </div>
-                              <div className="col-lg-8">
-                                <div className="profile-pic-upload mb-0 justify-content-lg-end">
-                                  <div className="new-employee-field">
-                                    <div className="mb-0">
-                                      <div className="image-upload mb-0">
-                                        <input type="file" />
-                                        <div className="image-uploads">
-                                          <h4>
-                                            <i className="ti ti-upload me-1" />
-                                            Upload Image
-                                          </h4>
-                                        </div>
-                                      </div>
-                                      <span className="mt-1">
-                                        Recommended size is 450px x 450px. Max
-                                        size 5mb.
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-xl-3">
-                            <div className="new-logo ms-xl-auto">
-                              <Link to="#">
-                                <img src={companyLogo} alt="Logo" />
-                                <span>
-                                  <i className="ti ti-x" />
-                                </span>
-                              </Link>
-                            </div>
-                          </div>
-                          <div className="col-xl-9">
-                            <div className="row gy-3 align-items-center">
-                              <div className="col-lg-4">
-                                <div className="logo-info">
-                                  <h6 className="fw-medium">
-                                    Company Dark Logo
-                                  </h6>
-                                  <p>Upload Logo of your Company</p>
-                                </div>
-                              </div>
-                              <div className="col-lg-8">
-                                <div className="profile-pic-upload mb-0 justify-content-lg-end">
-                                  <div className="new-employee-field">
-                                    <div className="mb-0">
-                                      <div className="image-upload mb-0">
-                                        <input type="file" />
-                                        <div className="image-uploads">
-                                          <h4>
-                                            <i className="ti ti-upload me-1" />
-                                            Upload Image
-                                          </h4>
-                                        </div>
-                                      </div>
-                                      <span className="mt-1">
-                                        Recommended size is 450px x 450px. Max
-                                        size 5mb.
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="col-xl-3">
-                            <div className="new-logo ms-xl-auto">
-                              <Link to="#" className="bg-secondary">
-                                <img src={whiteCompanyLogo} alt="Logo" />
-                                <span>
-                                  <i className="ti ti-x" />
-                                </span>
-                              </Link>
-                            </div>
-                          </div>
+                          ))}
                         </div>
                       </div>
                       <div className="company-address">
@@ -293,81 +473,38 @@ const CompanySettings = () => {
                             <span className="fs-16 me-2">
                               <i className="ti ti-map-pin" />
                             </span>
-                            Address Information
+                            Location
                           </h6>
                         </div>
                         <div className="row">
                           <div className="col-md-12">
                             <div className="mb-3">
-                              <label className="form-label">
-                                Address <span className="text-danger">*</span>
+                              <label className="form-label" htmlFor="co-location">
+                                Location <span className="text-danger">*</span>
                               </label>
-                              <input type="text" className="form-control" />
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Country <span className="text-danger">*</span>
-                              </label>
-                              <CommonSelect
-                                options={Country}
-                                value={selectedCountry}
-                                onChange={(e) => setSelectedCountry(e.value)}
-                                placeholder="Choose"
-                                filter={false} />
-                              
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                State <span className="text-danger">*</span>
-                              </label>
-                              <CommonSelect
-                                options={State}
-                                value={selectedState}
-                                onChange={(e) => setSelectedState(e.value)}
-                                placeholder="Choose"
-                                filter={false} />
-                              
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                City <span className="text-danger">*</span>
-                              </label>
-                              <CommonSelect
-                                options={City}
-                                value={selectedCity}
-                                onChange={(e) => setSelectedCity(e.value)}
-                                placeholder="Choose"
-                                filter={false} />
-                              
-                            </div>
-                          </div>
-                          <div className="col-md-6">
-                            <div className="mb-3">
-                              <label className="form-label">
-                                Postal Code{" "}
-                                <span className="text-danger">*</span>
-                              </label>
-                              <input type="text" className="form-control" />
+                              <textarea
+                                id="co-location"
+                                className="form-control"
+                                rows={3}
+                                autoComplete="street-address"
+                                placeholder="Address, city, region, country — as you want it to appear"
+                                value={form.location}
+                                onChange={(e) => updateField("location", e.target.value)}
+                              />
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="text-end settings-bottom-btn mt-0">
-                        <button
-                          type="button"
-                          className="btn btn-secondary me-2">
-                          
+                        <button type="button" className="btn btn-secondary me-2" onClick={handleCancel}>
                           Cancel
                         </button>
-                        <Link to="#" className="btn btn-primary">
-                          Save Changes
-                        </Link>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={saving || apiLoading}>
+                          {saving ? "Saving…" : "Save changes"}
+                        </button>
                       </div>
                     </form>
                   </div>
@@ -378,8 +515,8 @@ const CompanySettings = () => {
         </div>
         <CommonFooter />
       </div>
-    </div>);
-
+    </>
+  );
 };
 
 export default CompanySettings;

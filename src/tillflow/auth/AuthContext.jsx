@@ -74,6 +74,21 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const current = sessionStorage.getItem(TOKEN_KEY);
+    if (!current) {
+      return;
+    }
+    try {
+      const data = await meRequest(current);
+      setUser(data.user);
+    } catch {
+      sessionStorage.removeItem(TOKEN_KEY);
+      setToken(null);
+      setUser(null);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       token,
@@ -81,9 +96,10 @@ export function AuthProvider({ children }) {
       bootstrapping,
       login,
       logout,
+      refreshUser,
       isAuthenticated: Boolean(token && user),
     }),
-    [token, user, bootstrapping, login, logout]
+    [token, user, bootstrapping, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
