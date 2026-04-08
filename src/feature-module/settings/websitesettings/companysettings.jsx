@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import CommonFooter from "../../../components/footer/commonFooter";
 import { companyLogo, logoSmall, whiteCompanyLogo } from "../../../utils/imagepath";
@@ -9,6 +9,7 @@ import {
   formToCompanyProfileApiBody,
   loadCompanySettings,
   profileApiToForm,
+  QUOTATION_FOOTER_DEFAULTS,
   saveCompanySettings
 } from "../../../utils/companySettingsStorage";
 import { useOptionalAuth } from "../../../tillflow/auth/AuthContext";
@@ -17,43 +18,57 @@ import {
   getTenantCompanyProfileRequest,
   updateTenantCompanyProfileRequest
 } from "../../../tillflow/api/tenantCompany";
+import {
+  getTenantUiSettingsRequest,
+  mergeTenantUiSettingsRequest
+} from "../../../tillflow/api/tenantUiSettings";
 
 const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
+const TILLFLOW_COMPANY_LOGOS_KEY = "retailpos_company_logo_settings_v1";
 
-function useObjectUrls() {
-  const urlsRef = useRef([]);
-  const register = useCallback((blobUrl) => {
-    if (blobUrl) {
-      urlsRef.current.push(blobUrl);
+function normalizeLogos(raw) {
+  const src = raw && typeof raw === "object" ? raw : {};
+  return {
+    icon: typeof src.icon === "string" && src.icon.trim() ? src.icon : null,
+    favicon: typeof src.favicon === "string" && src.favicon.trim() ? src.favicon : null,
+    logo: typeof src.logo === "string" && src.logo.trim() ? src.logo : null,
+    darkLogo: typeof src.darkLogo === "string" && src.darkLogo.trim() ? src.darkLogo : null
+  };
+}
+
+function loadSavedLogos() {
+  if (typeof window === "undefined") {
+    return normalizeLogos(null);
+  }
+  try {
+    const raw = localStorage.getItem(TILLFLOW_COMPANY_LOGOS_KEY);
+    if (!raw) {
+      return normalizeLogos(null);
     }
-    return blobUrl;
-  }, []);
+    return normalizeLogos(JSON.parse(raw));
+  } catch {
+    return normalizeLogos(null);
+  }
+}
 
-  useEffect(() => {
-    return () => {
-      for (const u of urlsRef.current) {
-        try {
-          URL.revokeObjectURL(u);
-        } catch {
-          /* ignore */
-        }
-      }
-      urlsRef.current = [];
-    };
-  }, []);
+function saveSavedLogos(logos) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    localStorage.setItem(TILLFLOW_COMPANY_LOGOS_KEY, JSON.stringify(normalizeLogos(logos)));
+  } catch {
+    /* ignore */
+  }
+}
 
-  const revokeAll = useCallback(() => {
-    for (const u of urlsRef.current) {
-      try {
-        URL.revokeObjectURL(u);
-      } catch {
-        /* ignore */
-      }
-    }
-    urlsRef.current = [];
-  }, []);
-
-  return { register, revokeAll };
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Could not read selected image."));
+    reader.readAsDataURL(file);
+  });
 }
 
 const CompanySettings = () => {
@@ -68,7 +83,15 @@ const CompanySettings = () => {
   const [apiLoading, setApiLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageSource, setStorageSource] = useState(/** @type {"server" | "local"} */ ("local"));
-  const { register, revokeAll } = useObjectUrls();
+  const [savedLogos, setSavedLogos] = useState(() => loadSavedLogos());
+  const [baselineLogos, setBaselineLogos] = useState(() => loadSavedLogos());
+  /** Remount file inputs after clear so the same file can be selected again and `onChange` fires. */
+  const [logoFileKeys, setLogoFileKeys] = useState(() => ({
+    icon: 0,
+    favicon: 0,
+    logo: 0,
+    darkLogo: 0
+  }));
 
   useEffect(() => {
     if (!token) {
@@ -80,7 +103,10 @@ const CompanySettings = () => {
       setApiLoading(true);
       setErrorMsg("");
       try {
-        const data = await getTenantCompanyProfileRequest(token);
+        const [data, uiData] = await Promise.all([
+          getTenantCompanyProfileRequest(token),
+          getTenantUiSettingsRequest(token)
+        ]);
         if (cancelled) {
           return;
         }
@@ -88,6 +114,10 @@ const CompanySettings = () => {
         setForm(f);
         setBaseline({ ...f });
         saveCompanySettings(f);
+        const logos = normalizeLogos(uiData?.settings?.website?.companyLogos);
+        setSavedLogos(logos);
+        setBaselineLogos(logos);
+        saveSavedLogos(logos);
         setStorageSource("server");
       } catch (e) {
         if (!cancelled) {
@@ -106,19 +136,12 @@ const CompanySettings = () => {
     };
   }, [token]);
 
-  const [previews, setPreviews] = useState({
-    icon: null,
-    favicon: null,
-    logo: null,
-    darkLogo: null
-  });
-
   const updateField = useCallback((key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
   }, []);
 
   const handleFile = useCallback(
-    (field, fileList) => {
+    async (field, fileList) => {
       const file = fileList?.[0];
       if (!file || !file.type.startsWith("image/")) {
         return;
@@ -127,37 +150,32 @@ const CompanySettings = () => {
         setErrorMsg("Image must be 5 MB or smaller.");
         return;
       }
-      setErrorMsg("");
-      const url = register(URL.createObjectURL(file));
-      setPreviews((p) => {
-        if (p[field]) {
-          try {
-            URL.revokeObjectURL(p[field]);
-          } catch {
-            /* ignore */
-          }
-        }
-        return { ...p, [field]: url };
-      });
-    },
-    [register]
-  );
-
-  const clearPreview = useCallback(
-    (field) => {
-      setPreviews((p) => {
-        if (p[field]) {
-          try {
-            URL.revokeObjectURL(p[field]);
-          } catch {
-            /* ignore */
-          }
-        }
-        return { ...p, [field]: null };
-      });
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        setErrorMsg("");
+        setSavedLogos((prev) => {
+          const next = { ...prev, [field]: dataUrl || null };
+          saveSavedLogos(next);
+          return next;
+        });
+      } catch (e) {
+        setErrorMsg(e instanceof Error ? e.message : "Could not load selected image.");
+      }
     },
     []
   );
+
+  const clearPreview = useCallback((field) => {
+    setSavedLogos((prev) => {
+      const next = { ...prev, [field]: null };
+      saveSavedLogos(next);
+      return next;
+    });
+    setLogoFileKeys((prev) => ({
+      ...prev,
+      [field]: (prev[field] ?? 0) + 1
+    }));
+  }, []);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -202,9 +220,14 @@ const CompanySettings = () => {
         try {
           const body = formToCompanyProfileApiBody(next);
           await updateTenantCompanyProfileRequest(token, body);
+          await mergeTenantUiSettingsRequest(token, {
+            website: { companyLogos: normalizeLogos(savedLogos) }
+          });
           saveCompanySettings(next);
+          saveSavedLogos(savedLogos);
           setForm(next);
           setBaseline({ ...next });
+          setBaselineLogos({ ...savedLogos });
           setStorageSource("server");
           setSavedMsg("Company profile saved to the database for your store.");
           await refreshUser?.();
@@ -229,17 +252,23 @@ const CompanySettings = () => {
       setBaseline({ ...next });
       setSavedMsg("Company settings saved in this browser only. Sign in via TillFlow to sync to the database.");
     },
-    [form, token, refreshUser]
+    [form, token, refreshUser, savedLogos]
   );
 
   const handleCancel = useCallback(() => {
     setSavedMsg("");
     setErrorMsg("");
-    revokeAll();
     const b = { ...baseline };
     setForm(b);
-    setPreviews({ icon: null, favicon: null, logo: null, darkLogo: null });
-  }, [baseline, revokeAll]);
+    setSavedLogos({ ...baselineLogos });
+    saveSavedLogos(baselineLogos);
+    setLogoFileKeys((k) => ({
+      icon: k.icon + 1,
+      favicon: k.favicon + 1,
+      logo: k.logo + 1,
+      darkLogo: k.darkLogo + 1
+    }));
+  }, [baseline, baselineLogos]);
 
   const defaultFor = {
     icon: logoSmall,
@@ -382,9 +411,11 @@ const CompanySettings = () => {
                               </label>
                               <input
                                 id="co-web"
-                                type="url"
+                                type="text"
                                 className="form-control"
-                                placeholder="https://"
+                                inputMode="url"
+                                autoComplete="url"
+                                placeholder="https:// or yourdomain.com"
                                 value={form.website}
                                 onChange={(e) => updateField("website", e.target.value)}
                               />
@@ -427,6 +458,7 @@ const CompanySettings = () => {
                                         <div className="mb-0">
                                           <div className="image-upload mb-0">
                                             <input
+                                              key={`company-logo-${key}-${logoFileKeys[key] ?? 0}`}
                                               type="file"
                                               accept="image/*"
                                               onChange={(e) => handleFile(key, e.target.files)}
@@ -449,17 +481,21 @@ const CompanySettings = () => {
                               </div>
                               <div className="col-xl-3">
                                 <div className={`new-logo ms-xl-auto ${darkBg ? "bg-secondary rounded p-1" : ""}`}>
-                                  <button
-                                    type="button"
-                                    className="border-0 bg-transparent p-0 text-start w-100"
-                                    onClick={() => clearPreview(key)}
-                                    title="Clear preview">
-                                    <img src={previews[key] || defaultFor[key]} alt="" className="img-fluid" />
-                                    <span className="d-inline-flex align-items-center text-danger small mt-1">
-                                      <i className="ti ti-x me-1" />
+                                  <div className="text-center text-xl-start">
+                                    <img src={savedLogos[key] || defaultFor[key]} alt="" className="img-fluid d-block mx-auto mx-xl-0" />
+                                    <button
+                                      type="button"
+                                      className="btn btn-link text-danger text-decoration-none p-0 mt-2 d-inline-flex align-items-center small"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        clearPreview(key);
+                                      }}
+                                      title="Remove custom image for this slot (use Save to sync server)">
+                                      <i className="ti ti-x me-1" aria-hidden />
                                       Clear preview
-                                    </span>
-                                  </button>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                               </div>
@@ -490,6 +526,73 @@ const CompanySettings = () => {
                                 placeholder="Address, city, region, country — as you want it to appear"
                                 value={form.location}
                                 onChange={(e) => updateField("location", e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-bottom mb-3 pb-3">
+                        <div className="card-title-head">
+                          <h6 className="fs-16 fw-bold mb-2">
+                            <span className="fs-16 me-2">
+                              <i className="ti ti-file-invoice" />
+                            </span>
+                            Quotation footer
+                          </h6>
+                          <p className="text-muted small mb-0">
+                            Shown at the bottom of quotation view, PDF, and customer email attachments.
+                            Leave blank to use the sample wording as a default.
+                          </p>
+                        </div>
+                        <div className="row">
+                          <div className="col-md-12">
+                            <div className="mb-3">
+                              <label className="form-label" htmlFor="co-qfoot-pay">
+                                Payment instructions
+                              </label>
+                              <textarea
+                                id="co-qfoot-pay"
+                                className="form-control"
+                                rows={2}
+                                placeholder={QUOTATION_FOOTER_DEFAULTS.paymentLine}
+                                value={form.quotationFooterPaymentLine}
+                                onChange={(e) =>
+                                  updateField("quotationFooterPaymentLine", e.target.value)
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-12">
+                            <div className="mb-3">
+                              <label className="form-label" htmlFor="co-qfoot-bank">
+                                Bank / payment details
+                              </label>
+                              <textarea
+                                id="co-qfoot-bank"
+                                className="form-control"
+                                rows={2}
+                                placeholder={QUOTATION_FOOTER_DEFAULTS.bankLine}
+                                value={form.quotationFooterBankLine}
+                                onChange={(e) =>
+                                  updateField("quotationFooterBankLine", e.target.value)
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div className="col-md-12">
+                            <div className="mb-0">
+                              <label className="form-label" htmlFor="co-qfoot-close">
+                                Closing line
+                              </label>
+                              <textarea
+                                id="co-qfoot-close"
+                                className="form-control"
+                                rows={2}
+                                placeholder={QUOTATION_FOOTER_DEFAULTS.closingLine}
+                                value={form.quotationFooterClosingLine}
+                                onChange={(e) =>
+                                  updateField("quotationFooterClosingLine", e.target.value)
+                                }
                               />
                             </div>
                           </div>

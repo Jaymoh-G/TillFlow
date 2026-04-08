@@ -40,20 +40,26 @@ export async function tillflowFetch(path, options = {}) {
   const isEnvelope =
     json && typeof json === 'object' && 'success' in json && 'data' in json;
 
-  if (!isEnvelope) {
+  // Backends may return either the TillFlow envelope ({ success, data, message })
+  // or "plain" JSON objects (legacy controllers). Support both to keep the UI
+  // database-driven even while endpoints are being migrated.
+  if (isEnvelope) {
+    if (!json.success || res.ok === false) {
+      const message = json.message || 'Request failed';
+      throw new TillFlowApiError(message, res.status, json.data ?? null);
+    }
+    return json.data;
+  }
+
+  if (res.ok === false) {
     throw new TillFlowApiError(
-      (json && json.message) || res.statusText || 'Unexpected response',
+      (json && json.message) || res.statusText || 'Request failed',
       res.status,
       json
     );
   }
 
-  if (!json.success || res.ok === false) {
-    const message = json.message || 'Request failed';
-    throw new TillFlowApiError(message, res.status, json.data ?? null);
-  }
-
-  return json.data;
+  return json;
 }
 
 /**
@@ -99,20 +105,24 @@ export async function tillflowUpload(path, options = {}) {
   }
 
   const isEnvelope = json && typeof json === 'object' && 'success' in json && 'data' in json;
-  if (!isEnvelope) {
+
+  if (isEnvelope) {
+    if (!json.success || res.ok === false) {
+      const message = json.message || 'Request failed';
+      throw new TillFlowApiError(message, res.status, json.data ?? null);
+    }
+    return json.data;
+  }
+
+  if (res.ok === false) {
     throw new TillFlowApiError(
-      (json && json.message) || res.statusText || 'Unexpected response',
+      (json && json.message) || res.statusText || 'Request failed',
       res.status,
       json
     );
   }
 
-  if (!json.success || res.ok === false) {
-    const message = json.message || 'Request failed';
-    throw new TillFlowApiError(message, res.status, json.data ?? null);
-  }
-
-  return json.data;
+  return json;
 }
 
 export function fetchHealth() {

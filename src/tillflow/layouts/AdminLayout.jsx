@@ -19,7 +19,7 @@ const SALES_PATH_RE = TILLFLOW_ADMIN_SALES_NAV_PATH_RE;
 const PEOPLE_PATH_RE =
   /\/tillflow\/admin\/(customers|billers|suppliers|store-managers)(\/|$)/;
 const PURCHASES_PATH_RE =
-  /\/tillflow\/admin\/(purchases|purchase-orders|purchase-returns)(\/|$)/;
+  /\/tillflow\/admin\/(purchases|purchase-returns)(\/|$)/;
 const SETTINGS_GENERAL_PATH_RE =
   /\/tillflow\/admin\/settings\/(profile|security|notifications|connected-apps)(\/|$)/;
 const SETTINGS_WEBSITE_PATH_RE =
@@ -39,18 +39,18 @@ export default function AdminLayout() {
   const { isOnline } = useOnlineStatus();
   const adminOutletBlockedOffline = !isOnline && !tillflowAdminPathAllowsOfflineUse(location.pathname);
 
-  const [inventoryOpen, setInventoryOpen] = useState(true);
-  const [stockOpen, setStockOpen] = useState(true);
-  const [salesOpen, setSalesOpen] = useState(true);
-  const [peopleOpen, setPeopleOpen] = useState(true);
-  const [purchasesOpen, setPurchasesOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(true);
-  const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(true);
-  const [settingsWebsiteOpen, setSettingsWebsiteOpen] = useState(true);
-  const [settingsAppOpen, setSettingsAppOpen] = useState(true);
-  const [settingsSystemOpen, setSettingsSystemOpen] = useState(true);
-  const [settingsFinancialOpen, setSettingsFinancialOpen] = useState(true);
-  const [settingsOtherOpen, setSettingsOtherOpen] = useState(true);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [stockOpen, setStockOpen] = useState(false);
+  const [salesOpen, setSalesOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [purchasesOpen, setPurchasesOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(false);
+  const [settingsWebsiteOpen, setSettingsWebsiteOpen] = useState(false);
+  const [settingsAppOpen, setSettingsAppOpen] = useState(false);
+  const [settingsSystemOpen, setSettingsSystemOpen] = useState(false);
+  const [settingsFinancialOpen, setSettingsFinancialOpen] = useState(false);
+  const [settingsOtherOpen, setSettingsOtherOpen] = useState(false);
 
   const syncSectionsToPath = useCallback((pathname) => {
     if (INVENTORY_PATH_RE.test(pathname)) {
@@ -322,12 +322,6 @@ export default function AdminLayout() {
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-download tf-nav__icon" aria-hidden />
                   Purchases
-                </NavLink>
-                <NavLink
-                  to="/tillflow/admin/purchase-orders"
-                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
-                  <i className="feather icon-file-text tf-nav__icon" aria-hidden />
-                  Purchase orders
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/purchase-returns"

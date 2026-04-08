@@ -2583,18 +2583,21 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
   background: #ffeddc;
 }
 
-.page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
+.page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown,
+.page-wrapper.invoice-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
   min-height: 2.75rem;
   width: 100%;
 }
 
-.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete,
+.page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
   display: flex;
   width: 100%;
   min-height: 2.75rem;
 }
 
-.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
+.page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext,
+.page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
   width: 100%;
   min-height: 2.75rem;
 }
@@ -2752,11 +2755,143 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
   border-color: var(--tf-accent, #419edd) !important;
 }
 
-/* Quotation view modal: print only the document card (hide chrome, backdrop noise) */
+/* Quotation view card: no outer frame; white content (PDF/print capture matches). */
+.quotation-view-print-root.card {
+  background-color: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.quotation-view-print-root .quotation-view-quote-title,
+.quotation-view-print-root .quotation-view-quote-title-wrap .quotation-view-quote-title {
+  color: #000 !important;
+}
+
+.quotation-view-print-root .invoice-view-doc-title,
+.quotation-view-print-root .invoice-view-doc-title-wrap .invoice-view-doc-title {
+  color: #000 !important;
+}
+
+.quotation-view-print-root .quotation-view-status {
+  font-size: 1rem !important;
+  line-height: 1.2;
+}
+
+/* Quotation view: line-items table (header row dark grey, white text) */
+.quotation-view-print-root table.quotation-view-line-items {
+  border-top: 1px solid #424242;
+  --bs-table-bg: #fff;
+  background-color: #fff !important;
+}
+
+table.quotation-view-line-items thead.quotation-view-line-items__thead th {
+  background-color: #424242 !important;
+  color: #fff !important;
+  border-color: #555 !important;
+}
+
+table.quotation-view-line-items thead th.quotation-view-line-items__head-strong {
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+/* Avoid double border (body bottom + tfoot top) so the rule above totals is not thicker than other row lines. */
+table.quotation-view-line-items tbody tr:last-child > td {
+  border-bottom-width: 0 !important;
+}
+
+/* HR above Sub total: spans full table width (including # / Item / Qty). */
+table.quotation-view-line-items tfoot.quotation-view-line-items__totals tr:first-child > td {
+  border-top: 1px solid var(--bs-border-color, #dee2e6) !important;
+}
+
+/* Rules between discount / Tax / Total rows: start at Rate column (skip lead colSpan). */
+table.quotation-view-line-items tfoot.quotation-view-line-items__totals tr:not(:first-child) > td:first-child {
+  border-top: none !important;
+}
+
+table.quotation-view-line-items tfoot.quotation-view-line-items__totals tr:not(:first-child) > td:not(:first-child) {
+  border-top: 1px solid var(--bs-border-color, #dee2e6) !important;
+}
+
+table.quotation-view-line-items tfoot.quotation-view-line-items__totals tr:last-child > td {
+  border-bottom: none !important;
+}
+
+.quotation-view-print-root .quotation-view-terms-block {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+.quotation-view-print-root .quotation-view-terms-block h6 {
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.quotation-view-print-root .quotation-view-terms-block p {
+  font-size: 0.8125rem !important;
+  line-height: 1.4;
+}
+
+.quotation-view-print-root .quotation-view-payment-footer {
+  border-top: 1px solid var(--bs-border-color, #dee2e6) !important;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.quotation-view-print-root .quotation-view-payment-footer p {
+  font-size: 0.75rem !important;
+  line-height: 1.4 !important;
+}
+
+table.quotation-view-line-items th,
+table.quotation-view-line-items td {
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
+  padding-top: 0.28rem !important;
+  padding-bottom: 0.28rem !important;
+}
+
+/* Tighter gutter between # and Item columns */
+table.quotation-view-line-items th:first-child,
+table.quotation-view-line-items td:first-child {
+  padding-right: 0.1rem !important;
+}
+
+table.quotation-view-line-items th:nth-child(2),
+table.quotation-view-line-items td:nth-child(2) {
+  padding-left: 0.1rem !important;
+}
+
+table.quotation-view-line-items tbody td h6 {
+  margin-bottom: 0.1rem !important;
+}
+
+table.quotation-view-line-items tbody td p.small {
+  margin-top: 0.12rem !important;
+}
+
+.quotation-view-print-root table.quotation-view-line-items tfoot.quotation-view-line-items__totals tr:first-child td {
+  padding-top: 0.4rem !important;
+}
+
+table.quotation-view-line-items tfoot .quotation-view-line-items__rollup {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+table.quotation-view-line-items tfoot .quotation-view-line-items__total-label,
+table.quotation-view-line-items tfoot .quotation-view-line-items__total-amt {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
 @media print {
+  /* Extra bottom margin so the last line is not clipped by the non-printable zone */
   @page {
     size: A4 portrait;
-    margin: 12mm;
+    margin: 10mm 12mm 16mm 12mm;
   }
 
   body {
@@ -2772,11 +2907,15 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
     visibility: visible;
   }
 
+  /* Flow in document order so browsers paginate; absolute positioning clips past page 1 */
   .quotation-view-print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
+    position: relative;
+    left: auto;
+    top: auto;
     width: 100%;
+    max-width: 100%;
+    padding-bottom: 6mm;
+    box-sizing: border-box;
     box-shadow: none !important;
     border: none !important;
   }
@@ -2796,11 +2935,16 @@ div.p-datepicker table td.p-datepicker-today > span.p-highlight {
     background: transparent !important;
   }
 
-  .quotation-view-modal .modal-body .p-3 {
+  .quotation-view-modal .modal-body .p-3,
+  .quotation-view-modal .modal-body .quotation-view-modal-body-inner {
     padding: 0 !important;
   }
 
   .quotation-view-no-print {
+    display: none !important;
+  }
+
+  .invoice-view-no-print {
     display: none !important;
   }
 

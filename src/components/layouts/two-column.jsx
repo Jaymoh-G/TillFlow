@@ -517,11 +517,6 @@ const TwoColumnSidebar = () => {
                       </Link>
                     </li>
                     <li>
-                      <Link to={route.purchaseorderreport}>
-                        <span>Purchase Order</span>
-                      </Link>
-                    </li>
-                    <li>
                       <Link to={route.purchasereturn}>
                         <span>Purchase Return</span>
                       </Link>

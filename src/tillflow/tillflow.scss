@@ -365,9 +365,9 @@
 }
 
 .tf-nav a.active {
-  color: var(--tf-text);
-  background: var(--tf-accent-dim);
-  color: var(--tf-accent);
+  color: var(--tf-secondary);
+  background: rgba(248, 150, 36, 0.18);
+  border: 1px solid rgba(248, 150, 36, 0.35);
 }
 
 .tf-admin__main {
@@ -859,6 +859,12 @@
   color: #fff;
 }
 
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover:not(:disabled),
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible {
+  background: #0d6efd;
+  border-color: #0d6efd;
+}
+
 .tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible {
   outline: 2px solid var(--tf-accent);
   outline-offset: 2px;
@@ -866,6 +872,29 @@
 
 .tf-admin .tf-admin__body .page-wrapper.purchase-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited {
   color: #fff;
+}
+
+/* Purchase list filters: improve active-option readability */
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown-menu .dropdown-item.active,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown-menu .dropdown-item:active {
+  color: #1f2937 !important;
+  background: #e6edf5 !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown > .dropdown-toggle,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown-menu .dropdown-item {
+  color: #000 !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown > .dropdown-toggle:hover,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown > .dropdown-toggle:focus,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown-menu .dropdown-item:hover,
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .table-dropdown .dropdown-menu .dropdown-item:focus {
+  color: #fff !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.purchase-list-page .purchase-type-badge--stock {
+  background-color: #1e3a8a !important;
 }
 
 @media (min-width: 768px) {
@@ -1089,25 +1118,29 @@
   width: 100%;
 }
 
-/* Quotation form: catalog quick-add dropdown must stay visible (Prime dropdown trigger height). */
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
+/* Quotation/Invoice form: catalog quick-add dropdown must stay visible (Prime dropdown trigger height). */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
   min-height: 2.75rem;
   width: 100%;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
   display: flex;
   width: 100%;
   min-height: 2.75rem;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete .p-inputtext {
   width: 100%;
   min-height: 2.75rem;
 }
 
 /* Catalog quick-add: search icon + thin outer border */
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field {
   display: flex;
   align-items: stretch;
   width: 100%;
@@ -1118,17 +1151,22 @@
   overflow: hidden;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:hover {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:hover,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field:hover {
   border-color: var(--tf-secondary);
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:hover
   .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field:hover
+  .quotation-catalog-autocomplete
   .p-autocomplete-dropdown {
   border-left-color: var(--tf-secondary) !important;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within {
   border-color: var(--tf-secondary);
   outline: 2px solid var(--tf-secondary);
   outline-offset: 0;
@@ -1136,11 +1174,15 @@
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within
   .quotation-catalog-autocomplete
+  .p-autocomplete-dropdown,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field:focus-within
+  .quotation-catalog-autocomplete
   .p-autocomplete-dropdown {
   border-left-color: var(--tf-secondary) !important;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field__icon {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field__icon,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field__icon {
   flex-shrink: 0;
   align-self: center;
   margin-left: 0.65rem;
@@ -1148,7 +1190,8 @@
   pointer-events: none;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete.p-autocomplete {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete.p-autocomplete,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete.p-autocomplete {
   flex: 1;
   min-width: 0;
   border: none;
@@ -1156,21 +1199,26 @@
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext,
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-input-multiple {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-input-multiple,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-input-multiple {
   border: none !important;
   box-shadow: none !important;
   background: transparent;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus,
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus-visible {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-inputtext:focus-visible {
   border: none !important;
   box-shadow: none !important;
   outline: none;
 }
 
 /* List/chevron: Prime default is light icon on filled button; transparent bg → force tf-text + no flex shrink */
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown {
   flex-shrink: 0;
   border: none !important;
   border-left: 1px solid color-mix(in srgb, var(--tf-text) 22%, var(--tf-border)) !important;
@@ -1180,32 +1228,40 @@
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown .p-button-icon,
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown svg {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown svg,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown .p-button-icon,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown svg {
   color: inherit !important;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown:hover:not(:disabled) {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown:hover:not(:disabled),
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .quotation-catalog-search-field .quotation-catalog-autocomplete .p-autocomplete-dropdown:hover:not(:disabled) {
   color: var(--tf-text) !important;
   background: color-mix(in srgb, var(--tf-text) 8%, transparent);
 }
 
 /* CRM quotation: search + add product share one row (Bootstrap columns) */
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-search-with-action .quotation-catalog-autocomplete.p-autocomplete {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-search-with-action .quotation-catalog-autocomplete.p-autocomplete,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-search-with-action .quotation-catalog-autocomplete.p-autocomplete {
   width: 100% !important;
   max-width: 100%;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete.p-autocomplete {
   flex-wrap: nowrap;
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-input-multiple,
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-inputtext {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-inputtext,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-input-multiple,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-inputtext {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-dropdown {
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-dropdown,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-items-toolbar.quotation-catalog-add .quotation-catalog-autocomplete .p-autocomplete-dropdown {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   min-height: 2.75rem;
@@ -1214,6 +1270,7 @@
 
 /* CRM: compact orange actions — “Add new product”, header Back (Feather uses currentColor) */
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary {
   padding: 0.22rem 0.45rem;
   font-size: 0.8125rem;
@@ -1223,14 +1280,26 @@
 }
 
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:visited,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:hover,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:focus-visible {
   color: #fff;
 }
 
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover:not(:disabled),
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:hover:not(:disabled),
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible {
+  background: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-crm-add-product-link.tf-btn.tf-btn--secondary:focus-visible,
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-crm-header-back.tf-btn.tf-btn--secondary:focus-visible {
   outline: 2px solid var(--tf-accent);
   outline-offset: 2px;

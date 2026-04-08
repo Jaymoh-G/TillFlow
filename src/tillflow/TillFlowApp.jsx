@@ -21,7 +21,7 @@ import ManageStores from '../feature-module/stores/manage-stores';
 import PosOrder from '../feature-module/sales/pos-order/posOrder';
 import OnlineOrder from '../feature-module/sales/online-order/online-orders';
 import QuotationList from '../feature-module/sales/quotationlist';
-import Invoice from '../feature-module/sales/invoicereport';
+import Invoice from '../feature-module/sales/invoicelist';
 import SalesReturn from '../feature-module/sales/salesreturn';
 import Customers from '../feature-module/people/customers';
 import Biller from '../feature-module/people/billers';
@@ -98,6 +98,7 @@ export default function TillFlowApp() {
                 <Route path="quotations/new" element={<QuotationList />} />
                 <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
                 <Route path="quotations" element={<QuotationList />} />
+                <Route path="invoices/new" element={<Invoice />} />
                 <Route path="invoices" element={<Invoice />} />
                 <Route path="sales-returns" element={<SalesReturn />} />
                 <Route path="customers" element={<Customers />} />
@@ -105,6 +106,7 @@ export default function TillFlowApp() {
                 <Route path="suppliers" element={<Suppliers />} />
                 <Route path="store-managers" element={<StoreList />} />
                 <Route path="purchases/new" element={<PurchasesList />} />
+                <Route path="purchases/:purchaseId/edit" element={<PurchasesList />} />
                 <Route path="purchases" element={<PurchasesList />} />
                 <Route path="purchase-orders" element={<PurchaseOrderReport />} />
                 <Route path="purchase-returns" element={<PurchaseReturns />} />

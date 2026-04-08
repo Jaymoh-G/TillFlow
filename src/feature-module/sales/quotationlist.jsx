@@ -1,51 +1,63 @@
-import {
-  ChevronLeft,
-  Edit2,
-  Eye,
-  Move,
-  Plus,
-  PlusCircle,
-  Search,
-  Trash2,
-  X,
-} from "react-feather";
-import CommonFooter from "../../components/footer/commonFooter";
-import TableTopHead from "../../components/table-top-head";
-import SearchFromApi from "../../components/data-table/search";
-import CommonSelect from "../../components/select/common-select";
+import { Modal } from "bootstrap";
 import { AutoComplete } from "primereact/autocomplete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import {
+    ChevronLeft,
+    Edit2,
+    MoreVertical,
+    Move,
+    Plus,
+    PlusCircle,
+    Search,
+    X
+} from "react-feather";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import PrimeDataTable from "../../components/data-table";
+import SearchFromApi from "../../components/data-table/search";
+import DocumentFormActions from "../../components/DocumentFormActions";
+import CommonFooter from "../../components/footer/commonFooter";
+import CommonSelect from "../../components/select/common-select";
+import TableTopHead from "../../components/table-top-head";
 import { quotationlistdata } from "../../core/json/quotationlistdata";
 import { all_routes } from "../../routes/all_routes";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  createQuotationRequest,
-  deleteQuotationRequest,
-  listQuotationsRequest,
-  updateQuotationRequest
-} from "../../tillflow/api/quotations";
-import { TILLFLOW_API_BASE_URL } from "../../tillflow/config";
-import { TillFlowApiError } from "../../tillflow/api/errors";
-import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
-import { Modal } from "bootstrap";
-import {
-  downloadQuotationDetailPdf,
-  downloadQuotationDetailPdfFromElement,
-  downloadQuotationsExcel,
-  downloadQuotationsPdf
-} from "../../utils/quotationExport";
-import {
-  getCompanySettingsSnapshot,
-  profileApiToForm
-} from "../../utils/companySettingsStorage";
-import ImageWithBasePath from "../../components/image-with-base-path";
-import { pdf, qrCodeImage, sign, stockImg01, user33 } from "../../utils/imagepath";
-import { listCustomersRequest } from "../../tillflow/api/customers";
-import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
 import { listBillersRequest } from "../../tillflow/api/billers";
+import { listCustomersRequest } from "../../tillflow/api/customers";
+import { TillFlowApiError } from "../../tillflow/api/errors";
+import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
+import {
+    createQuotationRequest,
+    deleteQuotationRequest,
+    listQuotationsRequest,
+    sendQuotationToCustomerRequest,
+    updateQuotationRequest
+} from "../../tillflow/api/quotations";
+import { getTenantCompanyProfileRequest } from "../../tillflow/api/tenantCompany";
+import { getTenantUiSettingsRequest } from "../../tillflow/api/tenantUiSettings";
+import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { TILLFLOW_API_BASE_URL } from "../../tillflow/config";
+import {
+    getCompanySettingsSnapshot,
+    profileApiToForm,
+    resolveQuotationFooterFromSnapshot,
+    saveCompanySettings
+} from "../../utils/companySettingsStorage";
+import { pdf, stockImg01, user33 } from "../../utils/imagepath";
+import {
+    downloadQuotationDetailPdf,
+    downloadQuotationDetailPdfFromElement,
+    downloadQuotationsExcel,
+    downloadQuotationsPdf,
+    quotationDetailPdfBlobFromElement,
+    waitForPrintRootImages
+} from "../../utils/quotationExport";
+import QuotationPrintDocument from "./QuotationPrintDocument";
 
 const ALL = { label: "All", value: "" };
+
+/** Kenyan standard VAT rate — prefilled on new / incomplete quotation lines */
+const DEFAULT_QUOTATION_LINE_TAX_PERCENT = "16";
 
 /** Matches CRM-style discount mode (amount entry can follow later). */
 const DISCOUNT_TYPE_OPTIONS = [
@@ -104,10 +116,11 @@ function quotationStatusBadgeClass(status) {
       return "badge-secondary";
   }
 }
+
 const PICK_PLACEHOLDER = { label: "Select…", value: "" };
 
-/** Line items table: drag, item, description, qty, rate, tax, amount, actions */
-const QUOTE_LINE_ITEMS_COL_WIDTHS_DEFAULT = [28, 120, 300, 52, 136, 52, 72, 50];
+/** Line items table: drag, #, item, description, qty, rate, tax, amount, actions */
+const QUOTE_LINE_ITEMS_COL_WIDTHS_DEFAULT = [28, 44, 120, 300, 52, 136, 52, 72, 50];
 
 const TILLFLOW_QUOTATIONS_BASE = "/tillflow/admin/quotations";
 
@@ -258,9 +271,14 @@ function formatQuotedDisplay(isoDate) {
   if (!isoDate) {
     return "";
   }
-  const d = new Date(`${isoDate}T12:00:00`);
+  const raw = String(isoDate).trim();
+  const hasTime = raw.includes("T");
+  const normalized = hasTime
+    ? raw.replace(/\.(\d{3})\d+Z$/, ".$1Z")
+    : `${raw}T12:00:00`;
+  const d = new Date(normalized);
   if (Number.isNaN(d.getTime())) {
-    return String(isoDate);
+    return raw.length >= 10 ? raw.slice(0, 10) : raw;
   }
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
@@ -291,6 +309,9 @@ function apiQuotationToRow(q) {
     items,
     customerImg: resolveMediaUrl(q.customer_image_url, user33),
     Custmer_Name: q.customer_name,
+    customer_email: q.customer_email ?? null,
+    customer_phone: q.customer_phone ?? null,
+    customer_location: q.customer_location ?? null,
     Status: normalizeQuotationStatus(q.status),
     Total: Number(q.total_amount),
     clientNote: q.client_note ?? "",
@@ -344,7 +365,7 @@ function emptyApiLine() {
     productId: "",
     quantity: "1",
     unitPrice: "",
-    taxPercent: "0",
+    taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT,
     customLabel: "",
     description: ""
   };
@@ -356,7 +377,7 @@ function emptyLocalLine() {
     productName: "",
     quantity: "1",
     unitPrice: "",
-    taxPercent: "0",
+    taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT,
     productImg: stockImg01,
     description: ""
   };
@@ -379,7 +400,9 @@ function normalizeApiItemsForRow(rawItems) {
     quantity: String(it.quantity ?? 1),
     unit_price: String(it.unit_price ?? 0),
     tax_percent:
-      it.tax_percent != null && String(it.tax_percent) !== "" ? String(it.tax_percent) : "0",
+      it.tax_percent != null && String(it.tax_percent) !== ""
+        ? String(it.tax_percent)
+        : DEFAULT_QUOTATION_LINE_TAX_PERCENT,
     line_total: Number(it.line_total ?? 0)
   }));
 }
@@ -411,7 +434,8 @@ function buildQuotationViewTableModel(viewRow) {
       discountAmt: 0,
       discountLabel: "Discount",
       grandTotal: 0,
-      dtype: "none"
+      dtype: "none",
+      showDiscountColumn: false
     };
   }
   const items = viewRow.items ?? [];
@@ -432,8 +456,12 @@ function buildQuotationViewTableModel(viewRow) {
     items.forEach((it, ix) => {
       const qty = Number(it.quantity ?? 1);
       const unit = Number(it.unit_price ?? it.unitPrice ?? 0);
-      const taxP = Number(it.tax_percent ?? it.taxPercent ?? 0);
-      const safeTax = Number.isNaN(taxP) ? 0 : taxP;
+      const rawTax = it.tax_percent ?? it.taxPercent;
+      let taxP =
+        rawTax != null && String(rawTax).trim() !== ""
+          ? Number(rawTax)
+          : Number(DEFAULT_QUOTATION_LINE_TAX_PERCENT);
+      const safeTax = Number.isNaN(taxP) ? Number(DEFAULT_QUOTATION_LINE_TAX_PERCENT) : taxP;
       const sub = roundMoney(qty * unit);
       const lt =
         it.line_total != null || it.lineTotal != null
@@ -468,7 +496,6 @@ function buildQuotationViewTableModel(viewRow) {
   if (dtype !== "none") {
     if (basis === "fixed") {
       discountAmt = roundMoney(parseDiscountValueFixed(valStr));
-      discountLabel = "Discount (fixed)";
     } else {
       const p = parseDiscountPercent(valStr);
       discountAmt = roundMoney(subEx * (p / 100));
@@ -477,11 +504,18 @@ function buildQuotationViewTableModel(viewRow) {
   }
   const grandTotal =
     typeof viewRow.Total === "number" ? viewRow.Total : roundMoney(subEx + taxAmt - discountAmt);
-  return { rows, subEx, taxAmt, discountAmt, discountLabel, grandTotal, dtype };
+  /* Line-level discount column removed; quote discount only in footer totals. */
+  const showDiscountColumn = false;
+  return { rows, subEx, taxAmt, discountAmt, discountLabel, grandTotal, dtype, showDiscountColumn };
 }
 
 function parseTaxPercentFromLine(line) {
-  const t = parseFloat(String(line.taxPercent ?? line.tax_percent ?? "0").replace(/[^0-9.-]/g, ""));
+  const t = parseFloat(
+    String(line.taxPercent ?? line.tax_percent ?? DEFAULT_QUOTATION_LINE_TAX_PERCENT).replace(
+      /[^0-9.-]/g,
+      ""
+    )
+  );
   if (Number.isNaN(t) || t < 0) {
     return 0;
   }
@@ -585,8 +619,8 @@ function quoteLineEligibleForAddAbove(line, useApiProductLines) {
   if (String(line.unitPrice ?? "").trim() !== "") {
     return true;
   }
-  const tax = String(line.taxPercent ?? "0").trim();
-  if (tax !== "" && tax !== "0") {
+  const tax = String(line.taxPercent ?? DEFAULT_QUOTATION_LINE_TAX_PERCENT).trim();
+  if (tax !== "" && tax !== DEFAULT_QUOTATION_LINE_TAX_PERCENT) {
     return true;
   }
   const qty = String(line.quantity ?? "").trim();
@@ -774,12 +808,65 @@ const QuotationList = () => {
   const [editSalesAgentName, setEditSalesAgentName] = useState("");
 
   const [viewRow, setViewRow] = useState(null);
+  const [companyProfileFromApi, setCompanyProfileFromApi] = useState(null);
+  const [companyLogosFromApi, setCompanyLogosFromApi] = useState({
+    logo: null,
+    darkLogo: null
+  });
+
+  useEffect(() => {
+    if (!token || !inTillflowShell) {
+      setCompanyProfileFromApi(null);
+      setCompanyLogosFromApi({ logo: null, darkLogo: null });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [data, uiData] = await Promise.all([
+          getTenantCompanyProfileRequest(token),
+          getTenantUiSettingsRequest(token)
+        ]);
+        if (cancelled) {
+          return;
+        }
+        const f = profileApiToForm(data.profile);
+        setCompanyProfileFromApi(f);
+        saveCompanySettings(f);
+        const logos = uiData?.settings?.website?.companyLogos ?? {};
+        setCompanyLogosFromApi({
+          logo: typeof logos.logo === "string" && logos.logo.trim() ? logos.logo : null,
+          darkLogo:
+            typeof logos.darkLogo === "string" && logos.darkLogo.trim() ? logos.darkLogo : null
+        });
+      } catch {
+        if (!cancelled) {
+          setCompanyProfileFromApi(null);
+          setCompanyLogosFromApi({ logo: null, darkLogo: null });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, inTillflowShell]);
+
   const companySnapshot = useMemo(() => {
+    if (companyProfileFromApi && (companyProfileFromApi.companyName || companyProfileFromApi.email)) {
+      return companyProfileFromApi;
+    }
     if (tenantFromAuth && (tenantFromAuth.name || tenantFromAuth.company_email)) {
       return profileApiToForm(tenantFromAuth);
     }
     return getCompanySettingsSnapshot();
-  }, [tenantFromAuth, location.pathname, viewRow]);
+  }, [companyProfileFromApi, tenantFromAuth, location.pathname, viewRow]);
+
+  const quotationFooter = useMemo(
+    () => resolveQuotationFooterFromSnapshot(companySnapshot),
+    [companySnapshot]
+  );
+  const quotationLogoSrc = companyLogosFromApi.logo || "/src/assets/img/logo.svg";
+  const quotationLogoDarkSrc = companyLogosFromApi.darkLogo || "/src/assets/img/logo-white.svg";
   const quotationViewPrintRootRef = useRef(null);
   const [quotationFormMode, setQuotationFormMode] = useState("list");
   const [catalogQuickAddKey, setCatalogQuickAddKey] = useState(0);
@@ -791,6 +878,15 @@ const QuotationList = () => {
   const [deleteQuoteRef, setDeleteQuoteRef] = useState(null);
   const [deleteRowId, setDeleteRowId] = useState(null);
   const [deleteApiId, setDeleteApiId] = useState(null);
+  const [sendPreviewQuote, setSendPreviewQuote] = useState(null);
+  const [sendPreviewTo, setSendPreviewTo] = useState("");
+  const [sendPreviewCc, setSendPreviewCc] = useState("");
+  const [sendPreviewSubject, setSendPreviewSubject] = useState("");
+  const [sendPreviewMessage, setSendPreviewMessage] = useState("");
+  const [sendPreviewError, setSendPreviewError] = useState("");
+  const [sendQuoteBusyId, setSendQuoteBusyId] = useState("");
+  /** When true, `/quotations/new` route effect must not call `resetAddForm()` (avoids wiping clone data). */
+  const quotationClonePopulateRef = useRef(false);
 
   useEffect(() => {
     if (quotationFormMode === "list") {
@@ -1081,7 +1177,7 @@ const QuotationList = () => {
                   taxPercent:
                     it.tax_percent != null && String(it.tax_percent) !== ""
                       ? String(it.tax_percent)
-                      : "0"
+                      : DEFAULT_QUOTATION_LINE_TAX_PERCENT
                 };
               })
             : [];
@@ -1106,7 +1202,7 @@ const QuotationList = () => {
                 taxPercent:
                   it.tax_percent != null && String(it.tax_percent) !== ""
                     ? String(it.tax_percent)
-                    : String(it.taxPercent ?? "0")
+                    : String(it.taxPercent ?? DEFAULT_QUOTATION_LINE_TAX_PERCENT)
               }))
             : []
         );
@@ -1138,6 +1234,120 @@ const QuotationList = () => {
     [token, inTillflowShell]
   );
 
+  const openCloneQuotation = useCallback(
+    (row) => {
+      quotationClonePopulateRef.current = true;
+      resetAddForm();
+      setAddQuotedAt(new Date().toISOString().slice(0, 10));
+      setAddExpiresAt(row.expiresAtIso ?? "");
+      setAddCustomerId(
+        row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
+      );
+      setAddCustomerName(String(row.Custmer_Name ?? ""));
+      const src = row.items ?? [];
+      if (token) {
+        let mapped =
+          src.length > 0
+            ? src.map((it) => {
+                const custom = it.product_id == null || it.product_id === "";
+                return {
+                  key: it.key ?? newLineKey(),
+                  productId: custom ? "" : String(it.product_id),
+                  quantity: String(it.quantity ?? 1),
+                  unitPrice:
+                    it.unit_price != null && String(it.unit_price) !== "" ? String(it.unit_price) : "",
+                  customLabel: String(it.product_name ?? ""),
+                  description: String(it.description ?? ""),
+                  taxPercent:
+                    it.tax_percent != null && String(it.tax_percent) !== ""
+                      ? String(it.tax_percent)
+                      : DEFAULT_QUOTATION_LINE_TAX_PERCENT
+                };
+              })
+            : [];
+        if (mapped.length === 0 && String(row.Product_Name ?? "").trim() !== "") {
+          mapped = [
+            {
+              key: newLineKey(),
+              productId: "",
+              quantity: "1",
+              unitPrice:
+                typeof row.Total === "number" && row.Total > 0 ? String(row.Total) : "",
+              taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT,
+              customLabel: String(row.Product_Name ?? "").trim(),
+              description: ""
+            }
+          ];
+        }
+        setAddLines(
+          inTillflowShell
+            ? mapped.length > 0
+              ? [...mapped, emptyApiLine()]
+              : [emptyApiLine()]
+            : mapped.length > 0
+              ? mapped
+              : [emptyApiLine()]
+        );
+      } else {
+        let localMapped =
+          src.length > 0
+            ? src.map((it) => ({
+                key: it.key ?? newLineKey(),
+                productName: String(it.productName ?? it.product_name ?? ""),
+                quantity: String(it.quantity ?? 1),
+                unitPrice: String(it.unitPrice ?? it.unit_price ?? ""),
+                productImg: it.productImg ?? stockImg01,
+                description: String(it.description ?? ""),
+                taxPercent:
+                  it.tax_percent != null && String(it.tax_percent) !== ""
+                    ? String(it.tax_percent)
+                    : String(it.taxPercent ?? DEFAULT_QUOTATION_LINE_TAX_PERCENT)
+              }))
+            : [];
+        if (localMapped.length === 0 && String(row.Product_Name ?? "").trim() !== "") {
+          localMapped = [
+            {
+              key: newLineKey(),
+              productName: String(row.Product_Name ?? "").trim(),
+              quantity: "1",
+              unitPrice:
+                typeof row.Total === "number" && row.Total > 0 ? String(row.Total) : "",
+              taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT,
+              productImg: stockImg01,
+              description: ""
+            }
+          ];
+        }
+        setAddLines(localMapped.length > 0 ? localMapped : [emptyLocalLine()]);
+      }
+      setAddStatus("Draft");
+      setAddProductImgUrl(row.product_image_url ? String(row.product_image_url) : "");
+      setAddCustomerImgUrl(row.customer_image_url ? String(row.customer_image_url) : "");
+      setAddClientNote(String(row.clientNote ?? ""));
+      setAddTermsAndConditions(String(row.termsAndConditions ?? ""));
+      setAddQuoteTitle(String(row.quoteTitle ?? ""));
+      setAddBillerId(
+        row.biller_id != null && row.biller_id !== "" ? String(row.biller_id) : ""
+      );
+      const rowDt = row.discount_type;
+      setAddDiscountType(
+        rowDt === "before_tax" || rowDt === "after_tax" || rowDt === "none" ? rowDt : "none"
+      );
+      const rowDb = row.discount_basis;
+      setAddDiscountBasis(rowDb === "fixed" ? "fixed" : "percent");
+      const rowDv = row.discount_value;
+      setAddDiscountValue(
+        rowDv != null && String(rowDv) !== "" ? String(rowDv) : "0"
+      );
+      setAddSalesAgentName(String(row.Biller_Name ?? ""));
+      setQuotationFormMode("create");
+      if (inTillflowShell) {
+        navigate(`${TILLFLOW_QUOTATIONS_BASE}/new`);
+      }
+    },
+    [inTillflowShell, navigate, resetAddForm, token]
+  );
+
   useEffect(() => {
     if (!inTillflowShell) {
       return;
@@ -1145,6 +1355,10 @@ const QuotationList = () => {
     const norm = location.pathname.replace(/\/$/, "");
 
     if (norm === `${TILLFLOW_QUOTATIONS_BASE}/new`) {
+      if (quotationClonePopulateRef.current) {
+        quotationClonePopulateRef.current = false;
+        return;
+      }
       setQuotationFormMode((m) => {
         if (m === "list") {
           resetAddForm();
@@ -1224,12 +1438,8 @@ const QuotationList = () => {
       setAddError("Please choose a quote date.");
       return;
     }
-    if (!QUOTATION_CRM_STATUSES.includes(addStatus)) {
-      setAddError("Invalid status.");
-      return;
-    }
     if (addExpiresAt && addQuotedAt && addExpiresAt < addQuotedAt) {
-      setAddError("Expiry date must be on or after the quote date.");
+      setAddError("Valid until date must be on or after the quote date.");
       return;
     }
 
@@ -1258,7 +1468,7 @@ const QuotationList = () => {
         const body = {
           quoted_at: addQuotedAt,
           customer_id: Number(addCustomerId),
-          status: addStatus,
+          status: "Draft",
           items
         };
         if (addExpiresAt) {
@@ -1351,7 +1561,7 @@ const QuotationList = () => {
         items: builtItems,
         customerImg: resolveMediaUrl(customerUrl, user33),
         Custmer_Name: cust,
-        Status: addStatus,
+        Status: "Draft",
         Total: totalNum,
         clientNote: addClientNote,
         termsAndConditions: addTermsAndConditions,
@@ -1383,7 +1593,6 @@ const QuotationList = () => {
     addCustomerId,
     addCustomerName,
     addQuoteTotal,
-    addStatus,
     addProductImgUrl,
     addCustomerImgUrl,
     addClientNote,
@@ -1422,7 +1631,7 @@ const QuotationList = () => {
       return;
     }
     if (editExpiresAt && editQuotedAt && editExpiresAt < editQuotedAt) {
-      setEditError("Expiry date must be on or after the quote date.");
+      setEditError("Valid until date must be on or after the quote date.");
       return;
     }
 
@@ -1634,9 +1843,175 @@ const QuotationList = () => {
     hideBsModal("delete-quotation-modal");
   };
 
+  const handleSendQuotationToCustomer = useCallback(
+    async (row, payload, attachOptions = {}) => {
+      if (!token || row?.apiId == null) {
+        setListError("Send to email is available for saved quotations only.");
+        return;
+      }
+      setListError("");
+      setSendQuoteBusyId(String(row.id ?? row.apiId ?? ""));
+      try {
+        await sendQuotationToCustomerRequest(token, row.apiId, payload || undefined, attachOptions);
+        await loadQuotations();
+        return true;
+      } catch (e) {
+        if (e instanceof TillFlowApiError) {
+          setListError(e.message);
+        } else {
+          setListError("Could not send quotation email.");
+        }
+        return false;
+      } finally {
+        setSendQuoteBusyId("");
+      }
+    },
+    [token, loadQuotations]
+  );
+
+  const openSendQuotationPreviewModal = useCallback(
+    (row) => {
+      const customer = catalogCustomers.find((c) => String(c.id) === String(row.customer_id ?? ""));
+      const customerName = String(row.Custmer_Name || customer?.name || "Customer");
+      const defaultTo = String(customer?.email || "").trim();
+      setSendPreviewQuote(row);
+      setSendPreviewTo(defaultTo);
+      setSendPreviewCc("");
+      setSendPreviewSubject(`Quotation ${row.quoteRef || ""}`.trim());
+      setSendPreviewMessage(
+        `Hello ${customerName},\n\nPlease find your quotation ${row.quoteRef || "—"} dated ${row.quotedDate || "—"}.\n\nTotal amount: ${typeof row.Total === "number" ? formatQuoteMoneyKes(row.Total) : "Ksh0.00"}.\n\nThank you.`
+      );
+      setSendPreviewError("");
+      showBsModal("send-quotation-preview-modal");
+    },
+    [catalogCustomers]
+  );
+
+  const handleConfirmSendQuotation = useCallback(async () => {
+    if (!sendPreviewQuote) {
+      return;
+    }
+    const to = String(sendPreviewTo || "").trim();
+    if (!to) {
+      setSendPreviewError("Recipient email is required.");
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(to)) {
+      setSendPreviewError("Recipient email is invalid.");
+      return;
+    }
+    const ccRaw = String(sendPreviewCc || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (ccRaw.some((mail) => !emailRe.test(mail))) {
+      setSendPreviewError("One or more CC email addresses are invalid.");
+      return;
+    }
+    setSendPreviewError("");
+    const payload = {
+      to,
+      cc: ccRaw,
+      subject: String(sendPreviewSubject || "").trim(),
+      message: String(sendPreviewMessage || "").trim()
+    };
+
+    /** Same html2canvas + jsPDF output as modal “Download PDF” (not server Dompdf). */
+    let pdfBlob = null;
+    if (typeof document !== "undefined") {
+      try {
+        const vm = buildQuotationViewTableModel(sendPreviewQuote);
+        const fmt = inTillflowShell ? formatQuoteMoneyKes : formatMoney;
+        const host = document.createElement("div");
+        host.setAttribute("aria-hidden", "true");
+        Object.assign(host.style, {
+          position: "fixed",
+          left: "-9999px",
+          top: "0",
+          width: "794px",
+          zIndex: "-1",
+          pointerEvents: "none",
+          opacity: "0",
+          overflow: "hidden"
+        });
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        let printEl = null;
+        flushSync(() => {
+          root.render(
+            <QuotationPrintDocument
+              ref={(el) => {
+                printEl = el;
+              }}
+              viewRow={sendPreviewQuote}
+              quotationViewModel={vm}
+              companySnapshot={companySnapshot}
+              quotationFooter={quotationFooter}
+              quotationLogoSrc={quotationLogoSrc}
+              quotationLogoDarkSrc={quotationLogoDarkSrc}
+              formatMoney={fmt}
+            />
+          );
+        });
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        if (printEl) {
+          await waitForPrintRootImages(printEl);
+          await new Promise((r) => setTimeout(r, 120));
+          pdfBlob = await quotationDetailPdfBlobFromElement(printEl, {
+            quoteRef: sendPreviewQuote.quoteRef
+          });
+        }
+        root.unmount();
+        document.body.removeChild(host);
+      } catch (e) {
+        console.warn("Client PDF for email failed; server Dompdf will be used.", e);
+        pdfBlob = null;
+      }
+    }
+
+    const attachFilename = `quotation-${String(sendPreviewQuote.quoteRef ?? sendPreviewQuote.apiId ?? "quote").replace(/[^\w.-]+/g, "_")}.pdf`;
+    const ok = await handleSendQuotationToCustomer(sendPreviewQuote, payload, {
+      pdfBlob: pdfBlob instanceof Blob ? pdfBlob : undefined,
+      attachmentFilename: attachFilename
+    });
+    if (ok) {
+      hideBsModal("send-quotation-preview-modal");
+      setSendPreviewQuote(null);
+    }
+  }, [
+    companySnapshot,
+    handleSendQuotationToCustomer,
+    inTillflowShell,
+    quotationFooter,
+    quotationLogoDarkSrc,
+    quotationLogoSrc,
+    sendPreviewCc,
+    sendPreviewMessage,
+    sendPreviewQuote,
+    sendPreviewSubject,
+    sendPreviewTo
+  ]);
+
   const columns = useMemo(
     () => [
-      { header: "Quote #", field: "quoteRef", sortable: true },
+      {
+        header: "Quote #",
+        field: "quoteRef",
+        sortable: true,
+        body: (row) => (
+          <Link
+            to="#"
+            style={{ color: "#0d6efd" }}
+            onClick={(e) => {
+              e.preventDefault();
+              openViewQuotation(row);
+              showBsModal("view-quotation-modal");
+            }}>
+            {row.quoteRef}
+          </Link>
+        )
+      },
       {
         header: "Title",
         field: "quoteTitle",
@@ -1654,7 +2029,7 @@ const QuotationList = () => {
       },
       { header: "Date", field: "quotedDate", sortable: true },
       {
-        header: "Expiry",
+        header: "Valid until",
         field: "expiresAtIso",
         sortable: true,
         body: (rowData) =>
@@ -1691,7 +2066,9 @@ const QuotationList = () => {
         field: "Total",
         sortable: true,
         body: (rowData) =>
-          typeof rowData.Total === "number" ? formatMoney(rowData.Total) : rowData.Total
+          typeof rowData.Total === "number"
+            ? formatQuoteMoneyKes(rowData.Total)
+            : rowData.Total
       },
       {
         header: "Status",
@@ -1704,53 +2081,106 @@ const QuotationList = () => {
         )
       },
       {
-        header: "Actions",
+        header: "",
         field: "actions",
         sortable: false,
         body: (row) => (
-          <div className="edit-delete-action d-flex align-items-center">
-            <Link
-              className="me-2 p-2 d-flex align-items-center border rounded"
-              to="#"
-              data-bs-toggle="modal"
-              data-bs-target="#view-quotation-modal"
-              onClick={(e) => {
-                e.preventDefault();
-                openViewQuotation(row);
-              }}>
-              <Eye size={18} strokeWidth={1.75} aria-hidden />
-            </Link>
-            <Link
-              className="me-2 p-2 d-flex align-items-center border rounded"
-              to="#"
-              onClick={(e) => {
-                e.preventDefault();
-                if (inTillflowShell) {
-                  navigate(
-                    `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
-                  );
-                } else {
-                  openEditQuotation(row);
-                }
-              }}>
-              <Edit2 size={18} strokeWidth={1.75} aria-hidden />
-            </Link>
-            <Link
-              className="p-2 d-flex align-items-center border rounded"
-              to="#"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-quotation-modal"
-              onClick={(e) => {
-                e.preventDefault();
-                openDeleteQuotation(row);
-              }}>
-              <Trash2 size={18} strokeWidth={1.75} aria-hidden />
-            </Link>
+          <div className="edit-delete-action">
+            <div className="dropdown">
+              <button
+                type="button"
+                className="btn btn-sm btn-light p-1 d-inline-flex align-items-center justify-content-center"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                title="Actions">
+                <MoreVertical size={16} />
+              </button>
+              <ul className="dropdown-menu dropdown-menu-end">
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      openViewQuotation(row);
+                      showBsModal("view-quotation-modal");
+                    }}>
+                    <i className="feather icon-eye me-2" />
+                    View
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      if (inTillflowShell) {
+                        navigate(
+                          `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
+                        );
+                      } else {
+                        openEditQuotation(row);
+                      }
+                    }}>
+                    <i className="feather icon-edit me-2" />
+                    Edit
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      openCloneQuotation(row);
+                    }}>
+                    <i className="feather icon-copy me-2" />
+                    Clone
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    disabled={sendQuoteBusyId === String(row.id ?? row.apiId ?? "")}
+                    onClick={() => {
+                      if (sendQuoteBusyId === String(row.id ?? row.apiId ?? "")) return;
+                      openSendQuotationPreviewModal(row);
+                    }}>
+                    <i className="feather icon-mail me-2" />
+                    {sendQuoteBusyId === String(row.id ?? row.apiId ?? "") ? "Sending..." : "Send to email"}
+                  </button>
+                </li>
+                <li><hr className="dropdown-divider" /></li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item text-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#delete-quotation-modal"
+                    onClick={() => {
+                      openDeleteQuotation(row);
+                    }}>
+                    <i className="feather icon-trash-2 me-2" />
+                    Delete
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         )
       }
     ],
-    [openDeleteQuotation, openEditQuotation, openViewQuotation, inTillflowShell, navigate]
+    [
+      handleSendQuotationToCustomer,
+      handleConfirmSendQuotation,
+      openCloneQuotation,
+      openDeleteQuotation,
+      openEditQuotation,
+      openSendQuotationPreviewModal,
+      openViewQuotation,
+      inTillflowShell,
+      navigate,
+      sendQuoteBusyId
+    ]
   );
 
   const formIsCreate = quotationFormMode === "create";
@@ -1976,7 +2406,7 @@ const QuotationList = () => {
               unitPrice: price,
               customLabel: productName,
               description: "",
-              taxPercent: "0"
+              taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT
             }
           ];
         }
@@ -1998,7 +2428,7 @@ const QuotationList = () => {
           unitPrice: price,
           customLabel: productName,
           description: "",
-          taxPercent: "0"
+          taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT
         };
         const first = prev[0];
         const isBlankStarterRow =
@@ -2015,7 +2445,7 @@ const QuotationList = () => {
               unitPrice: price,
               customLabel: productName,
               description: "",
-              taxPercent: "0"
+              taxPercent: DEFAULT_QUOTATION_LINE_TAX_PERCENT
             }
           ];
         }
@@ -2433,7 +2863,7 @@ const QuotationList = () => {
                         </div>
                         <div className="col-md-6 col-lg-4">
                           <label className="form-label">
-                            Expiry date<span className="text-muted fw-normal ms-1">(optional)</span>
+                            Valid until<span className="text-muted fw-normal ms-1">(optional)</span>
                           </label>
                           <input
                             type="date"
@@ -2447,23 +2877,26 @@ const QuotationList = () => {
                           />
                         </div>
                         <div className="col-md-6 col-lg-4">
-                          <label className="form-label">
-                            Status<span className="text-danger ms-1">*</span>
-                          </label>
-                          <select
-                            className="form-select"
-                            value={formIsCreate ? addStatus : editStatus}
-                            onChange={(e) =>
-                              formIsCreate
-                                ? setAddStatus(e.target.value)
-                                : setEditStatus(e.target.value)
-                            }>
-                            {QUOTATION_CRM_STATUSES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </select>
+                          <label className="form-label">Status</label>
+                          {formIsCreate ? (
+                            <>
+                              <input type="text" className="form-control" value="Draft" readOnly disabled />
+                              <p className="text-muted small mb-0 mt-1">
+                                Status switches to Sent after sending.
+                              </p>
+                            </>
+                          ) : (
+                            <select
+                              className="form-select"
+                              value={editStatus}
+                              onChange={(e) => setEditStatus(e.target.value)}>
+                              {QUOTATION_CRM_STATUSES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2760,46 +3193,53 @@ const QuotationList = () => {
                               onMouseDown={handleQuoteLineColResizeMouseDown(0)}
                             />
                           </th>
-                          <th scope="col" className="position-relative">
-                            Item
+                          <th scope="col" className="text-center position-relative user-select-none">
+                            #
                             <span
                               className="quote-line-col-resize"
                               onMouseDown={handleQuoteLineColResizeMouseDown(1)}
                             />
                           </th>
                           <th scope="col" className="position-relative">
-                            {crmQuotationForm ? "Description" : "Long description"}
+                            Item
                             <span
                               className="quote-line-col-resize"
                               onMouseDown={handleQuoteLineColResizeMouseDown(2)}
                             />
                           </th>
                           <th scope="col" className="position-relative">
-                            Qty
+                            {crmQuotationForm ? "Description" : "Long description"}
                             <span
                               className="quote-line-col-resize"
                               onMouseDown={handleQuoteLineColResizeMouseDown(3)}
                             />
                           </th>
                           <th scope="col" className="position-relative">
-                            {crmQuotationForm ? "Rate" : "Unit price"}
+                            Qty
                             <span
                               className="quote-line-col-resize"
                               onMouseDown={handleQuoteLineColResizeMouseDown(4)}
                             />
                           </th>
                           <th scope="col" className="position-relative">
-                            Tax %
+                            Rate
                             <span
                               className="quote-line-col-resize"
                               onMouseDown={handleQuoteLineColResizeMouseDown(5)}
+                            />
+                          </th>
+                          <th scope="col" className="position-relative">
+                            Tax %
+                            <span
+                              className="quote-line-col-resize"
+                              onMouseDown={handleQuoteLineColResizeMouseDown(6)}
                             />
                           </th>
                           <th scope="col" className="text-end position-relative">
                             Amount
                             <span
                               className="quote-line-col-resize"
-                              onMouseDown={handleQuoteLineColResizeMouseDown(6)}
+                              onMouseDown={handleQuoteLineColResizeMouseDown(7)}
                             />
                           </th>
                           <th scope="col" className="text-end">
@@ -2810,7 +3250,7 @@ const QuotationList = () => {
                       <tbody onDragOver={onQuoteLineRowDragOver}>
                         {formLines.length === 0 ? (
                           <tr className="quotation-line-item-row quotation-line-item-row--empty">
-                            <td colSpan={8} className="text-center text-muted py-4">
+                            <td colSpan={9} className="text-center text-muted py-4">
                               <p
                                 className={`small ${
                                   crmQuotationForm ? "mb-0" : "mb-2 mb-md-3"
@@ -2873,6 +3313,9 @@ const QuotationList = () => {
                                 </span>
                                 <Move size={16} strokeWidth={1.75} className="text-secondary" aria-hidden />
                               </span>
+                            </td>
+                            <td className="align-middle text-center text-muted small tabular-nums">
+                              {lineIndex + 1}
                             </td>
                             <td>
                               {useApiProductLines ? (
@@ -2993,8 +3436,8 @@ const QuotationList = () => {
                                 max="100"
                                 step="0.01"
                                 className="form-control"
-                                title="Tax % applied to line subtotal (qty × unit price)"
-                                value={line.taxPercent ?? "0"}
+                                title="Tax % applied to line subtotal (qty × rate)"
+                                value={line.taxPercent ?? DEFAULT_QUOTATION_LINE_TAX_PERCENT}
                                 onChange={(e) =>
                                   setFormLines((prev) =>
                                     prev.map((l) =>
@@ -3127,45 +3570,33 @@ const QuotationList = () => {
               </div>
 
               {crmQuotationForm ? (
-                <div className="quotation-crm-summary-bar card border-0 shadow-sm mb-3">
-                  <div className="card-body py-3 py-md-4">
-                    <div className="d-flex justify-content-end">
-                      <div className="quotation-crm-summary-bar__figures">
-                        <div className="quotation-crm-summary-bar__row quotation-crm-summary-bar__row--muted">
-                          <span className="quotation-crm-summary-bar__label">Sub Total :</span>
-                          <span className="quotation-crm-summary-bar__amount">
+                <div className="card border-0 shadow-sm mb-3 quotation-crm-card">
+                  <div className="card-body">
+                    <div className="row justify-content-end">
+                      <div className="col-md-5 col-lg-4">
+                        <div className="d-flex justify-content-between border-bottom py-2">
+                          <span>Subtotal (ex tax)</span>
+                          <span className="fw-medium">
                             {formatQuoteMoneyKes(quotationKesSummary.subtotalExTax)}
                           </span>
                         </div>
-                        <div className="quotation-crm-summary-bar__row quotation-crm-summary-bar__row--muted">
-                          <span className="quotation-crm-summary-bar__label">Discount :</span>
-                          <div className="quotation-crm-summary-bar__discount-stack text-end">
-                            <span className="quotation-crm-summary-bar__pct">
-                              {quotationKesSummary.discountPct == null
-                                ? "Fixed amount"
-                                : `${quotationKesSummary.discountPct} %`}
-                            </span>
-                            <span
-                              className={`quotation-crm-summary-bar__disc-amt${
-                                quotationKesSummary.discountAmt > 0
-                                  ? " quotation-crm-summary-bar__disc-amt--off"
-                                  : ""
-                              }`}>
-                              {quotationKesSummary.discountAmt > 0
-                                ? `−${formatQuoteMoneyKes(quotationKesSummary.discountAmt)}`
-                                : formatQuoteMoneyKes(0)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="quotation-crm-summary-bar__row quotation-crm-summary-bar__row--muted">
-                          <span className="quotation-crm-summary-bar__label">Tax :</span>
-                          <span className="quotation-crm-summary-bar__amount">
+                        <div className="d-flex justify-content-between border-bottom py-2">
+                          <span>Tax</span>
+                          <span className="fw-medium">
                             {formatQuoteMoneyKes(quotationKesSummary.taxTotal)}
                           </span>
                         </div>
-                        <div className="quotation-crm-summary-bar__row quotation-crm-summary-bar__row--total">
-                          <span className="quotation-crm-summary-bar__label">Total :</span>
-                          <span className="quotation-crm-summary-bar__amount quotation-crm-summary-bar__amount--grand">
+                        {quotationKesSummary.discountAmt > 0 ? (
+                          <div className="d-flex justify-content-between border-bottom py-2">
+                            <span>Discount</span>
+                            <span className="fw-medium">
+                              −{formatQuoteMoneyKes(quotationKesSummary.discountAmt)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className="d-flex justify-content-between py-2">
+                          <span className="fw-semibold">Total</span>
+                          <span className="fw-bold">
                             {formatQuoteMoneyKes(quotationKesSummary.grandTotal)}
                           </span>
                         </div>
@@ -3176,22 +3607,21 @@ const QuotationList = () => {
               ) : null}
 
               <div className="card border-0 shadow-sm">
-                <div className="card-body d-flex flex-wrap justify-content-end gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-secondary fs-13 fw-medium px-3 shadow-none"
-                    onClick={leaveQuotationForm}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary fs-13 fw-medium px-3">
-                    {crmQuotationForm
-                      ? formIsCreate
-                        ? "Save quotation"
-                        : "Update quotation"
-                      : formIsCreate
-                        ? "Save quotation"
-                        : "Save changes"}
-                  </button>
+                <div className="card-body">
+                  <DocumentFormActions
+                    ui={crmQuotationForm ? "tillflow" : "bootstrap"}
+                    onCancel={leaveQuotationForm}
+                    cancelLabel="Cancel"
+                    saveLabel={
+                      crmQuotationForm
+                        ? formIsCreate
+                          ? "Save quotation"
+                          : "Update quotation"
+                        : formIsCreate
+                          ? "Save quotation"
+                          : "Save changes"
+                    }
+                  />
                 </div>
               </div>
             </form>
@@ -3249,8 +3679,8 @@ const QuotationList = () => {
             </div>
             <div className="modal-body p-0 bg-white">
               {viewRow && quotationViewModel ? (
-                <div className="p-3">
-                  <div className="page-btn mb-3 quotation-view-no-print d-flex flex-wrap align-items-center gap-2">
+                <div className="px-3 pt-2 pb-3 quotation-view-modal-body-inner">
+                  <div className="page-btn mb-2 quotation-view-no-print d-flex flex-wrap align-items-center gap-2">
                     <Link
                       to={inTillflowShell ? TILLFLOW_QUOTATIONS_BASE : all_routes.quotationlist}
                       className="btn btn-primary"
@@ -3269,253 +3699,16 @@ const QuotationList = () => {
                       Edit quote
                     </Link>
                   </div>
-                  <div
+                  <QuotationPrintDocument
                     ref={quotationViewPrintRootRef}
-                    className="card border shadow-sm quotation-view-print-root">
-                    <div className="card-body">
-                      <div className="row justify-content-between align-items-center border-bottom mb-3">
-                        <div className="col-md-6">
-                          <div className="mb-2">
-                            <div className="mb-2 invoice-logo">
-                              <img
-                                src="/src/assets/img/logo.svg"
-                                width={130}
-                                className="img-fluid logo"
-                                alt=""
-                              />
-                              <img
-                                src="/src/assets/img/logo-white.svg"
-                                width={130}
-                                className="img-fluid logo-white"
-                                alt=""
-                              />
-                            </div>
-                          </div>
-                          <p className="mb-0 text-muted small">
-                            {companySnapshot.companyName.trim() ? (
-                              <>
-                                Showing your company profile from{" "}
-                                <Link to={all_routes.companysettings}>Company settings</Link>.
-                              </>
-                            ) : (
-                              <>
-                                Your business details can be set under{" "}
-                                <Link to={all_routes.companysettings}>Company settings</Link>.
-                              </>
-                            )}
-                          </p>
-                        </div>
-                        <div className="col-md-6">
-                          <div className="text-end mb-3">
-                            <h5 className="text-gray mb-1">
-                              Quote No <span className="text-primary">{viewRow.quoteRef}</span>
-                            </h5>
-                            <p className="mb-1 fw-medium">
-                              Quote date : <span className="text-dark">{viewRow.quotedDate}</span>
-                            </p>
-                            <p className="fw-medium mb-0">
-                              Valid until :{" "}
-                              <span className="text-dark">
-                                {viewRow.expiresAtIso ? formatQuotedDisplay(viewRow.expiresAtIso) : "—"}
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row border-bottom mb-3">
-                        <div className="col-md-5">
-                          <p className="text-dark mb-2 fw-semibold">From</p>
-                          <div>
-                            <h4 className="mb-1">
-                              {companySnapshot.companyName.trim() || "Your business"}
-                            </h4>
-                            <p className="mb-1 text-muted text-break">
-                              {(
-                                companySnapshot.location ||
-                                companySnapshot.addressLine ||
-                                ""
-                              ).trim() || "—"}
-                            </p>
-                            <p className="mb-1">
-                              Email :{" "}
-                              <span className="text-dark">
-                                {companySnapshot.email.trim() || "—"}
-                              </span>
-                            </p>
-                            <p className="mb-0">
-                              Phone :{" "}
-                              <span className="text-dark">
-                                {companySnapshot.phone.trim() || "—"}
-                              </span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="col-md-5">
-                          <p className="text-dark mb-2 fw-semibold">To</p>
-                          <div>
-                            <h4 className="mb-1">{viewRow.Custmer_Name}</h4>
-                            <p className="mb-1 text-muted">—</p>
-                            <p className="mb-1">
-                              Email : <span className="text-dark">—</span>
-                            </p>
-                            <p className="mb-0">
-                              Phone : <span className="text-dark">—</span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="col-md-2">
-                          <div className="mb-3">
-                            <p className="text-title mb-2 fw-medium">Status</p>
-                            <span
-                              className={`badge ${quotationStatusBadgeClass(viewRow.Status)} fs-10 px-2 py-1 rounded`}>
-                              <i className="ti ti-point-filled" aria-hidden />
-                              {normalizeQuotationStatus(viewRow.Status)}
-                            </span>
-                            <div className="mt-3">
-                              <img src={qrCodeImage} className="img-fluid" alt="" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="fw-medium mb-0 text-break" style={{ whiteSpace: "pre-wrap" }}>
-                          Quotation for :{" "}
-                          <span className="text-dark fw-semibold">
-                            {String(viewRow.quoteTitle ?? "").trim() || "—"}
-                          </span>
-                        </p>
-                        <div className="table-responsive mb-3">
-                          <table className="table">
-                            <thead className="thead-light">
-                              <tr>
-                                <th>Item and Description</th>
-                                <th className="text-end">Qty</th>
-                                <th className="text-end">Unit price</th>
-                                <th className="text-end">Discount</th>
-                                <th className="text-end">Line total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {quotationViewModel.rows.map((r) => (
-                                <tr key={r.key}>
-                                  <td>
-                                    <h6 className="mb-0">{r.title}</h6>
-                                    {r.desc ? (
-                                      <p
-                                        className="text-muted small mb-0 mt-1 text-break"
-                                        style={{ whiteSpace: "pre-wrap" }}>
-                                        {r.desc}
-                                      </p>
-                                    ) : null}
-                                  </td>
-                                  <td className="text-gray-9 fw-medium text-end">{r.qty}</td>
-                                  <td className="text-gray-9 fw-medium text-end">
-                                    {viewFormatMoney(r.unit)}
-                                  </td>
-                                  <td className="text-gray-9 fw-medium text-end">
-                                    {r.disc > 0 ? viewFormatMoney(r.disc) : "—"}
-                                  </td>
-                                  <td className="text-gray-9 fw-medium text-end">
-                                    {viewFormatMoney(r.lineTotal)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                      <div className="row border-bottom mb-3">
-                        <div className="col-md-5 ms-auto mb-3">
-                          <div className="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                            <p className="mb-0">Sub Total</p>
-                            <p className="text-dark fw-medium mb-2">
-                              {viewFormatMoney(quotationViewModel.subEx)}
-                            </p>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                            <p className="mb-0">{quotationViewModel.discountLabel}</p>
-                            <p className="text-dark fw-medium mb-2">
-                              {quotationViewModel.dtype !== "none"
-                                ? `−${viewFormatMoney(quotationViewModel.discountAmt)}`
-                                : viewFormatMoney(0)}
-                            </p>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center mb-2 pe-3">
-                            <p className="mb-0">Tax</p>
-                            <p className="text-dark fw-medium mb-2">
-                              {viewFormatMoney(quotationViewModel.taxAmt)}
-                            </p>
-                          </div>
-                          <div className="d-flex justify-content-between align-items-center mb-2 pe-3">
-                            <h5 className="mb-0">Total</h5>
-                            <h5 className="mb-0">{viewFormatMoney(quotationViewModel.grandTotal)}</h5>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="row align-items-center border-bottom mb-3">
-                        <div className="col-md-7">
-                          <div className="mb-3">
-                            <h6 className="mb-1">Terms &amp; conditions</h6>
-                            <p className="mb-0 text-break" style={{ whiteSpace: "pre-wrap" }}>
-                              {viewRow.termsAndConditions?.trim()
-                                ? viewRow.termsAndConditions
-                                : "—"}
-                            </p>
-                          </div>
-                          <div className="mb-0">
-                            <h6 className="mb-1">Client note</h6>
-                            <p className="mb-0 text-break" style={{ whiteSpace: "pre-wrap" }}>
-                              {viewRow.clientNote?.trim() ? viewRow.clientNote : "—"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="col-md-5">
-                          <div className="text-end">
-                            <img src={sign} className="img-fluid" alt="" />
-                          </div>
-                          <div className="text-end mb-3">
-                            <h6 className="fs-14 fw-medium pe-3">
-                              {viewRow.Biller_Name?.trim() ? viewRow.Biller_Name : "Sales agent"}
-                            </h6>
-                            <p className="mb-0">Sales agent</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="mb-3 invoice-logo d-flex align-items-center justify-content-center">
-                          <ImageWithBasePath
-                            src="assets/img/logo.svg"
-                            width={130}
-                            className="img-fluid logo"
-                            alt=""
-                          />
-                          <ImageWithBasePath
-                            src="assets/img/logo-white.svg"
-                            width={130}
-                            className="img-fluid logo-white"
-                            alt=""
-                          />
-                        </div>
-                        <p className="text-dark mb-1">
-                          Payment Made Via bank transfer / Cheque in the name of Thomas Lawler
-                        </p>
-                        <div className="d-flex justify-content-center align-items-center flex-wrap row-gap-2 column-gap-3">
-                          <p className="fs-12 mb-0">
-                            Bank Name : <span className="text-dark">HDFC Bank</span>
-                          </p>
-                          <p className="fs-12 mb-0">
-                            Account Number : <span className="text-dark">45366287987</span>
-                          </p>
-                          <p className="fs-12 mb-0">
-                            IFSC : <span className="text-dark">HDFC0018159</span>
-                          </p>
-                        </div>
-                        <p className="text-muted small mt-3 mb-0">
-                          Thank you for your interest. This quotation is valid until the date shown above.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    viewRow={viewRow}
+                    quotationViewModel={quotationViewModel}
+                    companySnapshot={companySnapshot}
+                    quotationFooter={quotationFooter}
+                    quotationLogoSrc={quotationLogoSrc}
+                    quotationLogoDarkSrc={quotationLogoDarkSrc}
+                    formatMoney={viewFormatMoney}
+                  />
                   <div className="d-flex justify-content-center align-items-center mb-2 flex-wrap gap-2 quotation-view-no-print">
                     <button
                       type="button"
@@ -3576,6 +3769,77 @@ const QuotationList = () => {
                   Got it
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="modal fade" id="send-quotation-preview-modal">
+        <div className="modal-dialog modal-dialog-centered modal-lg">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h4 className="mb-0">Email preview</h4>
+              <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="mb-3">
+                <label className="form-label mb-1">To</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  value={sendPreviewTo}
+                  onChange={(e) => setSendPreviewTo(e.target.value)}
+                  placeholder="customer@example.com"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label mb-1">Subject</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={sendPreviewSubject}
+                  onChange={(e) => setSendPreviewSubject(e.target.value)}
+                  placeholder="Email subject"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label mb-1">CC (comma separated)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={sendPreviewCc}
+                  onChange={(e) => setSendPreviewCc(e.target.value)}
+                  placeholder="cc1@example.com, cc2@example.com"
+                />
+              </div>
+              <div>
+                <label className="form-label mb-1">Message</label>
+                <textarea
+                  className="form-control"
+                  rows={7}
+                  value={sendPreviewMessage}
+                  onChange={(e) => setSendPreviewMessage(e.target.value)}
+                />
+              </div>
+              {sendPreviewError ? <p className="text-danger small mt-2 mb-0">{sendPreviewError}</p> : null}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={sendQuoteBusyId === String(sendPreviewQuote?.id ?? sendPreviewQuote?.apiId ?? "")}
+                onClick={() => {
+                  void handleConfirmSendQuotation();
+                }}>
+                {sendQuoteBusyId === String(sendPreviewQuote?.id ?? sendPreviewQuote?.apiId ?? "")
+                  ? "Sending..."
+                  : "Send Email"}
+              </button>
             </div>
           </div>
         </div>

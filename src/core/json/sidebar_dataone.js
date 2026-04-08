@@ -603,13 +603,6 @@ export const SidebarData1 = [
             subRoutes: [],
           },
           {
-            tittle: "Purchase Order",
-            hasSubRoute: false,
-            showSubRoute: false,
-            route: "/purchase-order-report",
-            subRoutes: [],
-          },
-          {
             tittle: "Purchase Return",
             hasSubRoute: false,
             showSubRoute: false,

@@ -333,13 +333,6 @@ export const SidebarData = [
         submenu: false,
       },
       {
-        label: "Purchase Order",
-        link: "/purchase-order-report",
-        icon: "file-unknown",
-        showSubRoute: false,
-        submenu: false,
-      },
-      {
         label: "Purchase Return",
         link: "/purchase-returns",
         icon: "file-upload",

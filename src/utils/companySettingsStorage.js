@@ -2,13 +2,49 @@ const STORAGE_KEY = "retailpos_company_settings_v1";
 
 /** @typedef {{ companyName: string, email: string, phone: string, website: string, location: string }} CompanySettingsForm */
 
+/** Shown on quotations (view, PDF, print) when company footer fields are left blank. */
+export const QUOTATION_FOOTER_DEFAULTS = {
+  paymentLine: "Cheque to: Breezetech Management Systems Ltd",
+  bankLine:
+    "Bank transfer to: Acc: 1286283051 · Bank: KCB Bank · SWIFT/BIC code: KCBLKENXXX · Bank code is 01",
+  closingLine:
+    "Thank you for your interest. This quotation is valid until the date shown above."
+};
+
+/** Collapse multi-line bank footer text to one line for the 3-line quotation footer layout. */
+export function compactQuotationFooterBankLine(text) {
+  return String(text ?? "")
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export const defaultCompanySettings = {
   companyName: "",
   email: "",
   phone: "",
   website: "",
-  location: ""
+  location: "",
+  quotationFooterPaymentLine: "",
+  quotationFooterBankLine: "",
+  quotationFooterClosingLine: ""
 };
+
+/**
+ * Resolved footer text for display (fallback to defaults when unset).
+ * @param {Partial<typeof defaultCompanySettings>} snapshot
+ */
+export function resolveQuotationFooterFromSnapshot(snapshot) {
+  const pay = String(snapshot?.quotationFooterPaymentLine ?? "").trim();
+  const bank = String(snapshot?.quotationFooterBankLine ?? "").trim();
+  const close = String(snapshot?.quotationFooterClosingLine ?? "").trim();
+  return {
+    paymentLine: pay || QUOTATION_FOOTER_DEFAULTS.paymentLine,
+    bankLine: bank || QUOTATION_FOOTER_DEFAULTS.bankLine,
+    closingLine: close || QUOTATION_FOOTER_DEFAULTS.closingLine
+  };
+}
 
 /**
  * @param {string[]} parts
@@ -52,7 +88,14 @@ export function profileApiToForm(profile) {
     email: String(profile.company_email ?? "").trim(),
     phone: String(profile.company_phone ?? "").trim(),
     website: String(profile.company_website ?? "").trim(),
-    location: buildLocationFromProfile(profile)
+    location: buildLocationFromProfile(profile),
+    quotationFooterPaymentLine: String(
+      profile.quotation_footer_payment_line ?? ""
+    ).trim(),
+    quotationFooterBankLine: String(profile.quotation_footer_bank_line ?? "").trim(),
+    quotationFooterClosingLine: String(
+      profile.quotation_footer_closing_line ?? ""
+    ).trim()
   };
 }
 
@@ -61,12 +104,19 @@ export function profileApiToForm(profile) {
  * @returns {object} body for PATCH /tenant/company-profile
  */
 export function formToCompanyProfileApiBody(form) {
+  const trimOrNull = (v) => {
+    const s = String(v ?? "").trim();
+    return s === "" ? null : s;
+  };
   return {
     name: form.companyName.trim(),
     company_email: form.email.trim(),
     company_phone: form.phone.trim(),
     company_website: form.website.trim() || null,
-    company_address_line: form.location.trim()
+    company_address_line: form.location.trim(),
+    quotation_footer_payment_line: trimOrNull(form.quotationFooterPaymentLine),
+    quotation_footer_bank_line: trimOrNull(form.quotationFooterBankLine),
+    quotation_footer_closing_line: trimOrNull(form.quotationFooterClosingLine)
   };
 }
 
@@ -102,7 +152,10 @@ export function loadCompanySettings() {
       email: merged.email,
       phone: merged.phone,
       website: merged.website,
-      location: merged.location || ""
+      location: merged.location || "",
+      quotationFooterPaymentLine: String(merged.quotationFooterPaymentLine ?? "").trim(),
+      quotationFooterBankLine: String(merged.quotationFooterBankLine ?? "").trim(),
+      quotationFooterClosingLine: String(merged.quotationFooterClosingLine ?? "").trim()
     };
   } catch {
     return { ...defaultCompanySettings };
