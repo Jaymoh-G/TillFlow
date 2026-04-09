@@ -14,7 +14,7 @@
 
 /** Opens the Sales sidebar section (includes Invoices nav target for when that screen exists). */
 export const TILLFLOW_ADMIN_SALES_NAV_PATH_RE =
-  /\/tillflow\/admin\/(pos-orders|online-orders|quotations|invoices|sales-returns)(\/|$)/;
+  /\/tillflow\/admin\/(pos-orders|online-orders|quotations|invoices|delivery-notes|invoice-payments|sales-returns)(\/|$)/;
 
 /** Admin routes that may be used without network today (excludes invoicing until built). */
 const ADMIN_OFFLINE_CAPABLE_RE =

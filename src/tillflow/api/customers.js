@@ -7,6 +7,9 @@ function appendCustomerFieldsToFormData(formData, fields) {
   if (fields.email != null && fields.email !== '') {
     formData.append('email', fields.email);
   }
+  if (fields.company != null && fields.company !== '') {
+    formData.append('company', fields.company);
+  }
   if (fields.location != null && fields.location !== '') {
     formData.append('location', fields.location);
   }

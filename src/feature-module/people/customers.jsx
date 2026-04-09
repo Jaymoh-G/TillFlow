@@ -112,6 +112,7 @@ function apiCustomerToRow(c) {
     customer: c.name,
     avatar: resolveCustomerAvatarUrl(c.avatar_url),
     email: c.email ?? "",
+    company: c.company ?? "",
     phone: c.phone,
     location: c.location ?? "",
     status: c.status
@@ -207,6 +208,7 @@ const Customers = () => {
   const [addFirstName, setAddFirstName] = useState("");
   const [addLastName, setAddLastName] = useState("");
   const [addEmail, setAddEmail] = useState("");
+  const [addCompany, setAddCompany] = useState("");
   const [addPhone, setAddPhone] = useState("");
   const [addLocation, setAddLocation] = useState("");
   const [addStatusActive, setAddStatusActive] = useState(true);
@@ -221,6 +223,7 @@ const Customers = () => {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editCompany, setEditCompany] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editStatusActive, setEditStatusActive] = useState(true);
@@ -323,6 +326,7 @@ const Customers = () => {
     setAddFirstName("");
     setAddLastName("");
     setAddEmail("");
+    setAddCompany("");
     setAddPhone("");
     setAddLocation("");
     setAddStatusActive(true);
@@ -368,6 +372,7 @@ const Customers = () => {
     setEditFirstName(first);
     setEditLastName(last);
     setEditEmail(row.email ?? "");
+    setEditCompany(row.company ?? "");
     setEditPhone(row.phone);
     setEditLocation(row.location ?? "");
     setEditStatusActive(row.status === "Active");
@@ -409,6 +414,7 @@ const Customers = () => {
     const fn = addFirstName.trim();
     const ln = addLastName.trim();
     const em = addEmail.trim();
+    const co = addCompany.trim();
     const ph = addPhone.trim();
     const loc = addLocation.trim();
     if (!fn || !ln || !ph) {
@@ -442,6 +448,7 @@ const Customers = () => {
             {
               name,
               email: em || null,
+              company: co || null,
               phone: ph,
               location: loc || null,
               status
@@ -452,6 +459,7 @@ const Customers = () => {
           data = await createCustomerRequest(token, {
             name,
             email: em || null,
+            company: co || null,
             phone: ph,
             location: loc || null,
             status,
@@ -491,6 +499,7 @@ const Customers = () => {
           customer: name,
           avatar: avatarValue,
           email: em,
+          company: co,
           phone: ph,
           location: loc,
           status
@@ -505,6 +514,7 @@ const Customers = () => {
     addFirstName,
     addLastName,
     addEmail,
+    addCompany,
     addPhone,
     addLocation,
     addStatusActive,
@@ -527,6 +537,7 @@ const Customers = () => {
     const fn = editFirstName.trim();
     const ln = editLastName.trim();
     const em = editEmail.trim();
+    const co = editCompany.trim();
     const ph = editPhone.trim();
     const loc = editLocation.trim();
     if (!fn || !ln || !ph) {
@@ -568,6 +579,7 @@ const Customers = () => {
             {
               name: customerName,
               email: em || null,
+              company: co || null,
               phone: ph,
               location: loc || null,
               status
@@ -578,6 +590,7 @@ const Customers = () => {
           data = await updateCustomerRequest(token, editingCustomerId, {
             name: customerName,
             email: em || null,
+            company: co || null,
             phone: ph,
             location: loc || null,
             status
@@ -610,6 +623,7 @@ const Customers = () => {
                 ...c,
                 customer: customerName,
                 email: em,
+                company: co,
                 phone: ph,
                 location: loc,
                 status,
@@ -637,6 +651,7 @@ const Customers = () => {
     editFirstName,
     editLastName,
     editEmail,
+    editCompany,
     editPhone,
     editLocation,
     editStatusActive,
@@ -951,6 +966,16 @@ const Customers = () => {
                     />
                   </div>
                   <div className="col-lg-12 mb-3">
+                    <label className="form-label">Company</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={addCompany}
+                      onChange={(e) => setAddCompany(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="col-lg-12 mb-3">
                     <label className="form-label">Location</label>
                     <input
                       type="text"
@@ -1093,6 +1118,16 @@ const Customers = () => {
                         />
                       </div>
                       <div className="col-lg-12 mb-3">
+                        <label className="form-label">Company</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={editCompany}
+                          onChange={(e) => setEditCompany(e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </div>
+                      <div className="col-lg-12 mb-3">
                         <label className="form-label">Location</label>
                         <input
                           type="text"
@@ -1171,6 +1206,8 @@ const Customers = () => {
                     <dd className="col-sm-8 mb-2">{viewRow.phone || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Email</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.email || "—"}</dd>
+                    <dt className="col-sm-4 text-muted small">Company</dt>
+                    <dd className="col-sm-8 mb-2">{viewRow.company || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Location</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.location || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Status</dt>

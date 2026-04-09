@@ -1,9 +1,15 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import DocumentPdfPreviewModal from "../../components/DocumentPdfPreviewModal";
 import CommonFooter from "../../components/footer/commonFooter";
 import { all_routes } from "../../routes/all_routes";
 import { pdf, qrCodeImage, sign } from "../../utils/imagepath";
-import { downloadHtmlDocumentPdfFromElement, waitForPrintRootImages } from "../../utils/htmlDocumentPdfExport";
+import {
+  createHtmlDocumentPdfObjectUrl,
+  downloadHtmlDocumentPdfFromElement,
+  openHtmlDocumentPdfInBrowser,
+  waitForPrintRootImages
+} from "../../utils/htmlDocumentPdfExport";
 import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
 import InvoicePrintDocument from "./InvoicePrintDocument";
 
@@ -29,7 +35,6 @@ const DEMO_INVOICE = {
     email: "Sara_inc34@example.com",
     phone: "+1 987 471 6589"
   },
-  paymentPill: { label: "Paid" },
   qrSrc: qrCodeImage,
   lineRows: [
     { key: "1", title: "UX Strategy", qty: "1", cost: "$500", discount: "$100", total: "$500" },
@@ -44,6 +49,8 @@ const DEMO_INVOICE = {
     taxLine: "VAT (5%)",
     taxAmt: "$54",
     grandTotal: "$5775",
+    amountPaid: "$5775",
+    amountDue: "$0",
     amountInWords: "Amount in words : Dollar Five thousand Seven Seventy Five"
   },
   terms:
@@ -68,6 +75,65 @@ const Invoicedetails = () => {
   const location = useLocation();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
   const printRootRef = useRef(null);
+  const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState(null);
+
+  const handleCloseInvoicePdfPreview = useCallback(() => {
+    setInvoicePdfPreviewUrl((prev) => {
+      if (prev) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {
+          /* ignore */
+        }
+      }
+      return null;
+    });
+  }, []);
+
+  const handleViewPdfPreview = useCallback(async () => {
+    const root = printRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      const slug = `invoice-${String(DEMO_INVOICE.invoiceNo).replace(/[^\w.-]+/g, "_")}`;
+      const url = await createHtmlDocumentPdfObjectUrl(root, { fileSlug: slug });
+      setInvoicePdfPreviewUrl((prev) => {
+        if (prev) {
+          try {
+            URL.revokeObjectURL(prev);
+          } catch {
+            /* ignore */
+          }
+        }
+        return url;
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, []);
+
+  const handleViewPdfNewTab = useCallback(async () => {
+    const root = printRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      await openHtmlDocumentPdfInBrowser(root, {
+        fileSlug: `invoice-${String(DEMO_INVOICE.invoiceNo).replace(/[^\w.-]+/g, "_")}`
+      });
+    } catch (e) {
+      console.error(e);
+      if (e instanceof Error && e.message === "POPUP_BLOCKED") {
+        window.alert("Your browser blocked the new tab. Allow pop-ups for this site or use View PDF.");
+        return;
+      }
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, []);
 
   const handleDownloadPdf = useCallback(async () => {
     const root = printRootRef.current;
@@ -83,10 +149,6 @@ const Invoicedetails = () => {
       console.error(e);
       window.alert("Could not generate the PDF. Please try again.");
     }
-  }, []);
-
-  const handlePrint = useCallback(() => {
-    window.print();
   }, []);
 
   const backHref = inTillflowShell ? "/tillflow/admin/invoices" : route.invoice;
@@ -107,14 +169,9 @@ const Invoicedetails = () => {
                 <button
                   type="button"
                   className="border-0 bg-transparent p-0"
-                  title="Download PDF"
-                  onClick={() => void handleDownloadPdf()}>
+                  title="View PDF"
+                  onClick={() => void handleViewPdfPreview()}>
                   <img src={pdf} alt="" />
-                </button>
-              </li>
-              <li>
-                <button type="button" className="border-0 bg-transparent p-0" title="Print" onClick={handlePrint}>
-                  <i className="feather icon-printer feather-rotate-ccw" />
                 </button>
               </li>
               <li>
@@ -141,16 +198,23 @@ const Invoicedetails = () => {
             <button
               type="button"
               className="btn btn-primary d-flex justify-content-center align-items-center"
-              onClick={() => void handleDownloadPdf()}>
-              <i className="ti ti-file-download me-2" />
-              Download PDF
+              onClick={() => void handleViewPdfPreview()}>
+              <i className="ti ti-file-invoice me-2" />
+              View PDF
             </button>
             <button
               type="button"
               className="btn btn-outline-primary d-flex justify-content-center align-items-center"
-              onClick={handlePrint}>
-              <i className="ti ti-printer me-2" />
-              Print invoice
+              onClick={() => void handleViewPdfNewTab()}>
+              <i className="ti ti-external-link me-2" />
+              View PDF in new tab
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary d-flex justify-content-center align-items-center"
+              onClick={() => void handleDownloadPdf()}>
+              <i className="ti ti-download me-2" />
+              Download PDF
             </button>
             <Link to="#" className="btn btn-secondary d-flex justify-content-center align-items-center border">
               <i className="ti ti-copy me-2" />
@@ -160,6 +224,12 @@ const Invoicedetails = () => {
         </div>
         <CommonFooter />
       </div>
+
+      <DocumentPdfPreviewModal
+        url={invoicePdfPreviewUrl}
+        title={`Invoice ${DEMO_INVOICE.invoiceNo}`}
+        onHide={handleCloseInvoicePdfPreview}
+      />
     </div>
   );
 };

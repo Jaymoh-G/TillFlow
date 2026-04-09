@@ -16,6 +16,10 @@ export function deleteQuotationRequest(token, id) {
   return tillflowFetch(`/quotations/${id}`, { method: 'DELETE', token });
 }
 
+export function convertQuotationToInvoiceRequest(token, id) {
+  return tillflowFetch(`/quotations/${id}/convert-to-invoice`, { method: 'POST', token });
+}
+
 /**
  * @param {string} token
  * @param {string|number} id

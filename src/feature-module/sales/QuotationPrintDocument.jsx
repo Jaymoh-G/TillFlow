@@ -147,19 +147,7 @@ const QuotationPrintDocument = forwardRef(function QuotationPrintDocument(
                     {em ? (
                       <p className={ph ? "mb-1 text-dark text-break" : "mb-2 text-dark text-break"}>{em}</p>
                     ) : null}
-                    {ph ? <p className="mb-2 text-dark">{ph}</p> : null}
-                    <p className="mt-2 mb-0 fw-medium text-end text-break">
-                      <span>
-                        Quote date : <span className="text-dark">{viewRow.quotedDate}</span>
-                      </span>
-                      <span className="text-muted px-2">·</span>
-                      <span>
-                        Valid until :{" "}
-                        <span className="text-dark">
-                          {viewRow.expiresAtIso ? formatQuotedDisplay(viewRow.expiresAtIso) : "—"}
-                        </span>
-                      </span>
-                    </p>
+                    {ph ? <p className="mb-0 text-dark">{ph}</p> : null}
                   </>
                 );
               })()}
@@ -167,11 +155,25 @@ const QuotationPrintDocument = forwardRef(function QuotationPrintDocument(
           </div>
         </div>
         <div className="mt-3 pt-2 mb-2 quotation-view-quote-title-wrap">
-          <h4
-            className="mb-0 text-break quotation-view-quote-title text-black fw-bold"
-            style={{ whiteSpace: "pre-wrap" }}>
-            Quotation for : {String(viewRow.quoteTitle ?? "").trim() || "—"}
-          </h4>
+          <div className="d-flex flex-wrap align-items-baseline justify-content-between gap-2 gap-md-3">
+            <h4
+              className="mb-0 text-break quotation-view-quote-title text-black fw-bold flex-grow-1 me-md-2"
+              style={{ whiteSpace: "pre-wrap" }}>
+              Quotation for : {String(viewRow.quoteTitle ?? "").trim() || "—"}
+            </h4>
+            <p className="mb-0 fw-medium text-break quotation-view-quote-dates ms-md-auto text-md-end flex-shrink-0">
+              <span>
+                Quote date : <span className="text-dark">{viewRow.quotedDate}</span>
+              </span>
+              <span className="text-muted px-2">·</span>
+              <span>
+                Valid until :{" "}
+                <span className="text-dark">
+                  {viewRow.expiresAtIso ? formatQuotedDisplay(viewRow.expiresAtIso) : "—"}
+                </span>
+              </span>
+            </p>
+          </div>
         </div>
         <div className="table-responsive mb-3">
           <table className="table quotation-view-line-items mb-0 bg-white">

@@ -2887,6 +2887,12 @@ table.quotation-view-line-items tfoot .quotation-view-line-items__total-amt {
   line-height: 1.25;
 }
 
+/* Payment receipt: keep green amount block when printing / PDF */
+.quotation-view-print-root .receipt-amount-paid-button {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 @media print {
   /* Extra bottom margin so the last line is not clipped by the non-printable zone */
   @page {
@@ -2907,6 +2913,67 @@ table.quotation-view-line-items tfoot .quotation-view-line-items__total-amt {
     visibility: visible;
   }
 
+  /* TillFlow admin invoice detail: ancestors must not stay visibility:hidden + flex/overflow
+     or print preview is blank, offset, or clipped (Chrome). */
+  .tf-admin__body:has(.tf-admin-invoice-detail),
+  .tf-admin__body:has(.tf-admin-invoice-detail) * {
+    visibility: visible !important;
+  }
+
+  .tf-admin__body:has(.tf-admin-invoice-detail) {
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .page-wrapper.tf-admin-invoice-detail,
+  .tf-admin-invoice-detail__layout,
+  .tf-admin-invoice-detail__main {
+    display: block !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    flex: none !important;
+    gap: 0 !important;
+  }
+
+  .tf-admin-invoice-detail__list,
+  .tf-admin-invoice-detail__toolbar,
+  .tf-admin-invoice-detail .quotation-view-no-print {
+    display: none !important;
+  }
+
+  .tf-admin-invoice-detail__doc {
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+
+  .tf-admin-invoice-detail__doc > .p-3 {
+    padding: 0 !important;
+  }
+
+  .tf-admin__main:has(.tf-admin-invoice-detail) .tf-admin__site-footer {
+    display: none !important;
+  }
+
+  .tf-admin__main:has(.tf-admin-invoice-detail) {
+    display: block !important;
+    overflow: visible !important;
+    min-height: auto !important;
+  }
+
+  .tf-admin:has(.tf-admin-invoice-detail) {
+    display: block !important;
+    min-height: auto !important;
+  }
+
   /* Flow in document order so browsers paginate; absolute positioning clips past page 1 */
   .quotation-view-print-root {
     position: relative;
@@ -2918,6 +2985,12 @@ table.quotation-view-line-items tfoot .quotation-view-line-items__total-amt {
     box-sizing: border-box;
     box-shadow: none !important;
     border: none !important;
+  }
+
+  .quotation-view-print-root .receipt-amount-paid-button {
+    background: var(--bs-success, #198754) !important;
+    color: #fff !important;
+    box-shadow: none !important;
   }
 
   .quotation-view-modal.modal,

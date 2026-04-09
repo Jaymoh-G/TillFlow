@@ -22,6 +22,13 @@ import PosOrder from '../feature-module/sales/pos-order/posOrder';
 import OnlineOrder from '../feature-module/sales/online-order/online-orders';
 import QuotationList from '../feature-module/sales/quotationlist';
 import Invoice from '../feature-module/sales/invoicelist';
+import AdminInvoicePayments from './pages/AdminInvoicePayments';
+import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
+import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
+import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
+import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
+import AdminCreditNotes from './pages/AdminCreditNotes';
+import AdminCreditNoteDetail from './pages/AdminCreditNoteDetail';
 import SalesReturn from '../feature-module/sales/salesreturn';
 import Customers from '../feature-module/people/customers';
 import Biller from '../feature-module/people/billers';
@@ -30,6 +37,7 @@ import StoreList from '../feature-module/people/store-list';
 import PurchasesList from '../feature-module/purchases/purchase-list';
 import PurchaseOrderReport from '../feature-module/purchases/purchase-order-report';
 import PurchaseReturns from '../feature-module/purchases/purchase-returns';
+import ExpensesModule from '../feature-module/finance-accounts/expenses-module';
 import GeneralSettings from '../feature-module/settings/generalsettings/generalsettings';
 import SecuritySettings from '../feature-module/settings/generalsettings/securitysettings';
 import Notification from '../feature-module/settings/generalsettings/notification';
@@ -99,7 +107,15 @@ export default function TillFlowApp() {
                 <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
                 <Route path="quotations" element={<QuotationList />} />
                 <Route path="invoices/new" element={<Invoice />} />
+                <Route path="invoices/:invoiceId/edit" element={<Invoice />} />
+                <Route path="invoices/:invoiceId" element={<AdminInvoiceDetail />} />
                 <Route path="invoices" element={<Invoice />} />
+                <Route path="delivery-notes/:deliveryNoteId" element={<AdminDeliveryNoteDetail />} />
+                <Route path="delivery-notes" element={<AdminDeliveryNotes />} />
+                <Route path="credit-notes/:creditNoteId" element={<AdminCreditNoteDetail />} />
+                <Route path="credit-notes" element={<AdminCreditNotes />} />
+                <Route path="invoice-payments/:paymentId" element={<AdminInvoicePaymentDetail />} />
+                <Route path="invoice-payments" element={<AdminInvoicePayments />} />
                 <Route path="sales-returns" element={<SalesReturn />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="billers" element={<Biller />} />
@@ -110,6 +126,7 @@ export default function TillFlowApp() {
                 <Route path="purchases" element={<PurchasesList />} />
                 <Route path="purchase-orders" element={<PurchaseOrderReport />} />
                 <Route path="purchase-returns" element={<PurchaseReturns />} />
+                <Route path="expenses" element={<ExpensesModule />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="brands" element={<AdminBrands />} />
                 <Route path="units" element={<AdminUnits />} />

@@ -7,11 +7,19 @@ function invoiceStatusTextClass(status) {
     .toLowerCase();
   switch (s) {
     case "paid":
-      return "text-success";
+      return "text-black";
     case "overdue":
       return "text-warning text-dark";
     case "unpaid":
       return "text-danger";
+    case "partially_paid":
+      return "text-primary";
+    case "draft":
+      return "text-secondary";
+    case "sent":
+      return "text-danger";
+    case "cancelled":
+      return "text-dark";
     default:
       return "text-secondary";
   }
@@ -32,7 +40,6 @@ const InvoicePrintDocument = forwardRef(function InvoicePrintDocument(
     subjectLine,
     seller,
     buyer,
-    paymentPill,
     qrSrc,
     lineRows,
     totals,
@@ -45,10 +52,6 @@ const InvoicePrintDocument = forwardRef(function InvoicePrintDocument(
   },
   ref
 ) {
-  const pay = paymentPill
-    ? String(paymentPill.label ?? "").trim()
-    : "";
-  const showPaymentPill = pay !== "" && pay.toLowerCase() !== "draft";
   const statusUpper = String(statusLabel ?? "").trim().toUpperCase();
   const invoiceTitle = String(subjectLine ?? "").trim();
   const hasDiscountColumn =
@@ -93,21 +96,7 @@ const InvoicePrintDocument = forwardRef(function InvoicePrintDocument(
               </div>
               {qrSrc ? (
                 <div className="col-md-2 text-end mt-2 mt-md-0">
-                  {showPaymentPill ? (
-                    <p className="text-title mb-2 fw-medium text-start text-md-end">Payment</p>
-                  ) : null}
-                  {showPaymentPill ? (
-                    <span className="bg-success text-white fs-10 px-1 rounded d-inline-block mb-2">
-                      <i className="ti ti-point-filled" /> {pay}
-                    </span>
-                  ) : null}
                   <img src={qrSrc} className="img-fluid" alt="" style={{ maxWidth: 100 }} />
-                </div>
-              ) : showPaymentPill ? (
-                <div className="col-12 text-end mt-2">
-                  <span className="bg-success text-white fs-10 px-1 rounded d-inline-block">
-                    <i className="ti ti-point-filled" /> {pay}
-                  </span>
                 </div>
               ) : null}
             </div>
@@ -256,6 +245,30 @@ const InvoicePrintDocument = forwardRef(function InvoicePrintDocument(
                   {totals.grandTotal}
                 </td>
               </tr>
+              {totals.amountPaid != null && totals.amountPaid !== "" ? (
+                <tr>
+                  <td colSpan={3} className="bg-transparent border-bottom-0" />
+                  <td className="text-gray-9 text-end fw-bold align-middle border-bottom-0 quotation-view-line-items__rollup">
+                    Amount paid
+                  </td>
+                  {hasDiscountColumn ? <td className="bg-transparent border-bottom-0" /> : null}
+                  <td className="text-gray-9 text-end fw-bold tabular-nums align-middle border-bottom-0 quotation-view-line-items__rollup">
+                    {totals.amountPaid}
+                  </td>
+                </tr>
+              ) : null}
+              {totals.amountDue != null && totals.amountDue !== "" ? (
+                <tr>
+                  <td colSpan={3} className="bg-transparent border-bottom-0" />
+                  <td className="text-gray-9 text-end fw-bold align-middle border-bottom-0 quotation-view-line-items__rollup">
+                    Amount due
+                  </td>
+                  {hasDiscountColumn ? <td className="bg-transparent border-bottom-0" /> : null}
+                  <td className="text-danger text-end fw-bold tabular-nums align-middle border-bottom-0 quotation-view-line-items__rollup">
+                    {totals.amountDue}
+                  </td>
+                </tr>
+              ) : null}
             </tfoot>
           </table>
         </div>

@@ -1,0 +1,11 @@
+backend/vendor/
+backend/node_modules/
+backend/storage/
+backend/bootstrap/cache/
+backend/dist/
+backend/build/
+backend/public/build/
+backend/public/hot/
+backend/public/storage/
+dist/
+node_modules/

@@ -1118,6 +1118,26 @@
   width: 100%;
 }
 
+/* Quotation + Invoice lists: show Bootstrap caret next to kebab icon. */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-list__row-actions-toggle.dropdown-toggle::after,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .invoice-list__row-actions-toggle.dropdown-toggle::after {
+  display: inline-block;
+  margin-left: 0.35rem;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.pos-orders-page .pos-orders__row-actions-toggle.dropdown-toggle::after,
+.tf-admin .tf-admin__body .page-wrapper.online-orders-page .online-orders__row-actions-toggle.dropdown-toggle::after {
+  display: inline-block;
+  margin-left: 0.35rem;
+}
+
+/* Invoice list row actions: keep icon + label on one line (match button items; avoid anchor quirks) */
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
 /* Quotation/Invoice form: catalog quick-add dropdown must stay visible (Prime dropdown trigger height). */
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .quotation-catalog-add .primereact-common-select .p-dropdown,
 .tf-admin .tf-admin__body .page-wrapper.invoice-list-page .quotation-catalog-add .primereact-common-select .p-dropdown {
@@ -2517,4 +2537,211 @@ a.tf-admin__user-link:hover {
   .tf-barcode-print-sheet__grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* TillFlow admin: invoice list + detail split workspace */
+.tf-admin-invoice-detail {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-admin-invoice-detail__layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.tf-admin-invoice-detail__list {
+  flex: 0 0 min(380px, 36vw);
+  max-width: 400px;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 1rem;
+  border-radius: var(--tf-radius-md);
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+}
+
+.tf-admin-invoice-detail__list-scroll {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  margin: 0 -0.25rem;
+}
+
+.tf-admin-invoice-detail__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tf-admin-invoice-detail__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--tf-surface);
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-md);
+}
+
+.tf-admin-invoice-detail__toolbar .dropdown-menu .dropdown-item {
+  color: #000;
+
+  &:disabled,
+  &.disabled {
+    color: var(--bs-secondary-color);
+  }
+
+  &:not(:disabled):not(.disabled):hover,
+  &:not(:disabled):not(.disabled):focus {
+    color: #000;
+  }
+
+  &.active,
+  &:active {
+    color: #000;
+  }
+
+  &.text-danger:not(:disabled):not(.disabled) {
+    color: var(--bs-danger) !important;
+  }
+
+  &.text-danger:not(:disabled):not(.disabled):hover,
+  &.text-danger:not(:disabled):not(.disabled):focus {
+    color: var(--bs-danger-text-emphasis, var(--bs-danger)) !important;
+  }
+
+  &.tf-invoice-send-customer:not(:disabled):not(.disabled) {
+    color: #0d4f2c !important;
+  }
+
+  &.tf-invoice-send-customer:not(:disabled):not(.disabled):hover,
+  &.tf-invoice-send-customer:not(:disabled):not(.disabled):focus {
+    color: #062818 !important;
+  }
+}
+
+/* Invoice list kebab: send = dark green (Bootstrap item color overrides) */
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item.tf-invoice-send-customer:not(:disabled) {
+  color: #0d4f2c !important;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item.tf-invoice-send-customer:not(:disabled):hover,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item.tf-invoice-send-customer:not(:disabled):focus {
+  color: #062818 !important;
+}
+
+.tf-invoice-send-customer-icon {
+  color: #0d4f2c !important;
+}
+
+/* Admin invoice detail: send = dark green outline button */
+.tf-admin-invoice-detail__toolbar .btn.tf-invoice-btn-send-customer {
+  color: #0d4f2c;
+  border-color: #0d4f2c;
+  background-color: transparent;
+}
+
+.tf-admin-invoice-detail__toolbar .btn.tf-invoice-btn-send-customer:hover:not(:disabled),
+.tf-admin-invoice-detail__toolbar .btn.tf-invoice-btn-send-customer:focus-visible:not(:disabled) {
+  color: #fff;
+  background-color: #0d4f2c;
+  border-color: #0d4f2c;
+}
+
+.tf-admin-invoice-detail__toolbar .btn.tf-invoice-btn-send-customer:disabled {
+  color: var(--bs-secondary-color);
+  border-color: var(--bs-border-color);
+  background-color: transparent;
+}
+
+.tf-admin-invoice-detail .table .btn-link {
+  color: var(--bs-primary);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--bs-primary);
+    text-decoration: underline;
+    opacity: 0.88;
+  }
+
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+
+  &:disabled,
+  &.disabled {
+    color: var(--bs-secondary-color);
+  }
+}
+
+.tf-admin-invoice-detail__doc {
+  overflow: auto;
+}
+
+@media screen and (max-width: 991.98px) {
+  .tf-admin-invoice-detail__layout {
+    flex-direction: column;
+  }
+
+  .tf-admin-invoice-detail__list {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+}
+
+.invoice-payments-page .tf-invoice-payments-kebab.dropdown-toggle::after {
+  border-top-color: currentColor !important;
+}
+
+.invoice-payments-page .tf-invoice-payments-kebab:hover,
+.invoice-payments-page .tf-invoice-payments-kebab:focus-visible,
+.invoice-payments-page .show > .tf-invoice-payments-kebab {
+  color: var(--tf-secondary) !important;
+}
+
+.invoice-payments-page .tf-invoice-payments-kebab:hover .ti,
+.invoice-payments-page .tf-invoice-payments-kebab:focus-visible .ti,
+.invoice-payments-page .show > .tf-invoice-payments-kebab .ti {
+  color: var(--tf-secondary) !important;
+}
+
+.invoice-payments-page .tf-delivery-notes-kebab.dropdown-toggle::after {
+  border-top-color: currentColor !important;
+}
+
+.invoice-payments-page .tf-delivery-notes-kebab:hover,
+.invoice-payments-page .tf-delivery-notes-kebab:focus-visible,
+.invoice-payments-page .show > .tf-delivery-notes-kebab {
+  color: var(--tf-secondary) !important;
+}
+
+.invoice-payments-page .tf-delivery-notes-kebab:hover .ti,
+.invoice-payments-page .tf-delivery-notes-kebab:focus-visible .ti,
+.invoice-payments-page .show > .tf-delivery-notes-kebab .ti {
+  color: var(--tf-secondary) !important;
+}
+
+.invoice-payments-page .table-responsive {
+  overflow: visible;
+}
+
+.invoice-payments-page .dropdown-menu {
+  z-index: 2000;
 }

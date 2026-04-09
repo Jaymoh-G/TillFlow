@@ -210,3 +210,39 @@ export async function downloadHtmlDocumentPdfFromElement(element, options = {}) 
   const slug = String(options.fileSlug ?? "document").replace(/[^\w.-]+/g, "_");
   pdf.save(`${slug}.pdf`);
 }
+
+/**
+ * Build a PDF blob URL for embedding (e.g. iframe). Caller must URL.revokeObjectURL when done.
+ * @param {HTMLElement} element
+ * @param {{ fileSlug?: string, cloneHook?: (el: HTMLElement) => void }} [options]
+ * @returns {Promise<string>}
+ */
+export async function createHtmlDocumentPdfObjectUrl(element, options = {}) {
+  const pdf = await buildJsPdfFromHtmlElement(element, options);
+  const blob = pdf.output("blob");
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Open generated PDF in a new browser tab (inline view). Fails if pop-ups are blocked.
+ * @param {HTMLElement} element
+ * @param {{ fileSlug?: string, cloneHook?: (el: HTMLElement) => void }} [options]
+ */
+export async function openHtmlDocumentPdfInBrowser(element, options = {}) {
+  const pdf = await buildJsPdfFromHtmlElement(element, options);
+  const blob = pdf.output("blob");
+  const url = URL.createObjectURL(blob);
+  const newWin = window.open(url, "_blank", "noopener,noreferrer");
+  if (!newWin) {
+    URL.revokeObjectURL(url);
+    throw new Error("POPUP_BLOCKED");
+  }
+  const revokeSoon = () => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      /* ignore */
+    }
+  };
+  window.setTimeout(revokeSoon, 120_000);
+}

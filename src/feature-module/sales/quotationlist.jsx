@@ -27,6 +27,7 @@ import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
 import {
+    convertQuotationToInvoiceRequest,
     createQuotationRequest,
     deleteQuotationRequest,
     listQuotationsRequest,
@@ -885,6 +886,7 @@ const QuotationList = () => {
   const [sendPreviewMessage, setSendPreviewMessage] = useState("");
   const [sendPreviewError, setSendPreviewError] = useState("");
   const [sendQuoteBusyId, setSendQuoteBusyId] = useState("");
+  const [convertQuoteBusyId, setConvertQuoteBusyId] = useState("");
   /** When true, `/quotations/new` route effect must not call `resetAddForm()` (avoids wiping clone data). */
   const quotationClonePopulateRef = useRef(false);
 
@@ -1869,6 +1871,40 @@ const QuotationList = () => {
     [token, loadQuotations]
   );
 
+  const handleConvertQuotationToInvoice = useCallback(
+    async (row) => {
+      if (!token || row?.apiId == null) {
+        setListError("Convert to invoice is available for saved quotations only.");
+        return;
+      }
+      const rowKey = String(row.id ?? row.apiId ?? "");
+      if (convertQuoteBusyId === rowKey) {
+        return;
+      }
+      setListError("");
+      setConvertQuoteBusyId(rowKey);
+      try {
+        const data = await convertQuotationToInvoiceRequest(token, row.apiId);
+        await loadQuotations();
+        const invoiceId = data?.invoice?.id;
+        if (invoiceId != null) {
+          navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(invoiceId))}`);
+        } else {
+          setListError("Quotation converted, but invoice link is missing.");
+        }
+      } catch (e) {
+        if (e instanceof TillFlowApiError) {
+          setListError(e.message);
+        } else {
+          setListError("Could not convert quotation to invoice.");
+        }
+      } finally {
+        setConvertQuoteBusyId("");
+      }
+    },
+    [token, convertQuoteBusyId, loadQuotations, navigate]
+  );
+
   const openSendQuotationPreviewModal = useCallback(
     (row) => {
       const customer = catalogCustomers.find((c) => String(c.id) === String(row.customer_id ?? ""));
@@ -2089,7 +2125,7 @@ const QuotationList = () => {
             <div className="dropdown">
               <button
                 type="button"
-                className="btn btn-sm btn-light p-1 d-inline-flex align-items-center justify-content-center"
+                className="btn btn-sm btn-light p-1 d-inline-flex align-items-center justify-content-center dropdown-toggle quotation-list__row-actions-toggle"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
                 title="Actions">
@@ -2140,6 +2176,18 @@ const QuotationList = () => {
                   <button
                     type="button"
                     className="dropdown-item"
+                    disabled={convertQuoteBusyId === String(row.id ?? row.apiId ?? "")}
+                    onClick={() => {
+                      void handleConvertQuotationToInvoice(row);
+                    }}>
+                    <i className="ti ti-file-invoice me-2" />
+                    {convertQuoteBusyId === String(row.id ?? row.apiId ?? "") ? "Converting..." : "Convert to invoice"}
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    className="dropdown-item"
                     disabled={sendQuoteBusyId === String(row.id ?? row.apiId ?? "")}
                     onClick={() => {
                       if (sendQuoteBusyId === String(row.id ?? row.apiId ?? "")) return;
@@ -2172,6 +2220,7 @@ const QuotationList = () => {
     [
       handleSendQuotationToCustomer,
       handleConfirmSendQuotation,
+      handleConvertQuotationToInvoice,
       openCloneQuotation,
       openDeleteQuotation,
       openEditQuotation,
@@ -2179,7 +2228,8 @@ const QuotationList = () => {
       openViewQuotation,
       inTillflowShell,
       navigate,
-      sendQuoteBusyId
+      sendQuoteBusyId,
+      convertQuoteBusyId
     ]
   );
 
@@ -3802,16 +3852,6 @@ const QuotationList = () => {
                   value={sendPreviewSubject}
                   onChange={(e) => setSendPreviewSubject(e.target.value)}
                   placeholder="Email subject"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label mb-1">CC (comma separated)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={sendPreviewCc}
-                  onChange={(e) => setSendPreviewCc(e.target.value)}
-                  placeholder="cc1@example.com, cc2@example.com"
                 />
               </div>
               <div>

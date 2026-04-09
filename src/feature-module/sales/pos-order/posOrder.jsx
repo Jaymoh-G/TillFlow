@@ -237,7 +237,7 @@ const PosOrder = () => {
         body: () => (
           <>
             <Link
-              className="action-set"
+              className="action-set dropdown-toggle pos-orders__row-actions-toggle"
               to="#"
               data-bs-toggle="dropdown"
               aria-expanded="true">

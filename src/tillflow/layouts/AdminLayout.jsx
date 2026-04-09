@@ -253,9 +253,33 @@ export default function AdminLayout() {
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/invoices"
-                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  className={({ isActive }) =>
+                    isActive || location.pathname.startsWith('/tillflow/admin/invoices/') ? 'active' : undefined
+                  }>
                   <i className="feather icon-credit-card tf-nav__icon" aria-hidden />
                   Invoices
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/delivery-notes"
+                  className={({ isActive }) =>
+                    isActive || location.pathname.startsWith('/tillflow/admin/delivery-notes/') ? 'active' : undefined
+                  }>
+                  <i className="feather icon-truck tf-nav__icon" aria-hidden />
+                  Delivery notes
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/credit-notes"
+                  className={({ isActive }) =>
+                    isActive || location.pathname.startsWith('/tillflow/admin/credit-notes/') ? 'active' : undefined
+                  }>
+                  <i className="feather icon-file-minus tf-nav__icon" aria-hidden />
+                  Credit notes
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/invoice-payments"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-dollar-sign tf-nav__icon" aria-hidden />
+                  Invoice payments
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/sales-returns"
@@ -328,6 +352,12 @@ export default function AdminLayout() {
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-refresh-ccw tf-nav__icon" aria-hidden />
                   Purchase returns
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/expenses"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-dollar-sign tf-nav__icon" aria-hidden />
+                  Expenses
                 </NavLink>
               </div>
             ) : null}

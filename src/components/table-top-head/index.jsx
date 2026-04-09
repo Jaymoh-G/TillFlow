@@ -1,17 +1,17 @@
-import { ChevronDown, ChevronUp, RefreshCw } from "react-feather";
-import { excel, pdf } from "../../utils/imagepath";
 import { Tooltip } from "primereact/tooltip";
-import { useSelector } from "react-redux";
-import { useDispatch } from "react-redux";
+import { ChevronDown, ChevronUp, RefreshCw } from "react-feather";
+import { useDispatch, useSelector } from "react-redux";
 import { setToggleHeader } from "../../core/redux/sidebarSlice";
+import { excel, pdf } from "../../utils/imagepath";
 
 /**
  * @param {object} props
  * @param {() => void} [props.onRefresh]
  * @param {() => void} [props.onExportPdf]
  * @param {() => void} [props.onExportExcel]
+ * @param {boolean} [props.showCollapse]
  */
-const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel }) => {
+const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel, showCollapse = true }) => {
   const dispatch = useDispatch();
   const { toggleHeader } = useSelector((state) => state.sidebar);
   const handleToggleHeader = () => {
@@ -78,19 +78,21 @@ const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel }) => {
             </span>
           )}
         </li>
-        <li>
-          <button
-            type="button"
-            className="pr-tooltip border-0 bg-transparent p-0 d-inline-flex align-items-center justify-content-center"
-            data-pr-tooltip="Collapse"
-            data-pr-position="top"
-            id="collapse-header"
-            onClick={handleToggleHeader}
-            aria-label="Toggle header collapse"
-            title="Collapse header">
-            {toggleHeader ? <ChevronDown {...iconProps} /> : <ChevronUp {...iconProps} />}
-          </button>
-        </li>
+        {showCollapse ? (
+          <li>
+            <button
+              type="button"
+              className="pr-tooltip border-0 bg-transparent p-0 d-inline-flex align-items-center justify-content-center"
+              data-pr-tooltip="Collapse"
+              data-pr-position="top"
+              id="collapse-header"
+              onClick={handleToggleHeader}
+              aria-label="Toggle header collapse"
+              title="Collapse header">
+              {toggleHeader ? <ChevronDown {...iconProps} /> : <ChevronUp {...iconProps} />}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </>
   );

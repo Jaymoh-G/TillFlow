@@ -1,28 +1,50 @@
 import { AutoComplete } from "primereact/autocomplete";
+import Dropdown from "react-bootstrap/Dropdown";
+import Modal from "react-bootstrap/Modal";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { ChevronLeft, Move, Plus, PlusCircle, Search } from "react-feather";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import DocumentPdfPreviewModal from "../../components/DocumentPdfPreviewModal";
+import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
 import CommonFooter from "../../components/footer/commonFooter";
 import CommonSelect from "../../components/select/common-select";
 import TableTopHead from "../../components/table-top-head";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
 import DocumentFormActions from "../../components/DocumentFormActions";
+import { downloadInvoicesExcel, downloadInvoicesPdf } from "../../utils/invoiceExport";
 import { invoicereportdata } from "../../core/json/invoicereportdata";
 import { all_routes } from "../../routes/all_routes";
 import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import {
+  createInvoicePaymentRequest,
+  INVOICE_PAYMENT_METHOD_OPTIONS,
+  paymentMethodLabel,
+  updateInvoicePaymentRequest
+} from "../../tillflow/api/invoicePayments";
+import {
+  cancelInvoiceRequest,
   createInvoiceRequest,
   listInvoicesRequest,
+  previewInvoiceEmailRequest,
+  restoreInvoiceRequest,
+  sendInvoiceToCustomerRequest,
   showInvoiceRequest,
   updateInvoiceRequest
 } from "../../tillflow/api/invoices";
 import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
-import { getCompanySettingsSnapshot, resolveQuotationFooterFromSnapshot } from "../../utils/companySettingsStorage";
 import { pdf, stockImg01 } from "../../utils/imagepath";
-import { downloadHtmlDocumentPdfFromElement, waitForPrintRootImages } from "../../utils/htmlDocumentPdfExport";
+import {
+  createHtmlDocumentPdfObjectUrl,
+  downloadHtmlDocumentPdfFromElement,
+  htmlDocumentPdfBlobFromElement,
+  openHtmlDocumentPdfInBrowser,
+  waitForPrintRootImages
+} from "../../utils/htmlDocumentPdfExport";
 import {
   apiFormSalesLineToPayload,
   computeDiscountedGrandTotal,
@@ -36,16 +58,35 @@ import {
   roundMoney,
   stagingRowCommitReadyApi
 } from "../../utils/salesDocumentLineItems";
-import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
 import InvoicePrintDocument from "./InvoicePrintDocument";
+import {
+  apiInvoiceToRow,
+  buildInvoiceViewDocumentData,
+  formatInvoiceMoneyKes,
+  formatIsoToDisplay,
+  formatReceiptPaidAtDisplay,
+  INVOICE_STATUSES,
+  invoiceSentToCustomerHoverTitle,
+  invoiceStatusBadgeClass,
+  invoiceWasIssuedToCustomer,
+  parseMoneyish,
+  parseRowDateFlexible,
+  parseRowDateStr,
+  taxTotalFromInvoiceLineItems
+} from "./invoiceViewHelpers";
+import {
+  EditInvoicePaymentModal,
+  InvoiceReceiptPreviewModal,
+  RecordInvoicePaymentModal
+} from "./InvoicePaymentModals";
 
-const ALL = { label: "All", value: "" };
 
 const TILLFLOW_INVOICES_BASE = "/tillflow/admin/invoices";
 const TILLFLOW_SESSION_TOKEN_KEY = "tillflow_sanctum_token";
 const STORAGE_KEY = "retailpos_invoices_v1";
 
-const INVOICE_STATUSES = ["Draft", "Sent"];
+const FEATURE_NOT_IMPLEMENTED_BODY =
+  "This feature is not implemented yet. It needs backend support (e.g. mail, tracking tables, or credits).";
 
 const DISCOUNT_TYPE_OPTIONS = [
   { label: "No discount", value: "none" },
@@ -58,39 +99,37 @@ const DISCOUNT_BASIS_OPTIONS = [
   { label: "Fixed amount (Ksh)", value: "fixed" }
 ];
 
-function formatInvoiceMoneyKes(n) {
-  const x = Number(n);
-  if (Number.isNaN(x)) {
-    return "";
-  }
-  const num = new Intl.NumberFormat("en-KE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(x);
-  return `Ksh${num}`;
-}
-
-function formatIsoToDisplay(iso) {
-  if (!iso) {
-    return "";
-  }
-  const raw = String(iso).trim();
-  const d = new Date(raw.length >= 10 ? `${raw.slice(0, 10)}T12:00:00` : raw);
-  if (Number.isNaN(d.getTime())) {
-    return raw.length >= 10 ? raw.slice(0, 10) : raw;
-  }
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-
 function nextInvoiceRefLocal(list) {
   let max = 0;
   for (const r of list) {
-    const m = /^INV-(\d{1,})$/i.exec(String(r.invoiceno ?? "").trim());
+    if (String(r?.status ?? "") === "Draft") {
+      continue;
+    }
+    const ref = String(r.invoiceRefStored ?? r.invoiceno ?? "").trim();
+    const m = /^INV-(\d{1,})$/i.exec(ref);
     if (m) {
       max = Math.max(max, parseInt(m[1], 10));
     }
   }
   return `INV-${String(max + 1).padStart(6, "0")}`;
+}
+
+/** Persisted / offline rows: show INV-DRAFT for Draft while keeping real ref in invoiceRefStored. */
+function normalizeDraftInvoiceRows(rows) {
+  if (!Array.isArray(rows)) {
+    return rows;
+  }
+  return rows.map((r) => {
+    if (String(r?.status ?? "") !== "Draft") {
+      return r;
+    }
+    const stored = String(r.invoiceRefStored ?? r.invoiceno ?? "").trim();
+    return {
+      ...r,
+      ...(stored ? { invoiceRefStored: stored } : {}),
+      invoiceno: "INV-DRAFT"
+    };
+  });
 }
 
 function loadPersistedRows() {
@@ -112,7 +151,7 @@ function loadPersistedRows() {
 function getInitialRows() {
   const persisted = loadPersistedRows();
   if (persisted && persisted.length > 0) {
-    return persisted;
+    return normalizeDraftInvoiceRows(persisted);
   }
   return invoicereportdata.map((r) => ({
     ...r,
@@ -121,161 +160,51 @@ function getInitialRows() {
     issueAtIso: null,
     dueAtIso: null,
     totalNum: parseMoneyish(r.amount),
-    paidNum: parseMoneyish(r.paid)
+    paidNum: parseMoneyish(r.paid),
+    items: [],
+    taxNum: null
   }));
 }
 
-function parseMoneyish(s) {
-  const n = parseFloat(String(s ?? "").replace(/[^0-9.-]/g, ""));
-  return Number.isNaN(n) ? 0 : n;
-}
-
-/** Map API invoice to list row (when backend is available). */
-function apiInvoiceToRow(inv) {
-  const total = Number(inv.total_amount ?? 0);
-  const paid = Number(inv.amount_paid ?? 0);
-  const due = roundMoney(Math.max(0, total - paid));
-  const cImg = inv.customer_image_url ? String(inv.customer_image_url) : stockImg01;
-  const nestedCustomer = inv.customer && typeof inv.customer === "object" ? inv.customer : null;
-  const invoiceTitle = String(
-    inv.invoice_title ??
-      inv.title ??
-      inv.subject ??
-      inv.subject_line ??
-      inv.invoice_for ??
-      ""
-  ).trim();
-  const createdAtRaw = String(inv.created_at ?? "").trim();
-  const createdAtTs = createdAtRaw ? new Date(createdAtRaw).getTime() : NaN;
-  return {
-    id: String(inv.id),
-    apiId: inv.id,
-    invoiceno: String(inv.invoice_ref ?? inv.id),
-    image: cImg,
-    customer: String(inv.customer_name ?? ""),
-    customerId: inv.customer_id != null ? String(inv.customer_id) : String(nestedCustomer?.id ?? ""),
-    customerEmail: String(inv.customer_email ?? nestedCustomer?.email ?? ""),
-    customerPhone: String(inv.customer_phone ?? nestedCustomer?.phone ?? ""),
-    customerLocation: String(inv.customer_location ?? nestedCustomer?.location ?? ""),
-    issueDate: formatIsoToDisplay(inv.issued_at),
-    issueAtIso: inv.issued_at ? String(inv.issued_at).slice(0, 10) : "",
-    duedate: formatIsoToDisplay(inv.due_at),
-    dueAtIso: inv.due_at ? String(inv.due_at).slice(0, 10) : "",
-    amount: formatInvoiceMoneyKes(total),
-    paid: formatInvoiceMoneyKes(paid),
-    amountdue: formatInvoiceMoneyKes(due),
-    status: String(inv.status ?? "Draft"),
-    totalNum: total,
-    paidNum: paid,
-    invoiceTitle,
-    termsAndConditions: String(inv.terms_and_conditions ?? ""),
-    notes: String(inv.notes ?? ""),
-    discountType: String(inv.discount_type ?? "none"),
-    discountBasis: String(inv.discount_basis ?? "percent"),
-    discountValue: Number(inv.discount_value ?? 0),
-    items: Array.isArray(inv.items) ? inv.items : []
-    ,
-    createdAtTs: Number.isFinite(createdAtTs) ? createdAtTs : null
-  };
-}
-
-function parseRowDateFlexible(row) {
-  if (row.issueAtIso) {
-    const d = new Date(`${row.issueAtIso}T12:00:00`);
-    return Number.isNaN(d.getTime()) ? null : d;
+function enrichInvoiceRowCustomers(baseRow, catalogCustomers) {
+  if (!baseRow || typeof baseRow !== "object") {
+    return baseRow;
   }
-  return parseRowDateStr(row.issueDate);
-}
-
-function parseRowDateStr(s) {
-  if (s == null || s === "") {
-    return null;
+  const hasEmail = String(baseRow.customerEmail ?? "").trim() !== "";
+  const hasPhone = String(baseRow.customerPhone ?? "").trim() !== "";
+  const hasLocation = String(baseRow.customerLocation ?? "").trim() !== "";
+  if (hasEmail && hasPhone && hasLocation) {
+    return baseRow;
   }
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function buildInvoiceViewDocumentData(row) {
-  const company = getCompanySettingsSnapshot();
-  const invoiceSettings = getInvoiceSettingsSnapshot();
-  const footer = resolveQuotationFooterFromSnapshot(company);
-  const invoiceLogo = String(invoiceSettings.invoiceLogoDataUrl ?? "").trim();
-  const issueDate = row?.issueAtIso || "";
-  const dueDate = row?.dueAtIso || "";
-  const items = Array.isArray(row?.items) ? row.items : [];
-  const totalNum = Number(row?.totalNum ?? 0);
-  const paidNum = Number(row?.paidNum ?? 0);
-
-  let subtotalExTax = 0;
-  let taxTotal = 0;
-  const lineRows = (items.length > 0 ? items : [{ product_name: "Invoice total", quantity: 1, unit_price: totalNum, line_total: totalNum }]).map((it, idx) => {
-    const qty = Number(it.quantity ?? 0);
-    const unit = Number(it.unit_price ?? 0);
-    const lineTotal = Number(it.line_total ?? qty * unit);
-    const lineSubEx = roundMoney((Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unit) ? unit : 0));
-    const lineTax = roundMoney(lineTotal - lineSubEx);
-    subtotalExTax += lineSubEx;
-    taxTotal += lineTax;
-    return {
-      key: String(it.id ?? idx + 1),
-      title: String(it.product_name ?? "Item"),
-      desc: String(it.description ?? "").trim(),
-      qty: Number.isFinite(qty) ? String(qty) : "0",
-      cost: formatInvoiceMoneyKes(unit),
-      discount: "—",
-      total: formatInvoiceMoneyKes(lineTotal)
-    };
-  });
-
-  subtotalExTax = roundMoney(subtotalExTax);
-  taxTotal = roundMoney(taxTotal);
-  const gross = roundMoney(subtotalExTax + taxTotal);
-  const discountAmt = roundMoney(Math.max(0, gross - totalNum));
-
+  const matchById = String(baseRow.customerId ?? "").trim();
+  let customerMatch = null;
+  if (matchById) {
+    customerMatch = (catalogCustomers ?? []).find((c) => String(c.id) === matchById) ?? null;
+  }
+  if (!customerMatch) {
+    const name = String(baseRow.customer ?? "").trim().toLowerCase();
+    if (name) {
+      customerMatch =
+        (catalogCustomers ?? []).find((c) => String(c.name ?? "").trim().toLowerCase() === name) ?? null;
+    }
+  }
+  if (!customerMatch) {
+    return baseRow;
+  }
   return {
-    invoiceNo: String(row?.invoiceno ?? "INV-000000"),
-    issueDateDisplay: formatIsoToDisplay(issueDate) || "—",
-    dueDateDisplay: formatIsoToDisplay(dueDate) || "—",
-    statusLabel: String(row?.status ?? "Draft"),
-    subjectLine: String(row?.invoiceTitle ?? "").trim(),
-    seller: {
-      companyName: company.companyName || "Your business",
-      address: company.location || "—",
-      website: company.website || "",
-      email: company.email || "—",
-      phone: company.phone || "—"
-    },
-    buyer: {
-      name: String(row?.customer ?? "Customer"),
-      address: String(row?.customerLocation ?? ""),
-      email: String(row?.customerEmail ?? ""),
-      phone: String(row?.customerPhone ?? "")
-    },
-    paymentPill: { label: String(row?.status ?? "Draft") },
-    qrSrc: "",
-    lineRows,
-    totals: {
-      sub: formatInvoiceMoneyKes(subtotalExTax),
-      discountLine: discountAmt > 0 ? "Discount (aggregate)" : "",
-      discountAmt: discountAmt > 0 ? formatInvoiceMoneyKes(discountAmt) : "",
-      taxLine: "Tax",
-      taxAmt: formatInvoiceMoneyKes(taxTotal),
-      grandTotal: formatInvoiceMoneyKes(totalNum),
-      amountInWords: ""
-    },
-    terms: String(row?.termsAndConditions ?? "").trim(),
-    notes: String(row?.notes ?? "").trim(),
-    footer,
-    signBlock: null,
-    logoSrc: invoiceLogo,
-    logoDarkSrc: invoiceLogo,
-    amountDueLabel: formatInvoiceMoneyKes(Math.max(0, totalNum - paidNum))
+    ...baseRow,
+    customerId: String(baseRow.customerId ?? customerMatch.id ?? ""),
+    customerEmail: String(baseRow.customerEmail ?? "").trim() || String(customerMatch.email ?? ""),
+    customerPhone: String(baseRow.customerPhone ?? "").trim() || String(customerMatch.phone ?? ""),
+    customerLocation:
+      String(baseRow.customerLocation ?? "").trim() || String(customerMatch.location ?? "")
   };
 }
 
 const Invoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { invoiceId: editRouteInvoiceId } = useParams();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
   const route = all_routes;
 
@@ -407,16 +336,35 @@ const Invoice = () => {
   const [invDueAt, setInvDueAt] = useState("");
   const [invCustomerId, setInvCustomerId] = useState("");
   const [invAmountPaid, setInvAmountPaid] = useState("0");
+  const [invCreateStatus, setInvCreateStatus] = useState("Draft");
+  const [invEditStatus, setInvEditStatus] = useState("Draft");
+  const [invInitialPaymentMethod, setInvInitialPaymentMethod] = useState("cash");
+  const [editingHasPayments, setEditingHasPayments] = useState(false);
   const [invLines, setInvLines] = useState(() => [emptyApiSalesLine()]);
   const [invDiscountType, setInvDiscountType] = useState("none");
   const [invDiscountBasis, setInvDiscountBasis] = useState("percent");
   const [invDiscountValue, setInvDiscountValue] = useState("0");
   const [invError, setInvError] = useState("");
   const [invPopupError, setInvPopupError] = useState("");
+  const [invPopupSuccess, setInvPopupSuccess] = useState("");
+  const [invoiceCancelConfirmRow, setInvoiceCancelConfirmRow] = useState(null);
+  const [invoiceCancelSaving, setInvoiceCancelSaving] = useState(false);
+  const [invoiceRestoreConfirmRow, setInvoiceRestoreConfirmRow] = useState(null);
+  const [invoiceRestoreSaving, setInvoiceRestoreSaving] = useState(false);
+  const [invoiceEmailPreviewOpen, setInvoiceEmailPreviewOpen] = useState(false);
+  const [invoiceEmailPreviewRow, setInvoiceEmailPreviewRow] = useState(null);
+  const [invoiceEmailPreviewSubject, setInvoiceEmailPreviewSubject] = useState("");
+  const [invoiceEmailPreviewHtml, setInvoiceEmailPreviewHtml] = useState("");
+  const [invoiceEmailPreviewTo, setInvoiceEmailPreviewTo] = useState("");
+  const [invoiceEmailPreviewMessage, setInvoiceEmailPreviewMessage] = useState("");
+  const [invoiceEmailPreviewLoading, setInvoiceEmailPreviewLoading] = useState(false);
+  const [invoiceEmailPreviewError, setInvoiceEmailPreviewError] = useState("");
+  const [invoiceEmailPreviewSending, setInvoiceEmailPreviewSending] = useState(false);
   const [invSaving, setInvSaving] = useState(false);
   const [catalogQuickSearchText, setCatalogQuickSearchText] = useState("");
   const [catalogQuickSuggestions, setCatalogQuickSuggestions] = useState([]);
   const [catalogQuickAddKey, setCatalogQuickAddKey] = useState(0);
+  const editRouteLoadRef = useRef("");
 
   const resetCreateForm = useCallback(() => {
     setInvInvoiceRef("");
@@ -425,6 +373,10 @@ const Invoice = () => {
     setInvDueAt("");
     setInvCustomerId("");
     setInvAmountPaid("0");
+    setInvCreateStatus("Draft");
+    setInvEditStatus("Draft");
+    setInvInitialPaymentMethod("cash");
+    setEditingHasPayments(false);
     setInvLines([emptyApiSalesLine()]);
     setInvDiscountType("none");
     setInvDiscountBasis("percent");
@@ -463,10 +415,10 @@ const Invoice = () => {
     }
     if (norm === TILLFLOW_INVOICES_BASE) {
       setInvoiceFormMode((m) => {
-        if (m === "create") {
+        if (m === "create" || m === "edit") {
           resetCreateForm();
         }
-        return m === "edit" ? m : "list";
+        return "list";
       });
     }
   }, [inTillflowShell, location.pathname, invoices, resetCreateForm]);
@@ -668,6 +620,7 @@ const Invoice = () => {
   }, []);
 
   const showInvPopupError = useCallback((message) => {
+    setInvPopupSuccess("");
     setInvPopupError(String(message ?? "").trim());
     if (invPopupTimerRef.current) {
       window.clearTimeout(invPopupTimerRef.current);
@@ -676,6 +629,18 @@ const Invoice = () => {
       setInvPopupError("");
       invPopupTimerRef.current = null;
     }, 2600);
+  }, []);
+
+  const showInvPopupSuccess = useCallback((message) => {
+    setInvPopupError("");
+    setInvPopupSuccess(String(message ?? "").trim());
+    if (invPopupTimerRef.current) {
+      window.clearTimeout(invPopupTimerRef.current);
+    }
+    invPopupTimerRef.current = window.setTimeout(() => {
+      setInvPopupSuccess("");
+      invPopupTimerRef.current = null;
+    }, 4500);
   }, []);
 
   const handleCreateSubmit = useCallback(
@@ -708,7 +673,11 @@ const Invoice = () => {
       const paid = roundMoney(Math.min(paidRaw, grand));
 
       const items = validLines.map((l) => apiFormSalesLineToPayload(l, catalogProducts));
-      const invoiceRef = String(invInvoiceRef || "").trim() || nextInvoiceRefLocal(invoices);
+      const effectiveStatus = invoiceFormMode === "edit" ? invEditStatus : invCreateStatus;
+      const invoiceRef =
+        String(effectiveStatus) === "Draft"
+          ? null
+          : String(invInvoiceRef || "").trim() || nextInvoiceRefLocal(invoices);
       const cust = catalogCustomers.find((c) => String(c.id) === String(invCustomerId));
       const customerName = String(cust?.name ?? "");
       const customerEmail = String(cust?.email ?? "");
@@ -720,8 +689,7 @@ const Invoice = () => {
         issued_at: invIssueAt,
         due_at: invDueAt || null,
         customer_id: Number(invCustomerId),
-        status: "Draft",
-        amount_paid: paid,
+        status: effectiveStatus,
         discount_type: invDiscountType,
         discount_basis: invDiscountBasis,
         discount_value:
@@ -731,44 +699,30 @@ const Invoice = () => {
       const isEditing = invoiceFormMode === "edit";
       const editingApiIdStr = editingInvoiceApiId != null ? String(editingInvoiceApiId) : "";
 
+      if (!isEditing || !editingHasPayments) {
+        body.amount_paid = paid;
+      }
+      if (!isEditing && paid > 0) {
+        body.initial_payment_method = invInitialPaymentMethod;
+      }
+
       setInvSaving(true);
       try {
         if (isEditing && editingApiIdStr) {
           const data = await updateInvoiceRequest(token, editingApiIdStr, body);
           const updated = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
-          setInvoices((prev) =>
-            prev.map((r) =>
-              String(r.apiId ?? r.id) === editingApiIdStr
-                ? {
-                    ...(updated || r),
-                    id: String(updated?.id ?? r.id),
-                    apiId: updated?.apiId ?? r.apiId,
-                    invoiceno: invoiceRef,
-                    invoiceTitle: String(invTitle || "").trim(),
-                    customer: customerName,
-                    customerId: String(invCustomerId),
-                    customerEmail,
-                    customerPhone,
-                    customerLocation,
-                    issueDate: formatIsoToDisplay(invIssueAt),
-                    issueAtIso: invIssueAt,
-                    duedate: invDueAt ? formatIsoToDisplay(invDueAt) : "—",
-                    dueAtIso: invDueAt || "",
-                    amount: formatInvoiceMoneyKes(grand),
-                    paid: formatInvoiceMoneyKes(paid),
-                    amountdue: formatInvoiceMoneyKes(roundMoney(grand - paid)),
-                    status: "Draft",
-                    totalNum: grand,
-                    paidNum: paid,
-                    items,
-                    discountType: invDiscountType,
-                    discountBasis: invDiscountBasis,
-                    discountValue:
-                      invDiscountType === "none" ? 0 : Number(invDiscountValue.replace(/,/g, "")) || 0
-                  }
-                : r
-            )
-          );
+          if (updated) {
+            const title = String(invTitle || "").trim();
+            const rowOut = {
+              ...updated,
+              id: String(updated.id),
+              invoiceTitle: title || updated.invoiceTitle,
+              taxNum: taxTotalFromInvoiceLineItems(updated.items)
+            };
+            setInvoices((prev) =>
+              prev.map((r) => (String(r.apiId ?? r.id) === editingApiIdStr ? rowOut : r))
+            );
+          }
         } else {
           const data = await createInvoiceRequest(token, body);
           const row = apiInvoiceToRow(data.invoice);
@@ -779,10 +733,12 @@ const Invoice = () => {
         }
       } catch (err) {
         const due = roundMoney(grand - paid);
+        const rowStatusOffline = isEditing ? invEditStatus : invCreateStatus;
         const localRow = {
           id: isEditing ? String(editingInvoiceId ?? `local-${Date.now()}`) : `local-${Date.now()}`,
           apiId: null,
-          invoiceno: invoiceRef,
+          invoiceno: rowStatusOffline === "Draft" ? "INV-DRAFT" : invoiceRef,
+          invoiceRefStored: rowStatusOffline === "Draft" ? "" : invoiceRef,
           image: cust?.avatar_url ? String(cust.avatar_url) : stockImg01,
           customer: customerName,
           customerId: String(invCustomerId),
@@ -796,10 +752,11 @@ const Invoice = () => {
           amount: formatInvoiceMoneyKes(grand),
           paid: formatInvoiceMoneyKes(paid),
           amountdue: formatInvoiceMoneyKes(due),
-          status: "Draft",
+          status: rowStatusOffline,
           totalNum: grand,
           paidNum: paid,
           invoiceTitle: String(invTitle || "").trim(),
+          taxNum: invoiceKesSummary.taxTotal,
           createdAtTs: Date.now()
         };
         if (isEditing) {
@@ -827,8 +784,12 @@ const Invoice = () => {
       invIssueAt,
       invDueAt,
       invLines,
-      invoiceKesSummary.grandTotal,
+      invoiceKesSummary,
       invAmountPaid,
+      invCreateStatus,
+      invEditStatus,
+      invInitialPaymentMethod,
+      editingHasPayments,
       invInvoiceRef,
       invDiscountType,
       invDiscountBasis,
@@ -847,6 +808,7 @@ const Invoice = () => {
 
   const openCreate = useCallback(() => {
     resetCreateForm();
+    setInvCreateStatus("Draft");
     setInvInvoiceRef(nextInvoiceRefLocal(invoices));
     setInvoiceFormMode("create");
     if (inTillflowShell) {
@@ -881,20 +843,88 @@ const Invoice = () => {
 
     setEditingInvoiceId(String(row.id ?? ""));
     setEditingInvoiceApiId(row.apiId ?? null);
-    setInvInvoiceRef(String(row.invoiceno ?? ""));
+    setInvInvoiceRef(String(row.invoiceRefStored ?? row.invoiceno ?? "").trim());
     setInvTitle(String(row.invoiceTitle ?? ""));
     setInvIssueAt(String(row.issueAtIso ?? "").trim() || new Date().toISOString().slice(0, 10));
     setInvDueAt(String(row.dueAtIso ?? ""));
     setInvCustomerId(editCustomerId);
     setInvAmountPaid(String(Number(row.paidNum ?? 0)));
+    const pc = Number(row.paymentCount ?? row.payments?.length ?? 0);
+    setEditingHasPayments(Boolean(token && pc > 0));
+    setInvEditStatus(String(row.status ?? "Draft"));
     setInvLines(normalizedLines);
     setInvDiscountType(String(row.discountType ?? "none"));
     setInvDiscountBasis(String(row.discountBasis ?? "percent"));
     setInvDiscountValue(String(row.discountValue ?? "0"));
     setInvError("");
     setInvoiceFormMode("edit");
-  }, [catalogCustomers]);
+  }, [catalogCustomers, token]);
 
+  useEffect(() => {
+    if (!inTillflowShell) {
+      editRouteLoadRef.current = "";
+      return;
+    }
+    const norm = location.pathname.replace(/\/$/, "");
+    const onEditPath = Boolean(editRouteInvoiceId) && norm === `${TILLFLOW_INVOICES_BASE}/${editRouteInvoiceId}/edit`;
+    if (!onEditPath) {
+      editRouteLoadRef.current = "";
+      return;
+    }
+    if (!token || !editRouteInvoiceId) {
+      return;
+    }
+    if (editRouteLoadRef.current === editRouteInvoiceId) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await showInvoiceRequest(token, editRouteInvoiceId);
+        if (cancelled) {
+          return;
+        }
+        if (!data?.invoice) {
+          editRouteLoadRef.current = "";
+          navigate(TILLFLOW_INVOICES_BASE);
+          return;
+        }
+        const baseRow = apiInvoiceToRow(data.invoice);
+        const row = enrichInvoiceRowCustomers(baseRow, catalogCustomers);
+        if (String(row.status ?? "").trim() === "Cancelled") {
+          editRouteLoadRef.current = "";
+          navigate(TILLFLOW_INVOICES_BASE);
+          showInvPopupError("Cancelled invoices cannot be edited.");
+          return;
+        }
+        editRouteLoadRef.current = editRouteInvoiceId;
+        openEditInvoice(row);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        editRouteLoadRef.current = "";
+        if (err instanceof TillFlowApiError) {
+          showInvPopupError(err.message);
+        } else {
+          showInvPopupError("Could not load invoice to edit.");
+        }
+        navigate(TILLFLOW_INVOICES_BASE);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    inTillflowShell,
+    token,
+    editRouteInvoiceId,
+    location.pathname,
+    catalogCustomers,
+    navigate,
+    openEditInvoice,
+    showInvPopupError
+  ]);
 
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -907,16 +937,45 @@ const Invoice = () => {
   const [viewInvoiceError, setViewInvoiceError] = useState("");
   const [viewInvoiceLoading, setViewInvoiceLoading] = useState(false);
   const viewInvoicePrintRootRef = useRef(null);
+  const receiptPrintRootRef = useRef(null);
+  const receiptInvoicePdfRootRef = useRef(null);
+
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [recordPayTarget, setRecordPayTarget] = useState(null);
+  const [recordPayAmount, setRecordPayAmount] = useState("");
+  const [recordPayMethod, setRecordPayMethod] = useState("cash");
+  const [recordPayPaidAt, setRecordPayPaidAt] = useState("");
+  const [recordPayTransactionId, setRecordPayTransactionId] = useState("");
+  const [recordPayNotes, setRecordPayNotes] = useState("");
+  const [recordPaySaving, setRecordPaySaving] = useState(false);
+  const [recordPayError, setRecordPayError] = useState("");
+
+  const [receiptPreview, setReceiptPreview] = useState(null);
+  const [receiptPreviewRow, setReceiptPreviewRow] = useState(null);
+
+  const [viewPayEdit, setViewPayEdit] = useState(null);
+  const [viewPayEditAmount, setViewPayEditAmount] = useState("");
+  const [viewPayEditMethod, setViewPayEditMethod] = useState("cash");
+  const [viewPayEditPaidAt, setViewPayEditPaidAt] = useState("");
+  const [viewPayEditTransactionId, setViewPayEditTransactionId] = useState("");
+  const [viewPayEditNotes, setViewPayEditNotes] = useState("");
+  const [viewPayEditSaving, setViewPayEditSaving] = useState(false);
+  const [viewPayEditError, setViewPayEditError] = useState("");
+  const [invoiceViewPdfPreviewUrl, setInvoiceViewPdfPreviewUrl] = useState(null);
+  const [invoiceViewPdfTitle, setInvoiceViewPdfTitle] = useState("");
+  const [receiptInfoModal, setReceiptInfoModal] = useState(null);
 
   const customerFilterOptions = useMemo(() => {
-    const names = [...new Set(invoices.map((r) => r.customer))].sort((a, b) =>
-      String(a).localeCompare(String(b))
-    );
-    return [ALL, ...names.map((n) => ({ label: n, value: n }))];
+    const names = [
+      ...new Set(
+        invoices.map((r) => String(r.customer ?? "").trim()).filter((n) => n !== "")
+      )
+    ].sort((a, b) => a.localeCompare(b));
+    return names.map((n) => ({ label: n, value: n }));
   }, [invoices]);
 
   const statusFilterOptions = useMemo(
-    () => [ALL, { label: "Draft", value: "Draft" }, { label: "Sent", value: "Sent" }],
+    () => INVOICE_STATUSES.map((s) => ({ label: s.replace(/_/g, " "), value: s })),
     []
   );
 
@@ -1032,49 +1091,118 @@ const Invoice = () => {
     setCurrentPage(1);
   }, []);
 
-  const deleteLocalRow = useCallback((row) => {
-    setInvoices((prev) => prev.filter((r) => r.id !== row.id));
+  const handleExportPdf = useCallback(async () => {
+    try {
+      await downloadInvoicesPdf(displayRows);
+    } catch {
+      setListError("Could not export PDF. Try again or check the browser download settings.");
+    }
+  }, [displayRows]);
+
+  const handleExportExcel = useCallback(async () => {
+    try {
+      await downloadInvoicesExcel(displayRows);
+    } catch {
+      setListError("Could not export Excel. Try again or check the browser download settings.");
+    }
+  }, [displayRows]);
+
+  const openInvoiceCancelConfirm = useCallback((row) => {
+    if (!row || row.status === "Cancelled" || row.status === "Draft") {
+      return;
+    }
+    setInvoiceCancelConfirmRow(row);
   }, []);
+
+  const confirmInvoiceCancel = useCallback(async () => {
+    const row = invoiceCancelConfirmRow;
+    if (!row || row.status === "Draft") {
+      return;
+    }
+    if (token && row.apiId) {
+      setInvoiceCancelSaving(true);
+      try {
+        const data = await cancelInvoiceRequest(token, row.apiId);
+        const inv = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
+        if (inv) {
+          const rowOut = {
+            ...enrichInvoiceRowCustomers(inv, catalogCustomers),
+            id: String(inv.id),
+            taxNum: taxTotalFromInvoiceLineItems(inv.items ?? [])
+          };
+          setInvoices((prev) =>
+            prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? rowOut : r))
+          );
+          setViewInvoice((prev) =>
+            prev && String(prev.apiId) === String(inv.apiId)
+              ? { ...prev, ...rowOut, invoiceTitle: prev.invoiceTitle || rowOut.invoiceTitle }
+              : prev
+          );
+        }
+      } catch (err) {
+        if (err instanceof TillFlowApiError) {
+          showInvPopupError(err.message);
+        } else {
+          showInvPopupError("Could not cancel invoice.");
+        }
+      } finally {
+        setInvoiceCancelSaving(false);
+        setInvoiceCancelConfirmRow(null);
+      }
+    } else {
+      setInvoices((prev) => prev.filter((r) => r.id !== row.id));
+      setInvoiceCancelConfirmRow(null);
+    }
+  }, [invoiceCancelConfirmRow, token, catalogCustomers, showInvPopupError]);
+
+  const openInvoiceRestoreConfirm = useCallback((row) => {
+    if (!row || row.status !== "Cancelled" || !token || !row.apiId) {
+      return;
+    }
+    setInvoiceRestoreConfirmRow(row);
+  }, [token]);
+
+  const confirmInvoiceRestore = useCallback(async () => {
+    const row = invoiceRestoreConfirmRow;
+    if (!row || row.status !== "Cancelled" || !token || !row.apiId) {
+      return;
+    }
+    setInvoiceRestoreSaving(true);
+    try {
+      const data = await restoreInvoiceRequest(token, row.apiId);
+      const inv = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
+      if (inv) {
+        const rowOut = {
+          ...enrichInvoiceRowCustomers(inv, catalogCustomers),
+          id: String(inv.id),
+          taxNum: taxTotalFromInvoiceLineItems(inv.items ?? [])
+        };
+        setInvoices((prev) =>
+          prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? rowOut : r))
+        );
+        setViewInvoice((prev) =>
+          prev && String(prev.apiId) === String(inv.apiId)
+            ? { ...prev, ...rowOut, invoiceTitle: prev.invoiceTitle || rowOut.invoiceTitle }
+            : prev
+        );
+        showInvPopupSuccess(String(data?.message ?? "").trim() || "Invoice restored.");
+      }
+    } catch (err) {
+      if (err instanceof TillFlowApiError) {
+        showInvPopupError(err.message);
+      } else {
+        showInvPopupError("Could not restore invoice.");
+      }
+    } finally {
+      setInvoiceRestoreSaving(false);
+      setInvoiceRestoreConfirmRow(null);
+    }
+  }, [invoiceRestoreConfirmRow, token, catalogCustomers, showInvPopupError, showInvPopupSuccess]);
 
   const openViewInvoice = useCallback(
     async (row) => {
-      const enrichCustomerFields = (baseRow) => {
-        if (!baseRow || typeof baseRow !== "object") {
-          return baseRow;
-        }
-        const hasEmail = String(baseRow.customerEmail ?? "").trim() !== "";
-        const hasPhone = String(baseRow.customerPhone ?? "").trim() !== "";
-        const hasLocation = String(baseRow.customerLocation ?? "").trim() !== "";
-        if (hasEmail && hasPhone && hasLocation) {
-          return baseRow;
-        }
-        const matchById = String(baseRow.customerId ?? "").trim();
-        let customerMatch = null;
-        if (matchById) {
-          customerMatch = (catalogCustomers ?? []).find((c) => String(c.id) === matchById) ?? null;
-        }
-        if (!customerMatch) {
-          const name = String(baseRow.customer ?? "").trim().toLowerCase();
-          if (name) {
-            customerMatch =
-              (catalogCustomers ?? []).find((c) => String(c.name ?? "").trim().toLowerCase() === name) ?? null;
-          }
-        }
-        if (!customerMatch) {
-          return baseRow;
-        }
-        return {
-          ...baseRow,
-          customerId: String(baseRow.customerId ?? customerMatch.id ?? ""),
-          customerEmail: String(baseRow.customerEmail ?? "").trim() || String(customerMatch.email ?? ""),
-          customerPhone: String(baseRow.customerPhone ?? "").trim() || String(customerMatch.phone ?? ""),
-          customerLocation:
-            String(baseRow.customerLocation ?? "").trim() || String(customerMatch.location ?? "")
-        };
-      };
-
       setViewInvoiceError("");
-      setViewInvoice(enrichCustomerFields(row));
+      setViewInvoice(enrichInvoiceRowCustomers(row, catalogCustomers));
       if (!token || !row?.apiId) {
         return;
       }
@@ -1082,12 +1210,14 @@ const Invoice = () => {
       try {
         const data = await showInvoiceRequest(token, row.apiId);
         if (data?.invoice) {
-          const apiRow = enrichCustomerFields(apiInvoiceToRow(data.invoice));
+          const apiRow = enrichInvoiceRowCustomers(apiInvoiceToRow(data.invoice), catalogCustomers);
           const fallbackTitle = String(row?.invoiceTitle ?? "").trim();
-          const previousTitle = String(viewInvoice?.invoiceTitle ?? "").trim();
-          setViewInvoice({
-            ...apiRow,
-            invoiceTitle: String(apiRow?.invoiceTitle ?? "").trim() || fallbackTitle || previousTitle
+          setViewInvoice((prev) => {
+            const previousTitle = String(prev?.invoiceTitle ?? "").trim();
+            return {
+              ...apiRow,
+              invoiceTitle: String(apiRow?.invoiceTitle ?? "").trim() || fallbackTitle || previousTitle
+            };
           });
         }
       } catch (err) {
@@ -1100,10 +1230,126 @@ const Invoice = () => {
         setViewInvoiceLoading(false);
       }
     },
-    [token, catalogCustomers, viewInvoice]
+    [token, catalogCustomers]
   );
 
   const viewDoc = useMemo(() => (viewInvoice ? buildInvoiceViewDocumentData(viewInvoice) : null), [viewInvoice]);
+
+  const handleCloseInvoiceViewPdfPreview = useCallback(() => {
+    setInvoiceViewPdfTitle("");
+    setInvoiceViewPdfPreviewUrl((prev) => {
+      if (prev) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {
+          /* ignore */
+        }
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    setInvoiceViewPdfTitle("");
+    setInvoiceViewPdfPreviewUrl((prev) => {
+      if (prev) {
+        try {
+          URL.revokeObjectURL(prev);
+        } catch {
+          /* ignore */
+        }
+      }
+      return null;
+    });
+  }, [viewInvoice?.apiId, viewInvoice?.id]);
+
+  const handleViewInvoicePdfPreview = useCallback(async () => {
+    if (!viewDoc) {
+      return;
+    }
+    const root = viewInvoicePrintRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      const slug = `invoice-${String(viewDoc.invoiceNo).replace(/[^\w.-]+/g, "_")}`;
+      setInvoiceViewPdfTitle(`Invoice ${viewDoc.invoiceNo}`);
+      const url = await createHtmlDocumentPdfObjectUrl(root, { fileSlug: slug });
+      setInvoiceViewPdfPreviewUrl((prev) => {
+        if (prev) {
+          try {
+            URL.revokeObjectURL(prev);
+          } catch {
+            /* ignore */
+          }
+        }
+        return url;
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, [viewDoc]);
+
+  const handleViewInvoicePdfFromReceipt = useCallback(async () => {
+    const row = receiptPreviewRow;
+    if (!row || !token || !inTillflowShell) {
+      return;
+    }
+    const doc = buildInvoiceViewDocumentData(row);
+    const root = receiptInvoicePdfRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      window.alert("Could not prepare the invoice for PDF. Try again in a moment.");
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      const slug = `invoice-${String(doc.invoiceNo).replace(/[^\w.-]+/g, "_")}`;
+      const url = await createHtmlDocumentPdfObjectUrl(root, { fileSlug: slug });
+      setInvoiceViewPdfTitle(`Invoice ${doc.invoiceNo}`);
+      setInvoiceViewPdfPreviewUrl((prev) => {
+        if (prev) {
+          try {
+            URL.revokeObjectURL(prev);
+          } catch {
+            /* ignore */
+          }
+        }
+        return url;
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, [receiptPreviewRow, token, inTillflowShell]);
+
+  const handleReceiptActivityLog = useCallback(() => {
+    setReceiptInfoModal({ title: "Activity log", body: FEATURE_NOT_IMPLEMENTED_BODY });
+  }, []);
+
+  const handleViewInvoicePdfNewTab = useCallback(async () => {
+    if (!viewDoc) {
+      return;
+    }
+    const root = viewInvoicePrintRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      await openHtmlDocumentPdfInBrowser(root, {
+        fileSlug: `invoice-${String(viewDoc.invoiceNo).replace(/[^\w.-]+/g, "_")}`
+      });
+    } catch (e) {
+      console.error(e);
+      if (e instanceof Error && e.message === "POPUP_BLOCKED") {
+        window.alert("Your browser blocked the new tab. Allow pop-ups for this site or use View PDF.");
+        return;
+      }
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, [viewDoc]);
 
   const handleDownloadViewInvoicePdf = useCallback(async () => {
     if (!viewDoc) {
@@ -1124,9 +1370,313 @@ const Invoice = () => {
     }
   }, [viewDoc]);
 
-  const handlePrintViewInvoice = useCallback(() => {
-    window.print();
+  const openRecordPayment = useCallback((row) => {
+    if (!row?.apiId) {
+      return;
+    }
+    setRecordPayTarget(row);
+    const due = Math.max(0, roundMoney(Number(row.totalNum ?? 0) - Number(row.paidNum ?? 0)));
+    setRecordPayAmount(due > 0 ? String(due) : "");
+    setRecordPayMethod("cash");
+    setRecordPayPaidAt(
+      typeof window !== "undefined"
+        ? new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+        : ""
+    );
+    setRecordPayTransactionId("");
+    setRecordPayNotes("");
+    setRecordPayError("");
+    setShowRecordPayment(true);
   }, []);
+
+  const resetInvoiceEmailPreview = useCallback(() => {
+    setInvoiceEmailPreviewOpen(false);
+    setInvoiceEmailPreviewRow(null);
+    setInvoiceEmailPreviewSubject("");
+    setInvoiceEmailPreviewHtml("");
+    setInvoiceEmailPreviewTo("");
+    setInvoiceEmailPreviewMessage("");
+    setInvoiceEmailPreviewLoading(false);
+    setInvoiceEmailPreviewError("");
+    setInvoiceEmailPreviewSending(false);
+  }, []);
+
+  const openInvoiceEmailPreview = useCallback(
+    async (row) => {
+      if (!token || !row?.apiId || row.status === "Cancelled") {
+        return;
+      }
+      if (!String(row.customerEmail ?? "").trim()) {
+        showInvPopupError("Add an email to the customer before sending.");
+        return;
+      }
+      setInvoiceEmailPreviewRow(row);
+      setInvoiceEmailPreviewSubject("");
+      setInvoiceEmailPreviewHtml("");
+      setInvoiceEmailPreviewTo(String(row.customerEmail ?? "").trim());
+      setInvoiceEmailPreviewMessage("");
+      setInvoiceEmailPreviewError("");
+      setInvoiceEmailPreviewOpen(true);
+      setInvoiceEmailPreviewLoading(true);
+      try {
+        const data = await previewInvoiceEmailRequest(token, row.apiId);
+        setInvoiceEmailPreviewSubject(String(data?.subject ?? ""));
+        setInvoiceEmailPreviewHtml(String(data?.html ?? ""));
+        if (String(data?.to_email ?? "").trim()) {
+          setInvoiceEmailPreviewTo(String(data.to_email).trim());
+        }
+        setInvoiceEmailPreviewMessage(String(data?.message_template ?? "Please find your invoice below."));
+      } catch (err) {
+        if (err instanceof TillFlowApiError) {
+          setInvoiceEmailPreviewError(err.message);
+        } else {
+          setInvoiceEmailPreviewError("Could not load email preview.");
+        }
+      } finally {
+        setInvoiceEmailPreviewLoading(false);
+      }
+    },
+    [token, showInvPopupError]
+  );
+
+  const confirmSendInvoiceFromPreview = useCallback(async () => {
+    const row = invoiceEmailPreviewRow;
+    if (!token || !row?.apiId || row.status === "Cancelled") {
+      return;
+    }
+    setInvoiceEmailPreviewSending(true);
+    try {
+      /** First issue from Draft: server PDF (correct INV-#). Resend: match on-screen layout like quotations. */
+      let pdfBlob = null;
+      const useClientPdf = invoiceWasIssuedToCustomer(row);
+      if (useClientPdf && typeof document !== "undefined") {
+        try {
+          const enriched = enrichInvoiceRowCustomers(row, catalogCustomers);
+          const viewDocSend = buildInvoiceViewDocumentData(enriched);
+          const host = document.createElement("div");
+          host.setAttribute("aria-hidden", "true");
+          Object.assign(host.style, {
+            position: "fixed",
+            left: "-9999px",
+            top: "0",
+            width: "794px",
+            zIndex: "-1",
+            pointerEvents: "none",
+            opacity: "0",
+            overflow: "hidden"
+          });
+          document.body.appendChild(host);
+          const reactRoot = createRoot(host);
+          let printEl = null;
+          flushSync(() => {
+            reactRoot.render(
+              <InvoicePrintDocument
+                ref={(el) => {
+                  printEl = el;
+                }}
+                {...viewDocSend}
+              />
+            );
+          });
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          if (printEl) {
+            await waitForPrintRootImages(printEl);
+            await new Promise((r) => setTimeout(r, 120));
+            pdfBlob = await htmlDocumentPdfBlobFromElement(printEl, {
+              fileSlug: `invoice-${String(enriched.invoiceno ?? enriched.apiId ?? "inv").replace(/[^\w.-]+/g, "_")}`
+            });
+          }
+          reactRoot.unmount();
+          document.body.removeChild(host);
+        } catch (e) {
+          console.warn("Client PDF for email failed; server Dompdf will be used.", e);
+          pdfBlob = null;
+        }
+      }
+
+      const attachFilename = `invoice-${String(row.invoiceRefStored ?? row.invoiceno ?? row.apiId ?? "invoice").replace(/[^\w.-]+/g, "_")}.pdf`;
+
+      const data = await sendInvoiceToCustomerRequest(token, row.apiId, {
+        pdfBlob: pdfBlob instanceof Blob ? pdfBlob : undefined,
+        attachmentFilename: attachFilename,
+        toEmail: String(invoiceEmailPreviewTo ?? "").trim(),
+        subject: String(invoiceEmailPreviewSubject ?? "").trim(),
+        message: String(invoiceEmailPreviewMessage ?? "")
+      });
+      const inv = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
+      if (inv) {
+        const rowOut = {
+          ...inv,
+          id: String(inv.id),
+          taxNum: taxTotalFromInvoiceLineItems(inv.items)
+        };
+        setInvoices((prev) =>
+          prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? rowOut : r))
+        );
+        setViewInvoice((prev) =>
+          prev && String(prev.apiId) === String(inv.apiId)
+            ? { ...prev, ...rowOut, invoiceTitle: prev.invoiceTitle || rowOut.invoiceTitle }
+            : prev
+        );
+      }
+      const apiMsg = String(data?.message ?? "").trim();
+      const fallback = invoiceWasIssuedToCustomer(row)
+        ? "Invoice email was resent to the customer."
+        : "Invoice was sent to the customer.";
+      showInvPopupSuccess(apiMsg || fallback);
+      resetInvoiceEmailPreview();
+    } catch (err) {
+      if (err instanceof TillFlowApiError) {
+        showInvPopupError(err.message);
+      } else {
+        showInvPopupError("Could not send invoice email.");
+      }
+    } finally {
+      setInvoiceEmailPreviewSending(false);
+    }
+  }, [
+    token,
+    invoiceEmailPreviewRow,
+    invoiceEmailPreviewTo,
+    invoiceEmailPreviewSubject,
+    invoiceEmailPreviewMessage,
+    catalogCustomers,
+    resetInvoiceEmailPreview,
+    showInvPopupError,
+    showInvPopupSuccess
+  ]);
+
+  const handleOpenInvoiceEmailFromReceipt = useCallback(() => {
+    const row = receiptPreviewRow;
+    if (!token || !row?.apiId || row.status === "Cancelled" || !String(row.customerEmail ?? "").trim()) {
+      return;
+    }
+    setReceiptPreview(null);
+    setReceiptPreviewRow(null);
+    void openInvoiceEmailPreview(row);
+  }, [token, receiptPreviewRow, openInvoiceEmailPreview]);
+
+  const submitRecordPayment = useCallback(async () => {
+    if (!token || !recordPayTarget?.apiId) {
+      return;
+    }
+    setRecordPaySaving(true);
+    setRecordPayError("");
+    try {
+      const amt = roundMoney(Math.max(0.01, Number(String(recordPayAmount).replace(/,/g, "")) || 0));
+      const data = await createInvoicePaymentRequest(token, recordPayTarget.apiId, {
+        amount: amt,
+        payment_method: recordPayMethod,
+        paid_at: recordPayPaidAt ? new Date(recordPayPaidAt).toISOString() : undefined,
+        transaction_id: recordPayTransactionId.trim() || undefined,
+        notes: recordPayNotes.trim() || undefined
+      });
+      const inv = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
+      if (inv) {
+        setInvoices((prev) =>
+          prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? { ...inv, id: String(inv.id) } : r))
+        );
+        setViewInvoice((prev) =>
+          prev && String(prev.apiId) === String(inv.apiId)
+            ? { ...prev, ...inv, invoiceTitle: prev.invoiceTitle || inv.invoiceTitle }
+            : prev
+        );
+      }
+      if (data?.payment) {
+        setReceiptPreview(data.payment);
+        setReceiptPreviewRow(recordPayTarget);
+      }
+      setShowRecordPayment(false);
+      setRecordPayTarget(null);
+    } catch (err) {
+      if (err instanceof TillFlowApiError) {
+        setRecordPayError(err.message);
+      } else {
+        setRecordPayError("Could not record payment.");
+      }
+    } finally {
+      setRecordPaySaving(false);
+    }
+  }, [token, recordPayTarget, recordPayAmount, recordPayMethod, recordPayPaidAt, recordPayTransactionId, recordPayNotes]);
+
+  const handleDownloadReceiptPdf = useCallback(async () => {
+    if (!receiptPreview || !receiptPreviewRow) {
+      return;
+    }
+    const root = receiptPrintRootRef.current;
+    if (!root || !(root instanceof HTMLElement)) {
+      return;
+    }
+    try {
+      await waitForPrintRootImages(root);
+      await downloadHtmlDocumentPdfFromElement(root, {
+        fileSlug: `receipt-${String(receiptPreview.receipt_ref ?? "").replace(/[^\w.-]+/g, "_")}`
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert("Could not generate the PDF. Please try again.");
+    }
+  }, [receiptPreview, receiptPreviewRow]);
+
+  const openViewPaymentEdit = useCallback((pay) => {
+    if (!viewInvoice?.apiId || !pay?.id) {
+      return;
+    }
+    setViewPayEdit(pay);
+    setViewPayEditAmount(String(pay.amount ?? ""));
+    setViewPayEditMethod(String(pay.payment_method ?? "cash"));
+    const iso = pay.paid_at ? String(pay.paid_at) : "";
+    setViewPayEditPaidAt(iso ? iso.slice(0, 16) : "");
+    setViewPayEditTransactionId(String(pay.transaction_id ?? ""));
+    setViewPayEditNotes(String(pay.notes ?? ""));
+    setViewPayEditError("");
+  }, [viewInvoice?.apiId]);
+
+  const submitViewPaymentEdit = useCallback(async () => {
+    if (!token || !viewInvoice?.apiId || !viewPayEdit?.id) {
+      return;
+    }
+    setViewPayEditSaving(true);
+    setViewPayEditError("");
+    try {
+      const data = await updateInvoicePaymentRequest(token, viewInvoice.apiId, viewPayEdit.id, {
+        amount: Number(String(viewPayEditAmount).replace(/,/g, "")) || 0,
+        payment_method: viewPayEditMethod,
+        paid_at: viewPayEditPaidAt ? new Date(viewPayEditPaidAt).toISOString() : undefined,
+        transaction_id: viewPayEditTransactionId.trim() || null,
+        notes: viewPayEditNotes.trim() || null
+      });
+      const inv = data?.invoice ? apiInvoiceToRow(data.invoice) : null;
+      if (inv) {
+        setInvoices((prev) =>
+          prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? { ...inv, id: String(inv.id) } : r))
+        );
+        setViewInvoice((prev) =>
+          prev && String(prev.apiId) === String(inv.apiId)
+            ? { ...prev, ...inv, invoiceTitle: prev.invoiceTitle || inv.invoiceTitle }
+            : prev
+        );
+      }
+      setViewPayEdit(null);
+    } catch (err) {
+      if (err instanceof TillFlowApiError) {
+        setViewPayEditError(err.message);
+      } else {
+        setViewPayEditError("Could not update payment.");
+      }
+    } finally {
+      setViewPayEditSaving(false);
+    }
+  }, [
+    token,
+    viewInvoice?.apiId,
+    viewPayEdit?.id,
+    viewPayEditAmount,
+    viewPayEditMethod,
+    viewPayEditPaidAt,
+    viewPayEditTransactionId,
+    viewPayEditNotes
+  ]);
 
   const discountFieldsActive = invDiscountType !== "none";
 
@@ -1136,8 +1686,18 @@ const Invoice = () => {
         header: "Invoice No",
         field: "invoiceno",
         body: (rowData) =>
-          inTillflowShell ? (
-            <Link to="#" className="text-primary" onClick={(e) => e.preventDefault()}>
+          inTillflowShell && rowData.apiId ? (
+            <Link to={`${TILLFLOW_INVOICES_BASE}/${rowData.apiId}`} className="text-primary">
+              {rowData.invoiceno}
+            </Link>
+          ) : inTillflowShell ? (
+            <Link
+              to="#"
+              className="text-primary"
+              onClick={(e) => {
+                e.preventDefault();
+                void openViewInvoice(rowData);
+              }}>
               {rowData.invoiceno}
             </Link>
           ) : (
@@ -1159,75 +1719,238 @@ const Invoice = () => {
       },
       { header: "Due Date", field: "duedate" },
       { header: "Amount", field: "amount" },
+      {
+        header: "Tax",
+        field: "taxNum",
+        sortable: false,
+        body: (rowData) => {
+          const n =
+            typeof rowData.taxNum === "number" && Number.isFinite(rowData.taxNum)
+              ? rowData.taxNum
+              : taxTotalFromInvoiceLineItems(rowData.items);
+          if (n == null) {
+            return "—";
+          }
+          return formatInvoiceMoneyKes(n);
+        }
+      },
       { header: "Paid", field: "paid" },
       { header: "Amount Due", field: "amountdue" },
       {
         header: "Status",
         field: "status",
         body: (rowData) => (
-          <div>
-            {rowData.status === "Sent" && (
-              <span className="badge badge-soft-success badge-xs shadow-none">
-                <i className="ti ti-point-filled me-1" />
-                {rowData.status}
-              </span>
-            )}
-            {rowData.status === "Draft" && (
-              <span className="badge badge-soft-secondary badge-xs shadow-none">
-                <i className="ti ti-point-filled me-1" />
-                {rowData.status}
-              </span>
-            )}
-            {(rowData.status !== "Sent" && rowData.status !== "Draft") && (
-              <span className="badge badge-soft-warning text-dark badge-xs shadow-none">
-                <i className="ti ti-point-filled me-1" />
-                {rowData.status}
-              </span>
-            )}
-          </div>
+          <span className={`badge ${invoiceStatusBadgeClass(rowData.status)} badge-xs shadow-none`}>
+            {String(rowData.status ?? "").replace(/_/g, " ")}
+          </span>
         )
       },
       {
         header: "",
         field: "action",
         sortable: false,
-        body: (row) => (
-          <div className="edit-delete-action d-flex align-items-center justify-content-center gap-1">
-            <button
-              type="button"
-              className="p-2 btn btn-light border rounded"
-              title="Edit"
-              onClick={() => openEditInvoice(row)}>
-              <i className="feather icon-edit text-primary" />
-            </button>
-            <Link
-              className="p-2 d-flex align-items-center justify-content-center border rounded"
-              to={inTillflowShell ? "#" : route.invoicedetails}
-              data-bs-toggle={inTillflowShell ? "modal" : undefined}
-              data-bs-target={inTillflowShell ? "#view-invoice-modal" : undefined}
-              onClick={
-                inTillflowShell
-                  ? (e) => {
-                      e.preventDefault();
-                      void openViewInvoice(row);
+        body: (row) => {
+          const rowWithCustomer = enrichInvoiceRowCustomers(row, catalogCustomers);
+          const canEmailCustomer = String(rowWithCustomer?.customerEmail ?? "").trim() !== "";
+          return inTillflowShell ? (
+            <div className="edit-delete-action d-flex align-items-center justify-content-end">
+              <Dropdown align="end" drop="down">
+                <Dropdown.Toggle
+                  variant="light"
+                  id={`invoice-actions-${String(row.id)}`}
+                  className="btn btn-light border rounded py-1 px-2 d-inline-flex align-items-center justify-content-center invoice-list__row-actions-toggle"
+                  aria-label="Invoice actions">
+                  <i className="ti ti-dots-vertical" />
+                </Dropdown.Toggle>
+                <Dropdown.Menu popperConfig={{ strategy: "fixed" }} renderOnMount>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    onClick={() => {
+                      if (row.apiId) {
+                        navigate(`${TILLFLOW_INVOICES_BASE}/${row.apiId}`);
+                      } else {
+                        void openViewInvoice(row);
+                      }
+                    }}>
+                    <i className="ti ti-eye me-2 text-dark" />
+                    View
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    disabled={Boolean(token && row.apiId && row.status === "Cancelled")}
+                    onClick={() => {
+                      if (token && row.apiId && row.status === "Cancelled") {
+                        return;
+                      }
+                      if (token && row.apiId) {
+                        navigate(`${TILLFLOW_INVOICES_BASE}/${row.apiId}/edit`);
+                        return;
+                      }
+                      openEditInvoice(row);
+                    }}>
+                    <i className="ti ti-edit me-2 text-dark" />
+                    Edit
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    disabled={
+                      !token || !row.apiId || row.status === "Draft" || row.status === "Cancelled"
                     }
-                  : undefined
-              }
-              title="View">
-              <i className="feather icon-eye feather-eye" />
-            </Link>
-            <button
-              type="button"
-              className="p-2 btn btn-light border rounded"
-              title="Remove from list"
-              onClick={() => deleteLocalRow(row)}>
-              <i className="feather icon-trash-2 text-danger" />
-            </button>
-          </div>
-        )
+                    onClick={() => {
+                      if (token && row.apiId && row.status !== "Draft" && row.status !== "Cancelled") {
+                        openRecordPayment(row);
+                      }
+                    }}>
+                    <i className="ti ti-currency-dollar me-2 text-dark" />
+                    Record payment
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    disabled={
+                      !token || !row.apiId || row.status === "Draft" || row.status === "Cancelled"
+                    }
+                    onClick={() => {
+                      if (token && row.apiId && row.status !== "Draft" && row.status !== "Cancelled") {
+                        navigate(`${TILLFLOW_INVOICES_BASE}/${row.apiId}?generateDelivery=1`);
+                      }
+                    }}>
+                    <i className="ti ti-truck-delivery me-2 text-dark" />
+                    Generate delivery
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    disabled={!token || !row.apiId || row.status === "Draft" || row.status === "Cancelled"}
+                    onClick={() => {
+                      if (token && row.apiId && row.status !== "Draft" && row.status !== "Cancelled") {
+                        navigate(`${TILLFLOW_INVOICES_BASE}/${row.apiId}?generateCreditNote=1`);
+                      }
+                    }}>
+                    <i className="ti ti-file-minus me-2 text-dark" />
+                    Generate credit note
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    className={
+                      invoiceWasIssuedToCustomer(rowWithCustomer)
+                        ? "text-danger"
+                        : row.status === "Draft" && canEmailCustomer
+                          ? "tf-invoice-send-customer"
+                          : undefined
+                    }
+                    disabled={
+                      !token ||
+                      !row.apiId ||
+                      row.status === "Cancelled" ||
+                      !canEmailCustomer
+                    }
+                    title={
+                      invoiceWasIssuedToCustomer(rowWithCustomer)
+                        ? invoiceSentToCustomerHoverTitle(rowWithCustomer)
+                        : row.status === "Draft" && !canEmailCustomer
+                          ? "Customer needs an email address"
+                          : row.status === "Draft" && canEmailCustomer
+                            ? "Send this invoice to the customer's email address"
+                            : undefined
+                    }
+                    onClick={() => {
+                      void openInvoiceEmailPreview(rowWithCustomer);
+                    }}>
+                    <i
+                      className={`ti ti-send me-2 ${
+                        invoiceWasIssuedToCustomer(rowWithCustomer)
+                          ? "text-danger"
+                          : row.status === "Draft" && canEmailCustomer
+                            ? "tf-invoice-send-customer-icon"
+                            : "text-dark"
+                      }`}
+                    />
+                    {invoiceWasIssuedToCustomer(rowWithCustomer) ? "Resend to customer" : "Send to customer"}
+                  </Dropdown.Item>
+                  <Dropdown.Divider />
+                  {row.status === "Cancelled" ? (
+                    <Dropdown.Item
+                      as="button"
+                      type="button"
+                      className="text-success"
+                      disabled={!token || !row.apiId || invoiceRestoreSaving}
+                      onClick={() => openInvoiceRestoreConfirm(row)}>
+                      <i className="ti ti-restore me-2" />
+                      Restore invoice
+                    </Dropdown.Item>
+                  ) : null}
+                  <Dropdown.Item
+                    as="button"
+                    type="button"
+                    className="text-danger"
+                    disabled={row.status === "Cancelled" || row.status === "Draft"}
+                    title={row.status === "Draft" ? "Draft invoices cannot be cancelled" : undefined}
+                    onClick={() => openInvoiceCancelConfirm(row)}>
+                    <i className="ti ti-trash me-2" />
+                    Cancel invoice
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown>
+            </div>
+          ) : (
+            <div className="edit-delete-action d-flex align-items-center justify-content-center gap-1">
+              <button
+                type="button"
+                className="p-2 btn btn-light border rounded"
+                title="Edit"
+                disabled={Boolean(token && row.apiId && row.status === "Cancelled")}
+                onClick={() => {
+                  if (token && row.apiId && row.status === "Cancelled") {
+                    return;
+                  }
+                  openEditInvoice(row);
+                }}>
+                <i className="feather icon-edit text-primary" />
+              </button>
+              <Link
+                className="p-2 d-flex align-items-center justify-content-center border rounded"
+                to={route.invoicedetails}
+                title="View">
+                <i className="feather icon-eye feather-eye" />
+              </Link>
+              <button
+                type="button"
+                className="p-2 btn btn-light border rounded"
+                title={
+                  row.status === "Draft"
+                    ? "Draft invoices cannot be cancelled"
+                    : row.status === "Cancelled"
+                      ? "Already cancelled"
+                      : "Cancel invoice"
+                }
+                disabled={row.status === "Cancelled" || row.status === "Draft"}
+                onClick={() => openInvoiceCancelConfirm(row)}>
+                <i className="feather icon-trash-2 text-danger" />
+              </button>
+            </div>
+          );
+        }
       }
     ],
-    [route.invoicedetails, inTillflowShell, deleteLocalRow, openViewInvoice, openEditInvoice]
+    [
+      route.invoicedetails,
+      inTillflowShell,
+      token,
+      catalogCustomers,
+      openInvoiceCancelConfirm,
+      openInvoiceRestoreConfirm,
+      invoiceRestoreSaving,
+      openViewInvoice,
+      openEditInvoice,
+      openRecordPayment,
+      openInvoiceEmailPreview,
+      navigate
+    ]
   );
 
   return (
@@ -1235,17 +1958,23 @@ const Invoice = () => {
       <div
         className={`page-wrapper invoice-list-page${inTillflowShell ? " invoice-list-page--tillflow" : ""}`}>
         <div className="content">
-          {invPopupError ? (
+          {invPopupError || invPopupSuccess ? (
             <div
               className="position-fixed top-0 end-0 p-3"
-              style={{ zIndex: 1065, minWidth: 280, maxWidth: 360 }}>
-              <div className="alert alert-danger shadow-sm mb-0 d-flex align-items-center justify-content-between gap-2">
-                <span>{invPopupError}</span>
+              style={{ zIndex: 1065, minWidth: 280, maxWidth: 400 }}>
+              <div
+                className={`alert shadow-sm mb-0 d-flex align-items-center justify-content-between gap-2 ${
+                  invPopupError ? "alert-danger" : "alert-success"
+                }`}>
+                <span>{invPopupError || invPopupSuccess}</span>
                 <button
                   type="button"
                   className="btn-close"
                   aria-label="Close"
-                  onClick={() => setInvPopupError("")}
+                  onClick={() => {
+                    setInvPopupError("");
+                    setInvPopupSuccess("");
+                  }}
                 />
               </div>
             </div>
@@ -1261,7 +1990,12 @@ const Invoice = () => {
                     </h6>
                   </div>
                 </div>
-                <TableTopHead onRefresh={resetFilters} />
+                <TableTopHead
+                  onRefresh={resetFilters}
+                  onExportPdf={handleExportPdf}
+                  onExportExcel={handleExportExcel}
+                  showCollapse={false}
+                />
                 {listError ? (
                   <div className="alert alert-warning mt-3 mb-0" role="alert">
                     {listError}
@@ -1277,6 +2011,12 @@ const Invoice = () => {
                     <PlusCircle size={18} strokeWidth={1.75} className="me-1" aria-hidden />
                     Add Invoice
                   </button>
+                  {inTillflowShell ? (
+                    <Link to="/tillflow/admin/invoice-payments" className="btn btn-outline-secondary">
+                      <i className="feather icon-dollar-sign me-1" />
+                      Invoice payments
+                    </Link>
+                  ) : null}
                   {inTillflowShell ? (
                     <Link to="/tillflow/admin/quotations" className="btn btn-outline-primary">
                       <i className="ti ti-file-description me-1" />
@@ -1303,26 +2043,28 @@ const Invoice = () => {
                       <CommonSelect
                         className="w-100"
                         options={customerFilterOptions}
-                        value={filterCustomer === "" ? "" : filterCustomer}
+                        value={filterCustomer === "" ? null : filterCustomer}
                         onChange={(e) => {
                           const v = e.value;
                           setFilterCustomer(v == null || v === "" ? "" : String(v));
                         }}
                         placeholder="Customer"
                         filter
+                        showClear
                       />
                     </div>
                     <div style={{ minWidth: "10rem" }}>
                       <CommonSelect
                         className="w-100"
                         options={statusFilterOptions}
-                        value={filterStatus === "" ? "" : filterStatus}
+                        value={filterStatus === "" ? null : filterStatus}
                         onChange={(e) => {
                           const v = e.value;
                           setFilterStatus(v == null || v === "" ? "" : String(v));
                         }}
                         placeholder="Status"
                         filter={false}
+                        showClear
                       />
                     </div>
                     <div style={{ minWidth: "12rem" }}>
@@ -1453,20 +2195,82 @@ const Invoice = () => {
                         onChange={(e) => setInvDueAt(e.target.value)}
                       />
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Amount paid (Ksh)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className="form-control"
-                        value={invAmountPaid}
-                        onChange={(e) => setInvAmountPaid(e.target.value)}
-                      />
-                      <p className="text-muted small mb-0 mt-1">
-                        Total due: {formatInvoiceMoneyKes(Math.max(0, invoiceKesSummary.grandTotal - Math.min(Number(invAmountPaid) || 0, invoiceKesSummary.grandTotal)))}
-                      </p>
-                    </div>
+                    {token && inTillflowShell ? (
+                      <div className="col-md-4">
+                        <label className="form-label">Status</label>
+                        <select
+                          className="form-select"
+                          value={invoiceFormMode === "edit" ? invEditStatus : invCreateStatus}
+                          onChange={(e) =>
+                            invoiceFormMode === "edit"
+                              ? setInvEditStatus(e.target.value)
+                              : setInvCreateStatus(e.target.value)
+                          }>
+                          {(invoiceFormMode === "create"
+                            ? ["Draft", "Unpaid"]
+                            : INVOICE_STATUSES.filter((s) => s !== "Cancelled")
+                          ).map((s) => (
+                            <option key={s} value={s}>
+                              {s.replace(/_/g, " ")}
+                            </option>
+                          ))}
+                        </select>
+                        {invoiceFormMode === "create" ? (
+                          <p className="text-muted small mb-0 mt-1">
+                            Choose <strong>Unpaid</strong> to issue; record payments from the list.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {token && inTillflowShell && invoiceFormMode === "edit" && editingHasPayments ? (
+                      <div className="col-md-4">
+                        <label className="form-label">Amount paid</label>
+                        <div className="form-control bg-light small mb-0">
+                          Totals come from{" "}
+                          <Link to="/tillflow/admin/invoice-payments" target="_blank" rel="noopener noreferrer">
+                            recorded payments
+                          </Link>
+                          . Use <strong>Record payment</strong> on the invoice list.
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="col-md-4">
+                        <label className="form-label">Amount paid (Ksh)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          className="form-control"
+                          value={invAmountPaid}
+                          onChange={(e) => setInvAmountPaid(e.target.value)}
+                        />
+                        <p className="text-muted small mb-0 mt-1">
+                          Total due:{" "}
+                          {formatInvoiceMoneyKes(
+                            Math.max(
+                              0,
+                              invoiceKesSummary.grandTotal -
+                                Math.min(Number(invAmountPaid) || 0, invoiceKesSummary.grandTotal)
+                            )
+                          )}
+                        </p>
+                        {token && inTillflowShell && invoiceFormMode === "create" && Number(invAmountPaid) > 0 ? (
+                          <div className="mt-2">
+                            <label className="form-label small">Initial payment method</label>
+                            <select
+                              className="form-select form-select-sm"
+                              value={invInitialPaymentMethod}
+                              onChange={(e) => setInvInitialPaymentMethod(e.target.value)}>
+                              {INVOICE_PAYMENT_METHOD_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
 
                   <div className="row g-3 mt-1 pt-3 border-top border-light-subtle">
@@ -1813,18 +2617,9 @@ const Invoice = () => {
                     <button
                       type="button"
                       className="border-0 bg-transparent p-0"
-                      title="Download PDF"
-                      onClick={() => void handleDownloadViewInvoicePdf()}>
+                      title="View PDF"
+                      onClick={() => void handleViewInvoicePdfPreview()}>
                       <img src={pdf} alt="" />
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      className="border-0 bg-transparent p-0"
-                      title="Print"
-                      onClick={handlePrintViewInvoice}>
-                      <i className="feather icon-printer feather-rotate-ccw" />
                     </button>
                   </li>
                 </ul>
@@ -1847,28 +2642,306 @@ const Invoice = () => {
                       <button
                         type="button"
                         className="btn btn-primary d-flex justify-content-center align-items-center"
-                        onClick={() => void handleDownloadViewInvoicePdf()}>
-                        <i className="ti ti-file-download me-2" />
-                        Download PDF
+                        onClick={() => void handleViewInvoicePdfPreview()}>
+                        <i className="ti ti-file-invoice me-2" />
+                        View PDF
                       </button>
                       <button
                         type="button"
                         className="btn btn-outline-primary d-flex justify-content-center align-items-center"
-                        onClick={handlePrintViewInvoice}>
-                        <i className="ti ti-printer me-2" />
-                        Print invoice
+                        onClick={() => void handleViewInvoicePdfNewTab()}>
+                        <i className="ti ti-external-link me-2" />
+                        View PDF in new tab
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary d-flex justify-content-center align-items-center"
+                        onClick={() => void handleDownloadViewInvoicePdf()}>
+                        <i className="ti ti-download me-2" />
+                        Download PDF
                       </button>
                     </div>
                     <InvoicePrintDocument ref={viewInvoicePrintRootRef} {...viewDoc} />
-                    <div className="text-end mt-2 quotation-view-no-print">
-                      <small className="text-muted">Amount due: {viewDoc.amountDueLabel}</small>
-                    </div>
+                    {token && inTillflowShell && viewInvoice?.apiId && viewInvoice.status !== "Draft" ? (
+                      <div className="px-3 pb-3 quotation-view-no-print border-top pt-3 mt-2">
+                        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                          <h6 className="mb-0 fw-semibold text-success">Payments</h6>
+                          {viewInvoice.status !== "Cancelled" ? (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success"
+                              onClick={() => openRecordPayment(viewInvoice)}>
+                              Record payment
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="table-responsive">
+                          <table className="table table-sm table-bordered mb-0">
+                            <thead>
+                              <tr>
+                                <th>Receipt</th>
+                                <th>Paid</th>
+                                <th>Method</th>
+                                <th>Txn ID</th>
+                                <th className="text-end">Amount</th>
+                                <th className="text-end">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(viewInvoice.payments ?? []).length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} className="text-muted text-center py-2">
+                                    No payments yet.
+                                  </td>
+                                </tr>
+                              ) : (
+                                (viewInvoice.payments ?? []).map((p) => (
+                                  <tr key={p.id}>
+                                    <td className="fw-medium">
+                                      {inTillflowShell && p.id ? (
+                                        <Link
+                                          to={`/tillflow/admin/invoice-payments/${p.id}`}
+                                          className="text-primary"
+                                          onClick={(e) => e.stopPropagation()}>
+                                          {p.receipt_ref}
+                                        </Link>
+                                      ) : (
+                                        p.receipt_ref
+                                      )}
+                                    </td>
+                                    <td className="small">{formatReceiptPaidAtDisplay(p.paid_at)}</td>
+                                    <td>{paymentMethodLabel(p.payment_method)}</td>
+                                    <td className="small text-break">{p.transaction_id || "—"}</td>
+                                    <td className="text-end">{formatInvoiceMoneyKes(p.amount)}</td>
+                                    <td className="text-end text-nowrap">
+                                      <button
+                                        type="button"
+                                        className="btn btn-link btn-sm py-0"
+                                        onClick={() => {
+                                          setReceiptPreview(p);
+                                          setReceiptPreviewRow(viewInvoice);
+                                        }}>
+                                        Receipt
+                                      </button>
+                                      {viewInvoice.status !== "Cancelled" ? (
+                                        <button
+                                          type="button"
+                                          className="btn btn-link btn-sm py-0"
+                                          onClick={() => openViewPaymentEdit(p)}>
+                                          Edit
+                                        </button>
+                                      ) : null}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
             </div>
           </div>
         </div>
+
+        <RecordInvoicePaymentModal
+          show={showRecordPayment}
+          onHide={() => setShowRecordPayment(false)}
+          recordPayTarget={recordPayTarget}
+          recordPayAmount={recordPayAmount}
+          setRecordPayAmount={setRecordPayAmount}
+          recordPayMethod={recordPayMethod}
+          setRecordPayMethod={setRecordPayMethod}
+          recordPayPaidAt={recordPayPaidAt}
+          setRecordPayPaidAt={setRecordPayPaidAt}
+          recordPayTransactionId={recordPayTransactionId}
+          setRecordPayTransactionId={setRecordPayTransactionId}
+          recordPayNotes={recordPayNotes}
+          setRecordPayNotes={setRecordPayNotes}
+          recordPayError={recordPayError}
+          recordPaySaving={recordPaySaving}
+          onSubmit={submitRecordPayment}
+        />
+
+        <InvoiceReceiptPreviewModal
+          receiptPreview={receiptPreview}
+          receiptPreviewRow={receiptPreviewRow}
+          receiptPrintRootRef={receiptPrintRootRef}
+          onHide={() => {
+            setReceiptPreview(null);
+            setReceiptPreviewRow(null);
+          }}
+          onDownloadPdf={handleDownloadReceiptPdf}
+          tillflowEmailActionsEnabled={Boolean(token && inTillflowShell)}
+          onOpenInvoiceEmailPreview={
+            token && inTillflowShell ? handleOpenInvoiceEmailFromReceipt : undefined
+          }
+          onViewInvoicePdf={
+            token && inTillflowShell && receiptPreviewRow ? handleViewInvoicePdfFromReceipt : undefined
+          }
+          onActivityLog={token && inTillflowShell ? handleReceiptActivityLog : undefined}
+        />
+
+        {receiptPreview && receiptPreviewRow && token && inTillflowShell ? (
+          <div
+            className="position-fixed overflow-hidden"
+            style={{ left: -12000, top: 0, width: 720, pointerEvents: "none", opacity: 0 }}
+            aria-hidden>
+            <InvoicePrintDocument
+              ref={receiptInvoicePdfRootRef}
+              {...buildInvoiceViewDocumentData(receiptPreviewRow)}
+            />
+          </div>
+        ) : null}
+
+        <DocumentPdfPreviewModal
+          url={invoiceViewPdfPreviewUrl}
+          title={invoiceViewPdfTitle || (viewDoc ? `Invoice ${viewDoc.invoiceNo}` : "Invoice PDF")}
+          onHide={handleCloseInvoiceViewPdfPreview}
+        />
+
+        <Modal show={Boolean(receiptInfoModal)} onHide={() => setReceiptInfoModal(null)} centered>
+          <Modal.Header closeButton>
+            <Modal.Title>{receiptInfoModal?.title}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>{receiptInfoModal?.body}</Modal.Body>
+          <Modal.Footer>
+            <button type="button" className="btn btn-primary" onClick={() => setReceiptInfoModal(null)}>
+              OK
+            </button>
+          </Modal.Footer>
+        </Modal>
+
+        <EditInvoicePaymentModal
+          viewPayEdit={viewPayEdit}
+          onHide={() => setViewPayEdit(null)}
+          viewPayEditAmount={viewPayEditAmount}
+          setViewPayEditAmount={setViewPayEditAmount}
+          viewPayEditMethod={viewPayEditMethod}
+          setViewPayEditMethod={setViewPayEditMethod}
+          viewPayEditPaidAt={viewPayEditPaidAt}
+          setViewPayEditPaidAt={setViewPayEditPaidAt}
+          viewPayEditTransactionId={viewPayEditTransactionId}
+          setViewPayEditTransactionId={setViewPayEditTransactionId}
+          viewPayEditNotes={viewPayEditNotes}
+          setViewPayEditNotes={setViewPayEditNotes}
+          viewPayEditError={viewPayEditError}
+          viewPayEditSaving={viewPayEditSaving}
+          onSubmit={submitViewPaymentEdit}
+        />
+
+        <InvoiceEmailPreviewModal
+          show={invoiceEmailPreviewOpen}
+          onHide={() => {
+            if (!invoiceEmailPreviewSending) {
+              resetInvoiceEmailPreview();
+            }
+          }}
+          loading={invoiceEmailPreviewLoading}
+          error={invoiceEmailPreviewError}
+          subject={invoiceEmailPreviewSubject}
+          html={invoiceEmailPreviewHtml}
+          toEmail={invoiceEmailPreviewTo}
+          message={invoiceEmailPreviewMessage}
+          onChangeToEmail={setInvoiceEmailPreviewTo}
+          onChangeSubject={setInvoiceEmailPreviewSubject}
+          onChangeMessage={setInvoiceEmailPreviewMessage}
+          showHtmlPreview={false}
+          sending={invoiceEmailPreviewSending}
+          sendButtonLabel={
+            invoiceEmailPreviewRow && invoiceWasIssuedToCustomer(invoiceEmailPreviewRow)
+              ? "Resend email"
+              : "Send email"
+          }
+          sendDisabled={
+            !invoiceEmailPreviewRow ||
+            String(invoiceEmailPreviewRow?.status ?? "") === "Cancelled" ||
+            !String(invoiceEmailPreviewTo ?? "").trim()
+          }
+          onSend={confirmSendInvoiceFromPreview}
+        />
+
+        <Modal
+          show={Boolean(invoiceCancelConfirmRow)}
+          onHide={() => {
+            if (!invoiceCancelSaving) {
+              setInvoiceCancelConfirmRow(null);
+            }
+          }}
+          centered
+          backdrop={invoiceCancelSaving ? "static" : true}>
+          <Modal.Header closeButton={!invoiceCancelSaving}>
+            <Modal.Title>Cancel invoice</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="mb-0">
+              Cancel this invoice? It will remain on file as cancelled and can no longer be edited or receive
+              payments.
+            </p>
+            {invoiceCancelConfirmRow?.invoiceno ? (
+              <p className="text-muted small mb-0 mt-2 fw-medium">{invoiceCancelConfirmRow.invoiceno}</p>
+            ) : null}
+          </Modal.Body>
+          <Modal.Footer className="gap-2">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={invoiceCancelSaving}
+              onClick={() => setInvoiceCancelConfirmRow(null)}>
+              Keep invoice
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={invoiceCancelSaving}
+              onClick={() => void confirmInvoiceCancel()}>
+              {invoiceCancelSaving ? "Cancelling…" : "Cancel invoice"}
+            </button>
+          </Modal.Footer>
+        </Modal>
+
+        <Modal
+          show={Boolean(invoiceRestoreConfirmRow)}
+          onHide={() => {
+            if (!invoiceRestoreSaving) {
+              setInvoiceRestoreConfirmRow(null);
+            }
+          }}
+          centered
+          backdrop={invoiceRestoreSaving ? "static" : true}>
+          <Modal.Header closeButton={!invoiceRestoreSaving}>
+            <Modal.Title>Restore invoice</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="mb-0">
+              Restore this invoice? Its status will be updated from payments and the due date (Unpaid, Partially paid,
+              Paid, or Overdue).
+            </p>
+            {invoiceRestoreConfirmRow?.invoiceno ? (
+              <p className="text-muted small mb-0 mt-2 fw-medium">{invoiceRestoreConfirmRow.invoiceno}</p>
+            ) : null}
+          </Modal.Body>
+          <Modal.Footer className="gap-2">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={invoiceRestoreSaving}
+              onClick={() => setInvoiceRestoreConfirmRow(null)}>
+              Keep cancelled
+            </button>
+            <button
+              type="button"
+              className="btn btn-success"
+              disabled={invoiceRestoreSaving}
+              onClick={() => void confirmInvoiceRestore()}>
+              {invoiceRestoreSaving ? "Restoring…" : "Restore invoice"}
+            </button>
+          </Modal.Footer>
+        </Modal>
+
         <CommonFooter />
       </div>
     </div>

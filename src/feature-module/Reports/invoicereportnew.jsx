@@ -19,8 +19,9 @@ const Invoicereportnew = () => {
   const [selectedStatus, setSelectedStatus] = useState(null);
   const CustomerName = [{ label: "Customer Name", value: "1" }];
   const Status = [
-  { label: "Sent", value: "1" },
-  { label: "Pending", value: "2" }];
+    { label: "Unpaid", value: "1" },
+    { label: "Pending", value: "2" }
+  ];
 
 
   const columns = [

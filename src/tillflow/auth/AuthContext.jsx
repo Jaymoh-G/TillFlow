@@ -2,8 +2,34 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { loginRequest, logoutRequest, meRequest } from '../api/auth';
 
 const TOKEN_KEY = 'tillflow_sanctum_token';
+const LEGACY_SESSION_TOKEN_KEY = TOKEN_KEY;
 
 const AuthContext = createContext(null);
+
+function readStoredToken() {
+  const local = localStorage.getItem(TOKEN_KEY);
+  if (local) {
+    return local;
+  }
+  const session = sessionStorage.getItem(LEGACY_SESSION_TOKEN_KEY);
+  if (session) {
+    // One-time migration path for older session-only auth storage.
+    localStorage.setItem(TOKEN_KEY, session);
+    return session;
+  }
+  return null;
+}
+
+function writeStoredToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+  // Keep session key in sync for backward compatibility with existing tabs.
+  sessionStorage.setItem(LEGACY_SESSION_TOKEN_KEY, token);
+}
+
+function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_TOKEN_KEY);
+}
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
@@ -14,7 +40,7 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      const stored = sessionStorage.getItem(TOKEN_KEY);
+      const stored = readStoredToken();
       if (!stored) {
         if (!cancelled) {
           setBootstrapping(false);
@@ -31,7 +57,7 @@ export function AuthProvider({ children }) {
         }
       } catch {
         if (!cancelled) {
-          sessionStorage.removeItem(TOKEN_KEY);
+          clearStoredToken();
           setToken(null);
           setUser(null);
         }
@@ -54,14 +80,14 @@ export function AuthProvider({ children }) {
       device_name: device_name ?? 'tillflow-web',
     });
     const nextToken = data.token;
-    sessionStorage.setItem(TOKEN_KEY, nextToken);
+    writeStoredToken(nextToken);
     setToken(nextToken);
     setUser(data.user);
     return data;
   }, []);
 
   const logout = useCallback(async () => {
-    const current = sessionStorage.getItem(TOKEN_KEY);
+    const current = readStoredToken();
     if (current) {
       try {
         await logoutRequest(current);
@@ -69,13 +95,13 @@ export function AuthProvider({ children }) {
         // Token may already be invalid; still clear locally.
       }
     }
-    sessionStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     setToken(null);
     setUser(null);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const current = sessionStorage.getItem(TOKEN_KEY);
+    const current = readStoredToken();
     if (!current) {
       return;
     }
@@ -83,7 +109,7 @@ export function AuthProvider({ children }) {
       const data = await meRequest(current);
       setUser(data.user);
     } catch {
-      sessionStorage.removeItem(TOKEN_KEY);
+      clearStoredToken();
       setToken(null);
       setUser(null);
     }
