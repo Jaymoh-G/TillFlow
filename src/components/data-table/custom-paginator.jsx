@@ -46,7 +46,7 @@ const CustomPaginator = ({
       <div className="parent-class-datatable">
         <div className="dataTables_length" id="DataTables_Table_0_length">
           <label>
-            Row Per Page{" "}
+            Rows{" "}
             <select
               name="DataTables_Table_0_length"
               aria-controls="DataTables_Table_0"

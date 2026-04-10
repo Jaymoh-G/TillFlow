@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
+import PrimeDataTable from '../../components/data-table';
 import { TillFlowApiError } from '../api/errors';
 import { createUnitRequest, deleteUnitRequest, listTrashedUnitsRequest, listUnitsRequest, restoreUnitRequest, updateUnitRequest } from '../api/units';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
   if (!iso) {
@@ -242,6 +244,108 @@ export default function AdminUnits() {
     }
   }
 
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((u) => ({
+      Name: String(u.name ?? ''),
+      Short: String(u.short_name ?? ''),
+      [viewTrash ? 'Deleted' : 'Updated']: formatListDate(viewTrash ? u.deleted_at : u.updated_at)
+    }));
+    await downloadRowsExcel(records, 'Units', viewTrash ? 'units-trash' : 'units');
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((u) => [
+      String(u.name ?? ''),
+      String(u.short_name ?? ''),
+      formatListDate(viewTrash ? u.deleted_at : u.updated_at)
+    ]);
+    await downloadRowsPdf(
+      viewTrash ? 'Units (trash)' : 'Units',
+      ['Name', 'Short', viewTrash ? 'Deleted' : 'Updated'],
+      body,
+      viewTrash ? 'units-trash' : 'units'
+    );
+  }, [filtered, viewTrash]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
+            <span className="checkmarks" />
+          </label>
+        ),
+        field: 'select',
+        sortable: false,
+        body: (u) => (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleRow(u.id)} />
+            <span className="checkmarks" />
+          </label>
+        )
+      },
+      {
+        header: 'Name',
+        field: 'name',
+        body: (u) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(u.name)}</div>
+            <span>{u.name}</span>
+          </div>
+        )
+      },
+      { header: 'Short', field: 'short_name', body: (u) => <span className="badge bg-light text-dark">{u.short_name ?? '—'}</span> },
+      {
+        header: viewTrash ? 'Deleted' : 'Updated',
+        field: viewTrash ? 'deleted_at' : 'updated_at',
+        body: (u) => <span className="userimgname text-muted small">{formatListDate(viewTrash ? u.deleted_at : u.updated_at)}</span>
+      },
+      {
+        header: 'Actions',
+        field: 'actions',
+        sortable: false,
+        className: 'text-end',
+        headerClassName: 'text-end',
+        body: (u) => (
+          <div className="edit-delete-action d-flex align-items-center justify-content-end">
+            {viewTrash ? (
+              <button
+                type="button"
+                className="p-2 d-flex align-items-center border rounded bg-transparent"
+                disabled={restoreSubmittingId === u.id}
+                onClick={() => void restore(u.id)}
+                title="Restore"
+              >
+                <i className="feather icon-rotate-ccw" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => startEdit(u)}
+                  title="Edit"
+                >
+                  <i className="feather icon-edit" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => setDeleteTarget(u)}
+                  title="Delete"
+                >
+                  <i className="feather icon-trash-2" />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+    ],
+    [allPageSelected, selectedIds, viewTrash, restoreSubmittingId]
+  );
+
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
@@ -252,6 +356,16 @@ export default function AdminUnits() {
           </div>
         </div>
         <ul className="table-top-head">
+          <li>
+            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-file-text" />
+            </button>
+          </li>
+          <li>
+            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-download" />
+            </button>
+          </li>
           <li>
             <button type="button" title="Refresh" onClick={() => void load()}>
               <i className="feather icon-refresh-cw" />
@@ -305,20 +419,6 @@ export default function AdminUnits() {
                 </div>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select
-                className="form-select form-select-sm"
-                value={rows}
-                onChange={(e) => setRows(Number(e.target.value))}
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Active or trash">
               <button
                 type="button"
@@ -339,125 +439,19 @@ export default function AdminUnits() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th className="no-sort">
-                    <label className="checkboxs mb-0">
-                      <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
-                      <span className="checkmarks" />
-                    </label>
-                  </th>
-                  <th>Name</th>
-                  <th>Short</th>
-                  <th>{viewTrash ? 'Deleted' : 'Updated'}</th>
-                  <th className="no-sort" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-5 text-muted">
-                      No units found.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <label className="checkboxs mb-0">
-                          <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleRow(u.id)} />
-                          <span className="checkmarks" />
-                        </label>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(u.name)}</div>
-                          <span>{u.name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge bg-light text-dark">{u.short_name ?? '—'}</span>
-                      </td>
-                      <td>
-                        <span className="userimgname text-muted small">{formatListDate(viewTrash ? u.deleted_at : u.updated_at)}</span>
-                      </td>
-                      <td>
-                        <div className="edit-delete-action d-flex align-items-center">
-                          {viewTrash ? (
-                            <button
-                              type="button"
-                              className="p-2 d-flex align-items-center border rounded bg-transparent"
-                              disabled={restoreSubmittingId === u.id}
-                              onClick={() => void restore(u.id)}
-                              title="Restore"
-                            >
-                              <i className="feather icon-rotate-ccw" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => startEdit(u)}
-                                title="Edit"
-                              >
-                                <i className="feather icon-edit" />
-                              </button>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => setDeleteTarget(u)}
-                                title="Delete"
-                              >
-                                <i className="feather icon-trash-2" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                >
-                  Prev
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary btn-sm"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

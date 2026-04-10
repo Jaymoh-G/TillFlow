@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PrimeDataTable from '../../components/data-table';
 import { listLowStockRequest } from '../api/lowStock';
 import { TillFlowApiError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
   if (!iso) {
@@ -86,16 +88,61 @@ export default function AdminLowStock() {
     setCurrentPage(1);
   }, [searchQuery, rows, tab]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / rows) || 1);
-  useEffect(() => {
-    setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
-  }, [totalPages]);
+  const columns = useMemo(
+    () => [
+      {
+        header: 'Item',
+        field: 'name',
+        body: (r) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(r.name)}</div>
+            <span>{r.name}</span>
+          </div>
+        )
+      },
+      { header: 'SKU', field: 'sku', body: (r) => <span className="tf-mono">{r.sku ?? '—'}</span> },
+      { header: 'Category', field: 'category.name', body: (r) => r.category?.name ?? '—' },
+      { header: 'Brand', field: 'brand.name', body: (r) => r.brand?.name ?? '—' },
+      { header: 'Unit', field: 'unit.name', body: (r) => r.unit?.short_name ?? r.unit?.name ?? '—' },
+      { header: 'Qty', field: 'qty', className: 'text-end', headerClassName: 'text-end', body: (r) => <span className="text-end d-block">{Number.isFinite(r.qty) ? r.qty : '—'}</span> },
+      { header: 'Alert', field: 'qty_alert', className: 'text-end', headerClassName: 'text-end', body: (r) => <span className="text-end d-block">{Number.isFinite(r.qty_alert) ? r.qty_alert : '—'}</span> },
+      { header: 'Updated', field: 'updated_at', body: (r) => <span className="userimgname text-muted small">{formatListDate(r.updated_at)}</span> }
+    ],
+    []
+  );
 
-  const safePage = Math.min(currentPage, totalPages);
-  const startIdx = (safePage - 1) * rows;
-  const pageRows = filtered.slice(startIdx, startIdx + rows);
-  const showingFrom = filtered.length === 0 ? 0 : startIdx + 1;
-  const showingTo = Math.min(startIdx + pageRows.length, filtered.length);
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((r) => ({
+      Item: String(r.name ?? ''),
+      SKU: String(r.sku ?? ''),
+      Category: String(r.category?.name ?? ''),
+      Brand: String(r.brand?.name ?? ''),
+      Unit: String(r.unit?.short_name ?? r.unit?.name ?? ''),
+      Qty: Number.isFinite(r.qty) ? r.qty : '',
+      Alert: Number.isFinite(r.qty_alert) ? r.qty_alert : '',
+      Updated: formatListDate(r.updated_at)
+    }));
+    await downloadRowsExcel(records, tab === 'out' ? 'Out of stock' : 'Low stock', tab === 'out' ? 'out-of-stock' : 'low-stock');
+  }, [filtered, tab]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((r) => [
+      String(r.name ?? ''),
+      String(r.sku ?? ''),
+      String(r.category?.name ?? ''),
+      String(r.brand?.name ?? ''),
+      String(r.unit?.short_name ?? r.unit?.name ?? ''),
+      Number.isFinite(r.qty) ? String(r.qty) : '',
+      Number.isFinite(r.qty_alert) ? String(r.qty_alert) : '',
+      formatListDate(r.updated_at)
+    ]);
+    await downloadRowsPdf(
+      tab === 'out' ? 'Out of stock' : 'Low stock',
+      ['Item', 'SKU', 'Category', 'Brand', 'Unit', 'Qty', 'Alert', 'Updated'],
+      body,
+      tab === 'out' ? 'out-of-stock' : 'low-stock'
+    );
+  }, [filtered, tab]);
 
   return (
     <div className="tf-item-list-page">
@@ -107,6 +154,16 @@ export default function AdminLowStock() {
           </div>
         </div>
         <ul className="table-top-head">
+          <li>
+            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-file-text" />
+            </button>
+          </li>
+          <li>
+            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-download" />
+            </button>
+          </li>
           <li>
             <button type="button" title="Refresh" onClick={() => void load()}>
               <i className="feather icon-refresh-cw" />
@@ -147,20 +204,6 @@ export default function AdminLowStock() {
                 </div>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select
-                className="form-select form-select-sm"
-                value={rows}
-                onChange={(e) => setRows(Number(e.target.value))}
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Low stock tab">
               <button
                 type="button"
@@ -181,88 +224,19 @@ export default function AdminLowStock() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>SKU</th>
-                  <th>Category</th>
-                  <th>Brand</th>
-                  <th>Unit</th>
-                  <th>Qty</th>
-                  <th>Alert</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-5 text-muted">
-                      No results.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(r.name)}</div>
-                          <span>{r.name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="tf-mono">{r.sku ?? '—'}</span>
-                      </td>
-                      <td>{r.category?.name ?? '—'}</td>
-                      <td>{r.brand?.name ?? '—'}</td>
-                      <td>{r.unit?.short_name ?? r.unit?.name ?? '—'}</td>
-                      <td>{Number.isFinite(r.qty) ? r.qty : '—'}</td>
-                      <td>{Number.isFinite(r.qty_alert) ? r.qty_alert : '—'}</td>
-                      <td>
-                        <span className="userimgname text-muted small">{formatListDate(r.updated_at)}</span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((x) => Math.max(1, x - 1))}
-                >
-                  Previous
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((x) => Math.min(totalPages, x + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

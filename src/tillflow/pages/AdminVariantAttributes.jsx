@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
+import PrimeDataTable from '../../components/data-table';
 import { TillFlowApiError } from '../api/errors';
 import {
   createVariantAttributeRequest,
@@ -12,6 +13,7 @@ import {
 } from '../api/variantAttributes';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
   if (!iso) {
@@ -263,6 +265,115 @@ export default function AdminVariantAttributes() {
     }
   }
 
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((a) => ({
+      Variant: String(a.name ?? ''),
+      Values: Array.isArray(a.values) ? a.values.join(', ') : String(a.values ?? ''),
+      Created: formatListDate(a.created_at),
+      Status: a.is_active ? 'Active' : 'Inactive'
+    }));
+    await downloadRowsExcel(records, 'Variant attributes', viewTrash ? 'variant-attributes-trash' : 'variant-attributes');
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((a) => [
+      String(a.name ?? ''),
+      Array.isArray(a.values) ? a.values.join(', ') : String(a.values ?? ''),
+      formatListDate(a.created_at),
+      a.is_active ? 'Active' : 'Inactive'
+    ]);
+    await downloadRowsPdf(
+      viewTrash ? 'Variant attributes (trash)' : 'Variant attributes',
+      ['Variant', 'Values', 'Created', 'Status'],
+      body,
+      viewTrash ? 'variant-attributes-trash' : 'variant-attributes'
+    );
+  }, [filtered, viewTrash]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
+            <span className="checkmarks" />
+          </label>
+        ),
+        field: 'select',
+        sortable: false,
+        body: (a) => (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleRow(a.id)} />
+            <span className="checkmarks" />
+          </label>
+        )
+      },
+      {
+        header: 'Variant',
+        field: 'name',
+        body: (a) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(a.name)}</div>
+            <span>{a.name}</span>
+          </div>
+        )
+      },
+      { header: 'Values', field: 'values', body: (a) => (Array.isArray(a.values) ? a.values.join(', ') : String(a.values ?? '')) },
+      { header: 'Created', field: 'created_at', body: (a) => <span className="userimgname text-muted small">{formatListDate(a.created_at)}</span> },
+      {
+        header: 'Status',
+        field: 'is_active',
+        body: (a) => (
+          <span className={`badge ${a.is_active ? 'bg-success' : 'bg-secondary'} fw-medium fs-10`}>
+            {a.is_active ? 'Active' : 'Inactive'}
+          </span>
+        )
+      },
+      {
+        header: 'Actions',
+        field: 'actions',
+        sortable: false,
+        className: 'text-end',
+        headerClassName: 'text-end',
+        body: (a) => (
+          <div className="edit-delete-action d-flex align-items-center justify-content-end">
+            {viewTrash ? (
+              <button
+                type="button"
+                className="p-2 d-flex align-items-center border rounded bg-transparent"
+                disabled={restoreSubmittingId === a.id}
+                onClick={() => void handleRestore(a.id)}
+                title="Restore"
+              >
+                <i className="feather icon-rotate-ccw" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => startEdit(a)}
+                  title="Edit"
+                >
+                  <i className="feather icon-edit" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => openDeleteModal(a.id, a.name)}
+                  title="Move to trash"
+                >
+                  <i className="feather icon-trash-2" />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+    ],
+    [allPageSelected, selectedIds, viewTrash, restoreSubmittingId]
+  );
+
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
@@ -273,6 +384,16 @@ export default function AdminVariantAttributes() {
           </div>
         </div>
         <ul className="table-top-head">
+          <li>
+            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-file-text" />
+            </button>
+          </li>
+          <li>
+            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-download" />
+            </button>
+          </li>
           <li>
             <button type="button" title="Refresh" onClick={() => void load()}>
               <i className="feather icon-refresh-cw" />
@@ -327,15 +448,6 @@ export default function AdminVariantAttributes() {
                 </div>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select className="form-select form-select-sm" value={rows} onChange={(e) => setRows(Number(e.target.value))}>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Active or trash">
               <button
                 type="button"
@@ -356,129 +468,19 @@ export default function AdminVariantAttributes() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th className="no-sort">
-                    <label className="checkboxs mb-0">
-                      <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
-                      <span className="checkmarks" />
-                    </label>
-                  </th>
-                  <th>Variant</th>
-                  <th>Values</th>
-                  <th>Created</th>
-                  <th>Status</th>
-                  <th className="no-sort" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-5 text-muted">
-                      No attributes found.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <label className="checkboxs mb-0">
-                          <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleRow(a.id)} />
-                          <span className="checkmarks" />
-                        </label>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(a.name)}</div>
-                          <span>{a.name}</span>
-                        </div>
-                      </td>
-                      <td>{Array.isArray(a.values) ? a.values.join(', ') : String(a.values ?? '')}</td>
-                      <td>
-                        <span className="userimgname text-muted small">{formatListDate(a.created_at)}</span>
-                      </td>
-                      <td>
-                        <span className={`badge ${a.is_active ? 'bg-success' : 'bg-secondary'} fw-medium fs-10`}>
-                          {a.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="edit-delete-action d-flex align-items-center">
-                          {viewTrash ? (
-                            <button
-                              type="button"
-                              className="p-2 d-flex align-items-center border rounded bg-transparent"
-                              disabled={restoreSubmittingId === a.id}
-                              onClick={() => void handleRestore(a.id)}
-                              title="Restore"
-                            >
-                              <i className="feather icon-rotate-ccw" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => startEdit(a)}
-                                title="Edit"
-                              >
-                                <i className="feather icon-edit" />
-                              </button>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => openDeleteModal(a.id, a.name)}
-                                title="Move to trash"
-                              >
-                                <i className="feather icon-trash-2" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((x) => Math.max(1, x - 1))}
-                >
-                  Previous
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((x) => Math.min(totalPages, x + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

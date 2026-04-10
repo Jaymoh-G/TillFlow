@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
 import CommonFooter from "../../components/footer/commonFooter";
+import PrimeDataTable from "../../components/data-table";
 import { apiDeliveryNoteToRow, deliveryStatusBadgeClass } from "../../feature-module/sales/deliveryNoteViewHelpers";
 import { TillFlowApiError } from "../api/errors";
 import { listDeliveryNotesRequest } from "../api/deliveryNotes";
@@ -16,6 +17,8 @@ export default function AdminDeliveryNotes() {
   const [statusFilter, setStatusFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [tableRows, setTableRows] = useState(10);
+  const [tableCurrentPage, setTableCurrentPage] = useState(1);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -52,6 +55,94 @@ export default function AdminDeliveryNotes() {
   }, [load]);
 
   const statusOptions = useMemo(() => ["", "Draft", "Issued", "Cancelled"], []);
+  const columns = useMemo(
+    () => [
+      {
+        header: "Delivery note",
+        field: "deliveryNoteNo",
+        body: (row) => (
+          <Link to={`/tillflow/admin/delivery-notes/${row.apiId}`} className="fw-medium">
+            {row.deliveryNoteNo}
+          </Link>
+        )
+      },
+      {
+        header: "Invoice",
+        field: "invoiceRef",
+        body: (row) =>
+          row.invoiceId ? (
+            <Link to={`/tillflow/admin/invoices/${row.invoiceId}`}>{row.invoiceRef || `Invoice #${row.invoiceId}`}</Link>
+          ) : (
+            row.invoiceRef || "—"
+          )
+      },
+      { header: "Customer", field: "customerName", body: (row) => row.customerName || "—" },
+      { header: "Issue date", field: "issueDate", body: (row) => row.issueDate || "—" },
+      {
+        header: "Qty",
+        field: "totalQty",
+        className: "text-end",
+        body: (row) => <span className="text-end d-block">{row.totalQty}</span>
+      },
+      {
+        header: "Status",
+        field: "status",
+        body: (row) => (
+          <span className={`badge ${deliveryStatusBadgeClass(row.status)} badge-xs shadow-none`}>
+            {row.status}
+          </span>
+        )
+      },
+      {
+        header: "Actions",
+        field: "action",
+        sortable: false,
+        className: "text-end",
+        body: (row) => (
+          <div className="text-end text-nowrap">
+            <Dropdown align="end">
+              <Dropdown.Toggle
+                variant="light"
+                id={`delivery-note-actions-${String(row.apiId ?? row.id)}`}
+                className="btn btn-sm btn-light border rounded py-1 px-2 d-inline-flex align-items-center justify-content-center tf-delivery-notes-kebab"
+                aria-label="Delivery note actions">
+                <i className="ti ti-dots-vertical" />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item as={Link} to={`/tillflow/admin/delivery-notes/${row.apiId}`}>
+                  <i className="ti ti-eye me-2 text-dark" />
+                  View
+                </Dropdown.Item>
+                {row.invoiceId ? (
+                  <Dropdown.Item as={Link} to={`/tillflow/admin/invoices/${row.invoiceId}`}>
+                    <i className="ti ti-file-invoice me-2 text-dark" />
+                    View invoice
+                  </Dropdown.Item>
+                ) : null}
+                <Dropdown.Item
+                  as={Link}
+                  to={`/tillflow/admin/delivery-notes/${row.apiId}?emailCustomer=1`}
+                  disabled={String(row.status ?? "") === "Cancelled" || !String(row.customerEmail ?? "").trim()}>
+                  <i className="ti ti-send me-2 text-dark" />
+                  Send to customer
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <Dropdown.Item
+                  as={Link}
+                  to={`/tillflow/admin/delivery-notes/${row.apiId}?cancel=1`}
+                  className="text-danger"
+                  disabled={String(row.status ?? "") === "Cancelled"}>
+                  <i className="ti ti-trash me-2" />
+                  Cancel note
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        )
+      }
+    ],
+    []
+  );
 
   return (
     <div className="page-wrapper invoice-payments-page">
@@ -104,100 +195,17 @@ export default function AdminDeliveryNotes() {
               </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Delivery note</th>
-                    <th>Invoice</th>
-                    <th>Customer</th>
-                    <th>Issue date</th>
-                    <th className="text-end">Qty</th>
-                    <th>Status</th>
-                    <th className="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4 text-muted">
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4 text-muted">
-                        No delivery notes found.
-                      </td>
-                    </tr>
-                  ) : (
-                    rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <Link to={`/tillflow/admin/delivery-notes/${row.apiId}`} className="fw-medium">
-                            {row.deliveryNoteNo}
-                          </Link>
-                        </td>
-                        <td>
-                          {row.invoiceId ? (
-                            <Link to={`/tillflow/admin/invoices/${row.invoiceId}`}>{row.invoiceRef || `Invoice #${row.invoiceId}`}</Link>
-                          ) : (
-                            row.invoiceRef || "—"
-                          )}
-                        </td>
-                        <td>{row.customerName || "—"}</td>
-                        <td>{row.issueDate || "—"}</td>
-                        <td className="text-end">{row.totalQty}</td>
-                        <td>
-                          <span className={`badge ${deliveryStatusBadgeClass(row.status)} badge-xs shadow-none`}>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="text-end text-nowrap">
-                          <Dropdown align="end">
-                            <Dropdown.Toggle
-                              variant="light"
-                              id={`delivery-note-actions-${String(row.apiId ?? row.id)}`}
-                              className="btn btn-sm btn-light border rounded py-1 px-2 d-inline-flex align-items-center justify-content-center tf-delivery-notes-kebab"
-                              aria-label="Delivery note actions">
-                              <i className="ti ti-dots-vertical" />
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu>
-                              <Dropdown.Item as={Link} to={`/tillflow/admin/delivery-notes/${row.apiId}`}>
-                                <i className="ti ti-eye me-2 text-dark" />
-                                View
-                              </Dropdown.Item>
-                              {row.invoiceId ? (
-                                <Dropdown.Item as={Link} to={`/tillflow/admin/invoices/${row.invoiceId}`}>
-                                  <i className="ti ti-file-invoice me-2 text-dark" />
-                                  View invoice
-                                </Dropdown.Item>
-                              ) : null}
-                              <Dropdown.Item
-                                as={Link}
-                                to={`/tillflow/admin/delivery-notes/${row.apiId}?emailCustomer=1`}
-                                disabled={String(row.status ?? "") === "Cancelled" || !String(row.customerEmail ?? "").trim()}>
-                                <i className="ti ti-send me-2 text-dark" />
-                                Send to customer
-                              </Dropdown.Item>
-                              <Dropdown.Divider />
-                              <Dropdown.Item
-                                as={Link}
-                                to={`/tillflow/admin/delivery-notes/${row.apiId}?cancel=1`}
-                                className="text-danger"
-                                disabled={String(row.status ?? "") === "Cancelled"}>
-                                <i className="ti ti-trash me-2" />
-                                Cancel note
-                              </Dropdown.Item>
-                            </Dropdown.Menu>
-                          </Dropdown>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <PrimeDataTable
+              column={columns}
+              data={rows}
+              rows={tableRows}
+              setRows={setTableRows}
+              currentPage={tableCurrentPage}
+              setCurrentPage={setTableCurrentPage}
+              totalRecords={rows.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
         </div>
       </div>

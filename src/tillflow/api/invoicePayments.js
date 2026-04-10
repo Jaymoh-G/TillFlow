@@ -66,3 +66,34 @@ export function deleteInvoicePaymentRequest(token, invoiceId, paymentId) {
     { method: "DELETE", token }
   );
 }
+
+export function previewInvoicePaymentReceiptEmailRequest(token, paymentId) {
+  return tillflowFetch(`/invoice-payments/${encodeURIComponent(String(paymentId))}/email-preview`, { token });
+}
+
+/**
+ * Send a payment receipt to customer email.
+ */
+export async function sendInvoicePaymentReceiptToCustomerRequest(
+  token,
+  _invoiceId,
+  paymentId,
+  options = {}
+) {
+  const body = {};
+  if (typeof options.toEmail === "string" && options.toEmail.trim()) {
+    body.to_email = options.toEmail.trim();
+  }
+  if (typeof options.subject === "string" && options.subject.trim()) {
+    body.subject = options.subject.trim();
+  }
+  if (typeof options.message === "string" && options.message.trim()) {
+    body.message = options.message.trim();
+  }
+  const payload = Object.keys(body).length ? body : undefined;
+  return tillflowFetch(`/invoice-payments/${encodeURIComponent(String(paymentId))}/send-to-customer`, {
+    method: "POST",
+    token,
+    body: payload
+  });
+}

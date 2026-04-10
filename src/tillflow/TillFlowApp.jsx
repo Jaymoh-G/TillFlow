@@ -18,7 +18,6 @@ import ManageStock from '../feature-module/stock/manage-stock';
 import StockAdjustment from '../feature-module/stock/stock-adjustment';
 import StockTransfer from '../feature-module/stock/stock-transfer';
 import ManageStores from '../feature-module/stores/manage-stores';
-import PosOrder from '../feature-module/sales/pos-order/posOrder';
 import OnlineOrder from '../feature-module/sales/online-order/online-orders';
 import QuotationList from '../feature-module/sales/quotationlist';
 import Invoice from '../feature-module/sales/invoicelist';
@@ -29,6 +28,8 @@ import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
 import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
 import AdminCreditNotes from './pages/AdminCreditNotes';
 import AdminCreditNoteDetail from './pages/AdminCreditNoteDetail';
+import AdminPosOrders from './pages/AdminPosOrders';
+import AdminPosOrderDetail from './pages/AdminPosOrderDetail';
 import SalesReturn from '../feature-module/sales/salesreturn';
 import Customers from '../feature-module/people/customers';
 import Biller from '../feature-module/people/billers';
@@ -101,10 +102,12 @@ export default function TillFlowApp() {
                 <Route path="stock-transfer" element={<StockTransfer />} />
                 <Route path="stores" element={<ManageStores />} />
                 <Route path="print-barcode" element={<AdminPrintBarcode />} />
-                <Route path="pos-orders" element={<PosOrder />} />
+                <Route path="pos-orders/:posOrderId" element={<AdminPosOrderDetail />} />
+                <Route path="pos-orders" element={<AdminPosOrders />} />
                 <Route path="online-orders" element={<OnlineOrder />} />
                 <Route path="quotations/new" element={<QuotationList />} />
                 <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
+                <Route path="quotations/:quotationId" element={<QuotationList />} />
                 <Route path="quotations" element={<QuotationList />} />
                 <Route path="invoices/new" element={<Invoice />} />
                 <Route path="invoices/:invoiceId/edit" element={<Invoice />} />

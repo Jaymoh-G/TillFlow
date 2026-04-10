@@ -16,6 +16,7 @@ import {
   invoiceSentToCustomerHoverTitle,
   invoiceStatusBadgeClass,
   invoiceWasIssuedToCustomer,
+  receiptWasSentToCustomer,
   taxTotalFromInvoiceLineItems
 } from "../../feature-module/sales/invoiceViewHelpers";
 import {
@@ -31,6 +32,7 @@ import {
 } from "../../feature-module/sales/InvoicePaymentModals";
 import DocumentPdfPreviewModal from "../../components/DocumentPdfPreviewModal";
 import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
+import PrimeDataTable from "../../components/data-table";
 import {
   createHtmlDocumentPdfObjectUrl,
   downloadHtmlDocumentPdfFromElement,
@@ -43,6 +45,8 @@ import { TillFlowApiError } from "../api/errors";
 import {
   createInvoicePaymentRequest,
   paymentMethodLabel,
+  previewInvoicePaymentReceiptEmailRequest,
+  sendInvoicePaymentReceiptToCustomerRequest,
   updateInvoicePaymentRequest
 } from "../api/invoicePayments";
 import {
@@ -108,6 +112,8 @@ export default function AdminInvoiceDetail() {
   const [listRows, setListRows] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
+  const [listSidebarRows, setListSidebarRows] = useState(10);
+  const [listSidebarCurrentPage, setListSidebarCurrentPage] = useState(1);
 
   const [detailRow, setDetailRow] = useState(null);
   const [rawInvoice, setRawInvoice] = useState(null);
@@ -167,11 +173,51 @@ export default function AdminInvoiceDetail() {
   const [invoiceEmailPreviewLoading, setInvoiceEmailPreviewLoading] = useState(false);
   const [invoiceEmailPreviewError, setInvoiceEmailPreviewError] = useState("");
   const [invoiceEmailPreviewSending, setInvoiceEmailPreviewSending] = useState(false);
+  const [invoiceEmailPreviewSource, setInvoiceEmailPreviewSource] = useState("invoice");
+  const [invoiceEmailPreviewPaymentId, setInvoiceEmailPreviewPaymentId] = useState(null);
   const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState(null);
   const [invoiceEmailSuccessMessage, setInvoiceEmailSuccessMessage] = useState("");
   const invoiceEmailSuccessTimerRef = useRef(null);
 
   const viewDoc = useMemo(() => (detailRow ? buildInvoiceViewDocumentData(detailRow) : null), [detailRow]);
+  const listSidebarColumns = useMemo(
+    () => [
+      {
+        header: "Invoice",
+        field: "invoiceno",
+        body: (r) => (
+          <Link to={`/tillflow/admin/invoices/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
+            {r.invoiceno}
+          </Link>
+        )
+      },
+      {
+        header: "Customer",
+        field: "customer",
+        body: (r) => (
+          <span className="small text-truncate d-inline-block" style={{ maxWidth: 120 }} title={r.customer}>
+            {r.customer}
+          </span>
+        )
+      },
+      {
+        header: "Amount",
+        field: "amount",
+        className: "text-end",
+        body: (r) => <span className="small text-end d-block text-nowrap">{r.amount}</span>
+      },
+      {
+        header: "Status",
+        field: "status",
+        body: (r) => (
+          <span className={`badge ${invoiceStatusBadgeClass(r.status)} badge-xs shadow-none`}>
+            {String(r.status ?? "").replace(/_/g, " ")}
+          </span>
+        )
+      }
+    ],
+    []
+  );
 
   const isCancelled = String(detailRow?.status ?? "") === "Cancelled";
   const isDraftInvoice = String(detailRow?.status ?? "") === "Draft";
@@ -489,9 +535,11 @@ export default function AdminInvoiceDetail() {
     setInvoiceEmailPreviewLoading(false);
     setInvoiceEmailPreviewError("");
     setInvoiceEmailPreviewSending(false);
+    setInvoiceEmailPreviewSource("invoice");
+    setInvoiceEmailPreviewPaymentId(null);
   }, []);
 
-  const openSendInvoiceEmailPreview = useCallback(async () => {
+  const openSendInvoiceEmailPreview = useCallback(async (source = "invoice") => {
     if (!token || !detailRow?.apiId || String(detailRow.status ?? "") === "Cancelled") {
       return;
     }
@@ -505,6 +553,7 @@ export default function AdminInvoiceDetail() {
     setInvoiceEmailPreviewMessage("");
     setInvoiceEmailPreviewError("");
     setInvoiceEmailPreviewOpen(true);
+    setInvoiceEmailPreviewSource(source === "receipt" ? "receipt" : "invoice");
     setInvoiceEmailPreviewLoading(true);
     try {
       const data = await previewInvoiceEmailRequest(token, detailRow.apiId);
@@ -525,14 +574,37 @@ export default function AdminInvoiceDetail() {
     }
   }, [token, detailRow?.apiId, detailRow?.status, detailRow?.customerEmail]);
 
-  const handleOpenInvoiceEmailFromReceipt = useCallback(() => {
-    if (!detailRow?.apiId || isCancelled || !String(detailRow.customerEmail ?? "").trim()) {
+  const handleSendReceiptToCustomer = useCallback(async () => {
+    if (!token || !detailRow?.apiId || isCancelled || !String(detailRow.customerEmail ?? "").trim() || !receiptPreview?.id) {
       return;
     }
-    setReceiptPreview(null);
-    setReceiptPreviewRow(null);
-    void openSendInvoiceEmailPreview();
-  }, [detailRow, isCancelled, openSendInvoiceEmailPreview]);
+    try {
+      setInvoiceEmailPreviewSubject("");
+      setInvoiceEmailPreviewHtml("");
+      setInvoiceEmailPreviewTo(String(detailRow.customerEmail ?? "").trim());
+      setInvoiceEmailPreviewMessage("");
+      setInvoiceEmailPreviewError("");
+      setInvoiceEmailPreviewOpen(true);
+      setInvoiceEmailPreviewSource("receipt");
+      setInvoiceEmailPreviewPaymentId(receiptPreview.id);
+      setInvoiceEmailPreviewLoading(true);
+      const data = await previewInvoicePaymentReceiptEmailRequest(token, receiptPreview.id);
+      setInvoiceEmailPreviewSubject(String(data?.subject ?? ""));
+      setInvoiceEmailPreviewHtml(String(data?.html ?? ""));
+      if (String(data?.to_email ?? "").trim()) {
+        setInvoiceEmailPreviewTo(String(data.to_email).trim());
+      }
+      setInvoiceEmailPreviewMessage(String(data?.message_template ?? "Please find your payment receipt details below."));
+    } catch (e) {
+      if (e instanceof TillFlowApiError) {
+        setInvoiceEmailPreviewError(e.message);
+      } else {
+        setInvoiceEmailPreviewError("Could not load receipt email preview.");
+      }
+    } finally {
+      setInvoiceEmailPreviewLoading(false);
+    }
+  }, [token, detailRow, isCancelled, receiptPreview?.id]);
 
   const confirmSendInvoiceFromPreview = useCallback(async () => {
     if (!token || !detailRow?.apiId || String(detailRow.status ?? "") === "Cancelled") {
@@ -541,6 +613,34 @@ export default function AdminInvoiceDetail() {
     const wasResend = invoiceWasIssuedToCustomer(detailRow);
     setInvoiceEmailPreviewSending(true);
     try {
+      if (invoiceEmailPreviewSource === "receipt") {
+        const paymentId = invoiceEmailPreviewPaymentId;
+        if (!paymentId) {
+          throw new Error("Missing receipt payment id.");
+        }
+        const data = await sendInvoicePaymentReceiptToCustomerRequest(token, detailRow.apiId, paymentId, {
+          toEmail: String(invoiceEmailPreviewTo ?? "").trim(),
+          subject: String(invoiceEmailPreviewSubject ?? "").trim(),
+          message: String(invoiceEmailPreviewMessage ?? "")
+        });
+        if (data?.payment?.id) {
+          const sentPay = data.payment;
+          setReceiptPreview((prev) => (prev && String(prev.id) === String(sentPay.id) ? { ...prev, ...sentPay } : prev));
+          setDetailRow((prev) => {
+            if (!prev) {
+              return prev;
+            }
+            const nextPayments = Array.isArray(prev.payments)
+              ? prev.payments.map((p) => (String(p.id) === String(sentPay.id) ? { ...p, ...sentPay } : p))
+              : prev.payments;
+            return { ...prev, payments: nextPayments };
+          });
+        }
+        const msg = String(data?.message ?? "").trim() || "Receipt was sent to the customer.";
+        showInvoiceEmailSuccess(msg);
+        resetInvoiceEmailPreview();
+        return;
+      }
       let pdfBlob = null;
       const useClientPdf = invoiceWasIssuedToCustomer(detailRow);
       if (useClientPdf && typeof document !== "undefined") {
@@ -602,7 +702,16 @@ export default function AdminInvoiceDetail() {
         const rowOut = {
           ...inv,
           id: String(inv.id),
-          taxNum: taxTotalFromInvoiceLineItems(inv.items)
+          taxNum: taxTotalFromInvoiceLineItems(inv.items),
+          ...(invoiceEmailPreviewSource === "invoice"
+            ? {
+                sentToCustomerAt: inv.sentToCustomerAt || new Date().toISOString(),
+                emailSentConfirmed: true
+              }
+            : {
+                sentToCustomerAt: detailRow?.sentToCustomerAt ?? null,
+                emailSentConfirmed: Boolean(detailRow?.emailSentConfirmed)
+              })
         };
         mergeRowIntoList(rowOut);
         setRawInvoice(data.invoice);
@@ -628,6 +737,8 @@ export default function AdminInvoiceDetail() {
     invoiceEmailPreviewTo,
     invoiceEmailPreviewSubject,
     invoiceEmailPreviewMessage,
+    invoiceEmailPreviewSource,
+    invoiceEmailPreviewPaymentId,
     customers,
     mergeRowIntoList,
     resetInvoiceEmailPreview,
@@ -1096,37 +1207,17 @@ export default function AdminInvoiceDetail() {
           {listError ? <div className="alert alert-warning py-2 small">{listError}</div> : null}
           {listLoading ? <p className="text-muted small">Loading…</p> : null}
           <div className="tf-admin-invoice-detail__list-scroll">
-            <table className="table table-sm table-hover mb-0 align-middle">
-              <thead className="sticky-top bg-body">
-                <tr>
-                  <th>Invoice</th>
-                  <th>Customer</th>
-                  <th className="text-end">Amount</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listRows.map((r) => {
-                  const active = String(r.apiId ?? "") === String(invoiceId ?? "");
-                  return (
-                    <tr key={String(r.apiId ?? r.id)} className={active ? "table-active" : undefined}>
-                      <td className="fw-medium text-nowrap">
-                        <Link to={`/tillflow/admin/invoices/${r.apiId ?? r.id}`}>{r.invoiceno}</Link>
-                      </td>
-                      <td className="small text-truncate" style={{ maxWidth: 120 }} title={r.customer}>
-                        {r.customer}
-                      </td>
-                      <td className="small text-end text-nowrap">{r.amount}</td>
-                      <td>
-                        <span className={`badge ${invoiceStatusBadgeClass(r.status)} badge-xs shadow-none`}>
-                          {String(r.status ?? "").replace(/_/g, " ")}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <PrimeDataTable
+              column={listSidebarColumns}
+              data={listRows}
+              rows={listSidebarRows}
+              setRows={setListSidebarRows}
+              currentPage={listSidebarCurrentPage}
+              setCurrentPage={setListSidebarCurrentPage}
+              totalRecords={listRows.length}
+              loading={listLoading}
+              isPaginationEnabled
+            />
           </div>
           <div className="mt-2">
             <NavLink to="/tillflow/admin/invoices" className="small">
@@ -1607,7 +1698,7 @@ export default function AdminInvoiceDetail() {
         }}
         onDownloadPdf={handleDownloadReceiptPdf}
         tillflowEmailActionsEnabled={Boolean(token)}
-        onOpenInvoiceEmailPreview={token ? handleOpenInvoiceEmailFromReceipt : undefined}
+        onSendReceiptToCustomer={token ? handleSendReceiptToCustomer : undefined}
         onViewInvoicePdf={token ? () => void handleViewPdfPreview() : undefined}
         onActivityLog={
           token ? () => setPlaceholder({ title: "Activity log", body: placeholderBody }) : undefined
@@ -1688,7 +1779,11 @@ export default function AdminInvoiceDetail() {
         showHtmlPreview={false}
         sending={invoiceEmailPreviewSending}
         sendButtonLabel={
-          detailRow && invoiceWasIssuedToCustomer(detailRow) ? "Resend email" : "Send email"
+          invoiceEmailPreviewSource === "receipt"
+            ? (receiptWasSentToCustomer(receiptPreview) ? "Resend receipt" : "Send receipt")
+            : detailRow && invoiceWasIssuedToCustomer(detailRow)
+              ? "Resend email"
+              : "Send email"
         }
         sendDisabled={
           !detailRow?.apiId ||

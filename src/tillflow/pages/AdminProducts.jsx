@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { TillFlowApiError } from '../api/errors';
-import { deleteProductRequest, listProductsRequest, listTrashedProductsRequest, restoreProductRequest } from '../api/products';
-import { useAuth } from '../auth/AuthContext';
-import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import PrimeDataTable from "../../components/data-table";
+import { TillFlowApiError } from "../api/errors";
+import { deleteProductRequest, listProductsRequest, listTrashedProductsRequest, restoreProductRequest } from "../api/products";
+import { useAuth } from "../auth/AuthContext";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
+import { downloadItemsExcel, downloadItemsPdf } from "../utils/itemListExport";
 
 function initials(name) {
-  const parts = (name || '').trim().split(/\s+/);
+  const parts = (name || "").trim().split(/\s+/);
   if (parts.length === 0) {
-    return '?';
+    return "?";
   }
   if (parts.length === 1) {
     return parts[0].slice(0, 2).toUpperCase();
@@ -18,22 +20,22 @@ function initials(name) {
 
 function formatListDate(iso) {
   if (!iso) {
-    return '—';
+    return "—";
   }
   try {
     return new Date(iso).toLocaleString();
   } catch {
-    return '—';
+    return "—";
   }
 }
 
 function formatPrice(val) {
-  if (val == null || val === '') {
-    return '—';
+  if (val == null || val === "") {
+    return "—";
   }
   const n = Number(val);
   if (Number.isNaN(n)) {
-    return '—';
+    return "—";
   }
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
@@ -42,11 +44,11 @@ export default function AdminProducts() {
   const { token } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [listError, setListError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [listError, setListError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -57,19 +59,17 @@ export default function AdminProducts() {
     if (!token) {
       return;
     }
-    setListError('');
+    setListError("");
     setLoading(true);
     try {
-      const data = viewTrash
-        ? await listTrashedProductsRequest(token)
-        : await listProductsRequest(token);
+      const data = viewTrash ? await listTrashedProductsRequest(token) : await listProductsRequest(token);
       setProducts(data.products ?? []);
     } catch (e) {
       setProducts([]);
       if (e instanceof TillFlowApiError) {
         setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
       } else {
-        setListError('Failed to load items');
+        setListError("Failed to load items");
       }
     } finally {
       setLoading(false);
@@ -77,12 +77,12 @@ export default function AdminProducts() {
   }, [token, viewTrash]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   useEffect(() => {
     setCurrentPage(1);
-    setSelectedIds(new Set());
+    setSelectedProducts([]);
   }, [viewTrash]);
 
   const filtered = useMemo(() => {
@@ -106,101 +106,197 @@ export default function AdminProducts() {
     setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
   }, [totalPages]);
 
-  const safePage = Math.min(currentPage, totalPages);
-  const startIdx = (safePage - 1) * rows;
-  const pageRows = filtered.slice(startIdx, startIdx + rows);
-  const showingFrom = filtered.length === 0 ? 0 : startIdx + 1;
-  const showingTo = Math.min(startIdx + pageRows.length, filtered.length);
-
-  const allPageSelected = pageRows.length > 0 && pageRows.every((p) => selectedIds.has(p.id));
-
-  function toggleSelectAllOnPage() {
-    const next = new Set(selectedIds);
-    if (allPageSelected) {
-      pageRows.forEach((p) => next.delete(p.id));
-    } else {
-      pageRows.forEach((p) => next.add(p.id));
-    }
-    setSelectedIds(next);
-  }
-
-  function toggleRow(id) {
-    const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    setSelectedIds(next);
-  }
-
-  function openDeleteModal(productId, label) {
+  const openDeleteModal = useCallback((productId, label) => {
     setDeleteTarget({ id: productId, label });
-  }
+  }, []);
 
-  async function confirmDelete() {
+  const confirmDelete = useCallback(async () => {
     if (!deleteTarget || !token) {
       return;
     }
     const { id: productId } = deleteTarget;
     setDeleteSubmitting(true);
-    setListError('');
+    setListError("");
     try {
       await deleteProductRequest(token, productId);
-      selectedIds.delete(productId);
-      setSelectedIds(new Set(selectedIds));
+      setSelectedProducts((prev) => prev.filter((p) => p.id !== productId));
       setDeleteTarget(null);
       await load();
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setListError(err.message);
       } else {
-        setListError('Delete failed');
+        setListError("Delete failed");
       }
     } finally {
       setDeleteSubmitting(false);
     }
-  }
+  }, [deleteTarget, token, load]);
 
-  async function handleRestore(productId) {
-    if (!token) {
+  const handleRestore = useCallback(
+    async (productId) => {
+      if (!token) {
+        return;
+      }
+      setListError("");
+      setRestoreSubmittingId(productId);
+      try {
+        await restoreProductRequest(token, productId);
+        setSelectedProducts((prev) => prev.filter((p) => p.id !== productId));
+        await load();
+      } catch (err) {
+        if (err instanceof TillFlowApiError) {
+          setListError(err.message);
+        } else {
+          setListError("Restore failed");
+        }
+      } finally {
+        setRestoreSubmittingId(null);
+      }
+    },
+    [token, load]
+  );
+
+  const handleExportExcel = useCallback(async () => {
+    if (!filtered.length) {
+      window.alert("No items to export.");
       return;
     }
-    setListError('');
-    setRestoreSubmittingId(productId);
     try {
-      await restoreProductRequest(token, productId);
-      selectedIds.delete(productId);
-      setSelectedIds(new Set(selectedIds));
-      await load();
-    } catch (err) {
-      if (err instanceof TillFlowApiError) {
-        setListError(err.message);
-      } else {
-        setListError('Restore failed');
-      }
-    } finally {
-      setRestoreSubmittingId(null);
+      await downloadItemsExcel(filtered, viewTrash);
+    } catch {
+      window.alert("Could not export Excel. Try again or check download settings.");
     }
-  }
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!filtered.length) {
+      window.alert("No items to export.");
+      return;
+    }
+    try {
+      await downloadItemsPdf(filtered, viewTrash);
+    } catch {
+      window.alert("Could not export PDF. Try again or check download settings.");
+    }
+  }, [filtered, viewTrash]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: "SKU",
+        field: "sku",
+        body: (p) => <span className="tf-mono">{p.sku ?? "—"}</span>
+      },
+      {
+        header: "Item",
+        field: "name",
+        body: (p) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(p.name)}</div>
+            <span>{p.name}</span>
+          </div>
+        )
+      },
+      { header: "Category", field: "category.name", body: (p) => p.category?.name ?? "—" },
+      { header: "Brand", field: "brand.name", body: (p) => p.brand?.name ?? "—" },
+      {
+        header: "Selling",
+        field: "selling_price",
+        className: "text-end",
+        headerClassName: "text-end",
+        sortField: "selling_price",
+        body: (p) => <span className="text-end d-block">{formatPrice(p.selling_price)}</span>
+      },
+      {
+        header: "Unit",
+        field: "unit",
+        sortable: false,
+        body: (p) => p.unit?.short_name ?? p.unit?.name ?? "—"
+      },
+      {
+        header: "Qty",
+        field: "qty",
+        className: "text-end",
+        headerClassName: "text-end",
+        sortField: "qty",
+        body: (p) => <span className="text-end d-block">{p.qty != null ? p.qty : "—"}</span>
+      },
+      {
+        header: viewTrash ? "Deleted" : "Created by",
+        field: viewTrash ? "deleted_at" : "created_at",
+        body: (p) => (
+          <span className="userimgname text-muted small">
+            {formatListDate(viewTrash ? p.deleted_at : p.created_at)}
+          </span>
+        )
+      },
+      {
+        header: "Actions",
+        field: "actions",
+        sortable: false,
+        className: "text-end text-nowrap",
+        headerClassName: "text-end",
+        body: (p) => (
+          <div className="edit-delete-action d-flex align-items-center justify-content-end">
+            {viewTrash ? (
+              <button
+                type="button"
+                className="p-2 d-flex align-items-center border rounded bg-transparent"
+                disabled={restoreSubmittingId === p.id}
+                onClick={() => void handleRestore(p.id)}
+                title="Restore">
+                <i className="feather icon-rotate-ccw" />
+              </button>
+            ) : (
+              <>
+                <Link
+                  to={`/tillflow/admin/items/${p.id}/edit`}
+                  className="me-2 p-2 d-flex align-items-center border rounded bg-transparent text-reset"
+                  title="Edit">
+                  <i className="feather icon-edit" />
+                </Link>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => openDeleteModal(p.id, p.name)}
+                  title="Move to trash">
+                  <i className="feather icon-trash-2" />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+    ],
+    [viewTrash, restoreSubmittingId, handleRestore, openDeleteModal]
+  );
 
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
         <div className="add-item d-flex">
           <div className="page-title">
-            <h4>{viewTrash ? 'Trash' : 'Item List'}</h4>
-            <h6>{viewTrash ? 'Restore deleted items when needed' : 'Manage your items'}</h6>
+            <h4>{viewTrash ? "Trash" : "Item List"}</h4>
+            <h6>{viewTrash ? "Restore deleted items when needed" : "Manage your items"}</h6>
           </div>
         </div>
         <ul className="table-top-head">
           <li>
-            <button type="button" title="Export PDF (placeholder)" disabled>
+            <button
+              type="button"
+              title="Export PDF"
+              disabled={loading}
+              onClick={() => void handleExportPdf()}>
               <i className="feather icon-file-text" />
             </button>
           </li>
           <li>
-            <button type="button" title="Export Excel (placeholder)" disabled>
+            <button
+              type="button"
+              title="Export Excel"
+              disabled={loading}
+              onClick={() => void handleExportExcel()}>
               <i className="feather icon-download" />
             </button>
           </li>
@@ -257,33 +353,17 @@ export default function AdminProducts() {
                 </div>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select
-                className="form-select form-select-sm"
-                value={rows}
-                onChange={(e) => setRows(Number(e.target.value))}
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Active or trash">
               <button
                 type="button"
-                className={`btn ${!viewTrash ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setViewTrash(false)}
-              >
+                className={`btn ${!viewTrash ? "btn-primary" : "btn-outline-secondary"}`}
+                onClick={() => setViewTrash(false)}>
                 Active
               </button>
               <button
                 type="button"
-                className={`btn ${viewTrash ? 'btn-primary' : 'btn-outline-secondary'}`}
-                onClick={() => setViewTrash(true)}
-              >
+                className={`btn ${viewTrash ? "btn-primary" : "btn-outline-secondary"}`}
+                onClick={() => setViewTrash(true)}>
                 Trash
               </button>
             </div>
@@ -294,8 +374,7 @@ export default function AdminProducts() {
                 type="button"
                 className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
                 data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
+                aria-expanded="false">
                 Item
               </button>
               <ul className="dropdown-menu dropdown-menu-end p-3">
@@ -308,8 +387,7 @@ export default function AdminProducts() {
               <button
                 type="button"
                 className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown"
-              >
+                data-bs-toggle="dropdown">
                 Created By
               </button>
               <ul className="dropdown-menu dropdown-menu-end p-3">
@@ -322,8 +400,7 @@ export default function AdminProducts() {
               <button
                 type="button"
                 className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown"
-              >
+                data-bs-toggle="dropdown">
                 Category
               </button>
               <ul className="dropdown-menu dropdown-menu-end p-3">
@@ -336,8 +413,7 @@ export default function AdminProducts() {
               <button
                 type="button"
                 className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown"
-              >
+                data-bs-toggle="dropdown">
                 Brand
               </button>
               <ul className="dropdown-menu dropdown-menu-end p-3">
@@ -350,8 +426,7 @@ export default function AdminProducts() {
               <button
                 type="button"
                 className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown"
-              >
+                data-bs-toggle="dropdown">
                 Sort By : Last 7 Days
               </button>
               <ul className="dropdown-menu dropdown-menu-end p-3">
@@ -376,153 +451,38 @@ export default function AdminProducts() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th className="no-sort">
-                    <label className="checkboxs mb-0">
-                      <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
-                      <span className="checkmarks" />
-                    </label>
-                  </th>
-                  <th>SKU</th>
-                  <th>Item</th>
-                  <th>Category</th>
-                  <th>Brand</th>
-                  <th>Selling</th>
-                  <th>Unit</th>
-                  <th>Qty</th>
-                  <th>{viewTrash ? 'Deleted' : 'Created By'}</th>
-                  <th className="no-sort" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={10} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="text-center py-5 text-muted">
-                      No items found.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <label className="checkboxs mb-0">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(p.id)}
-                            onChange={() => toggleRow(p.id)}
-                          />
-                          <span className="checkmarks" />
-                        </label>
-                      </td>
-                      <td>
-                        <span className="tf-mono">{p.sku ?? '—'}</span>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(p.name)}</div>
-                          <span>{p.name}</span>
-                        </div>
-                      </td>
-                      <td>{p.category?.name ?? '—'}</td>
-                      <td>{p.brand?.name ?? '—'}</td>
-                      <td>{formatPrice(p.selling_price)}</td>
-                      <td>{p.unit?.short_name ?? p.unit?.name ?? '—'}</td>
-                      <td>{p.qty != null ? p.qty : '—'}</td>
-                      <td>
-                        <span className="userimgname text-muted small">
-                          {formatListDate(viewTrash ? p.deleted_at : p.created_at)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="edit-delete-action d-flex align-items-center">
-                          {viewTrash ? (
-                            <button
-                              type="button"
-                              className="p-2 d-flex align-items-center border rounded bg-transparent"
-                              disabled={restoreSubmittingId === p.id}
-                              onClick={() => void handleRestore(p.id)}
-                              title="Restore"
-                            >
-                              <i className="feather icon-rotate-ccw" />
-                            </button>
-                          ) : (
-                            <>
-                              <Link
-                                to={`/tillflow/admin/items/${p.id}/edit`}
-                                className="me-2 p-2 d-flex align-items-center border rounded bg-transparent text-reset"
-                                title="Edit"
-                              >
-                                <i className="feather icon-edit" />
-                              </Link>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => openDeleteModal(p.id, p.name)}
-                                title="Move to trash"
-                              >
-                                <i className="feather icon-trash-2" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+              selectionMode="checkbox"
+              selection={selectedProducts}
+              onSelectionChange={(e) => setSelectedProducts(Array.isArray(e.value) ? e.value : [])}
+              dataKey="id"
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((x) => Math.max(1, x - 1))}
-                >
-                  Previous
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((x) => Math.min(totalPages, x + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 
       <DeleteConfirmModal
         show={deleteTarget != null}
         onHide={() => {
-          if (!deleteSubmitting) setDeleteTarget(null);
+          if (!deleteSubmitting) {
+            setDeleteTarget(null);
+          }
         }}
         title="Move to trash"
         message={
           deleteTarget
             ? `Move "${deleteTarget.label}" to trash? You can restore it later from the Trash tab.`
-            : ''
+            : ""
         }
         confirmLabel="Move to trash"
         submittingLabel="Moving…"

@@ -7,9 +7,9 @@ function invoiceStatusTextClass(status) {
     .toLowerCase();
   switch (s) {
     case "paid":
-      return "text-black";
+      return "text-success";
     case "overdue":
-      return "text-warning text-dark";
+      return "text-warning";
     case "unpaid":
       return "text-danger";
     case "partially_paid":

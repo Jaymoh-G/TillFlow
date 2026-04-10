@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Modal from "react-bootstrap/Modal";
 import { Link, NavLink, useNavigate, useParams } from "react-router-dom";
 import DocumentPdfPreviewModal from "../../components/DocumentPdfPreviewModal";
+import PrimeDataTable from "../../components/data-table";
 import CommonFooter from "../../components/footer/commonFooter";
 import InvoicePrintDocument from "../../feature-module/sales/InvoicePrintDocument";
 import ReceiptPrintDocument from "../../feature-module/sales/ReceiptPrintDocument";
@@ -62,6 +63,18 @@ function enrichCustomerRow(baseRow, catalogCustomers) {
 
 const PAYMENTS_LIST_PATH = "/tillflow/admin/invoice-payments";
 
+function formatKes(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) {
+    return "—";
+  }
+  const num = new Intl.NumberFormat("en-KE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(x);
+  return `Ksh${num}`;
+}
+
 export default function AdminInvoicePaymentDetail() {
   const { paymentId } = useParams();
   const navigate = useNavigate();
@@ -72,6 +85,8 @@ export default function AdminInvoicePaymentDetail() {
   const [payments, setPayments] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
+  const [listSidebarRows, setListSidebarRows] = useState(10);
+  const [listSidebarCurrentPage, setListSidebarCurrentPage] = useState(1);
 
   const [customers, setCustomers] = useState([]);
   const [invoiceSideRow, setInvoiceSideRow] = useState(null);
@@ -141,6 +156,26 @@ export default function AdminInvoicePaymentDetail() {
   }, [paymentId, payments]);
 
   useEffect(() => {
+    if (paymentId == null || paymentId === "" || !payments.length) {
+      return;
+    }
+    let idx = -1;
+    const idNum = Number(paymentId);
+    if (Number.isFinite(idNum)) {
+      idx = payments.findIndex((p) => Number(p.id) === idNum);
+    }
+    if (idx < 0) {
+      const ref = String(paymentId).trim();
+      idx = payments.findIndex((p) => String(p.receipt_ref ?? "").trim() === ref);
+    }
+    if (idx < 0) {
+      return;
+    }
+    const page = Math.floor(idx / listSidebarRows) + 1;
+    setListSidebarCurrentPage(page);
+  }, [paymentId, payments, listSidebarRows]);
+
+  useEffect(() => {
     if (!token || !selected?.invoice_id) {
       setInvoiceSideRow(null);
       return;
@@ -176,6 +211,50 @@ export default function AdminInvoicePaymentDetail() {
       return null;
     });
   }, [selected?.invoice_id]);
+
+  const paymentSidebarColumns = useMemo(
+    () => [
+      {
+        header: "Receipt",
+        field: "receipt_ref",
+        body: (p) => (
+          <Link to={`${PAYMENTS_LIST_PATH}/${p.id}`} className="fw-medium text-nowrap">
+            {p.receipt_ref}
+          </Link>
+        )
+      },
+      {
+        header: "Customer",
+        field: "customer_name",
+        body: (p) => (
+          <span className="small text-truncate d-inline-block" style={{ maxWidth: 120 }} title={p.customer_name}>
+            {p.customer_name || "—"}
+          </span>
+        )
+      },
+      {
+        header: "Amount",
+        field: "amount",
+        className: "text-end",
+        body: (p) => <span className="small text-end d-block text-nowrap">{formatKes(p.amount)}</span>
+      },
+      {
+        header: "Status",
+        field: "invoice_status",
+        body: (p) => {
+          const invStatus = String(p.invoice_status ?? "").trim();
+          return invStatus ? (
+            <span className={`badge ${invoiceStatusBadgeClass(invStatus)} badge-xs shadow-none`}>
+              {invStatus.replace(/_/g, " ")}
+            </span>
+          ) : (
+            <span className="small">—</span>
+          );
+        }
+      }
+    ],
+    []
+  );
 
   const receiptDoc = useMemo(
     () => (selected ? buildReceiptViewData(selected, null) : null),
@@ -369,42 +448,18 @@ export default function AdminInvoicePaymentDetail() {
           {listError ? <div className="alert alert-warning py-2 small">{listError}</div> : null}
           {listLoading ? <p className="text-muted small">Loading…</p> : null}
           <div className="tf-admin-invoice-detail__list-scroll">
-            <table className="table table-sm table-hover mb-0 align-middle">
-              <thead className="sticky-top bg-body">
-                <tr>
-                  <th>Receipt</th>
-                  <th>Customer</th>
-                  <th>Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p) => {
-                  const active =
-                    String(p.id) === String(paymentId) || String(p.receipt_ref ?? "") === String(paymentId ?? "");
-                  const cust = String(p.customer_name ?? "").trim() || "—";
-                  const invStatus = String(p.invoice_status ?? "").trim();
-                  return (
-                    <tr key={p.id} className={active ? "table-active" : undefined}>
-                      <td className="fw-medium text-nowrap">
-                        <Link to={`${PAYMENTS_LIST_PATH}/${p.id}`}>{p.receipt_ref}</Link>
-                      </td>
-                      <td className="small text-truncate" style={{ maxWidth: 140 }} title={cust}>
-                        {cust}
-                      </td>
-                      <td className="small text-nowrap">
-                        {invStatus ? (
-                          <span className={`badge ${invoiceStatusBadgeClass(invStatus)} badge-xs shadow-none`}>
-                            {invStatus.replace(/_/g, " ")}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <PrimeDataTable
+              column={paymentSidebarColumns}
+              data={payments}
+              rows={listSidebarRows}
+              setRows={setListSidebarRows}
+              currentPage={listSidebarCurrentPage}
+              setCurrentPage={setListSidebarCurrentPage}
+              totalRecords={payments.length}
+              loading={listLoading}
+              isPaginationEnabled
+              sortable={false}
+            />
           </div>
           <div className="mt-2">
             <NavLink to={PAYMENTS_LIST_PATH} className="small">

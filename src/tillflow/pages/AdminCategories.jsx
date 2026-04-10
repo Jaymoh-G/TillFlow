@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
+import PrimeDataTable from '../../components/data-table';
 import { TillFlowApiError } from '../api/errors';
 import {
   createCategoryRequest,
@@ -12,6 +13,7 @@ import {
 } from '../api/categories';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
   if (!iso) {
@@ -280,6 +282,108 @@ export default function AdminCategories() {
     }
   }
 
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((c) => ({
+      Name: String(c.name ?? ''),
+      Slug: String(c.slug ?? ''),
+      [viewTrash ? 'Deleted' : 'Created']: formatListDate(viewTrash ? c.deleted_at : c.created_at)
+    }));
+    await downloadRowsExcel(records, 'Categories', viewTrash ? 'categories-trash' : 'categories');
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((c) => [
+      String(c.name ?? ''),
+      String(c.slug ?? ''),
+      formatListDate(viewTrash ? c.deleted_at : c.created_at)
+    ]);
+    await downloadRowsPdf(
+      viewTrash ? 'Categories (trash)' : 'Categories',
+      ['Name', 'Slug', viewTrash ? 'Deleted' : 'Created'],
+      body,
+      viewTrash ? 'categories-trash' : 'categories'
+    );
+  }, [filtered, viewTrash]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
+            <span className="checkmarks" />
+          </label>
+        ),
+        field: 'select',
+        sortable: false,
+        body: (c) => (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleRow(c.id)} />
+            <span className="checkmarks" />
+          </label>
+        )
+      },
+      {
+        header: 'Name',
+        field: 'name',
+        body: (c) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(c.name)}</div>
+            <span>{c.name}</span>
+          </div>
+        )
+      },
+      { header: 'Slug', field: 'slug', body: (c) => <span className="tf-mono">{c.slug ?? '—'}</span> },
+      {
+        header: viewTrash ? 'Deleted' : 'Created',
+        field: viewTrash ? 'deleted_at' : 'created_at',
+        body: (c) => <span className="userimgname text-muted small">{formatListDate(viewTrash ? c.deleted_at : c.created_at)}</span>
+      },
+      {
+        header: 'Actions',
+        field: 'actions',
+        sortable: false,
+        className: 'text-end',
+        headerClassName: 'text-end',
+        body: (c) => (
+          <div className="edit-delete-action d-flex align-items-center justify-content-end">
+            {viewTrash ? (
+              <button
+                type="button"
+                className="p-2 d-flex align-items-center border rounded bg-transparent"
+                disabled={restoreSubmittingId === c.id}
+                onClick={() => void handleRestore(c.id)}
+                title="Restore"
+              >
+                <i className="feather icon-rotate-ccw" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => startEdit(c)}
+                  title="Edit"
+                >
+                  <i className="feather icon-edit" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => openDeleteModal(c.id, c.name)}
+                  title="Move to trash"
+                >
+                  <i className="feather icon-trash-2" />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+    ],
+    [allPageSelected, selectedIds, viewTrash, restoreSubmittingId]
+  );
+
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
@@ -291,12 +395,12 @@ export default function AdminCategories() {
         </div>
         <ul className="table-top-head">
           <li>
-            <button type="button" title="Export PDF (placeholder)" disabled>
+            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
               <i className="feather icon-file-text" />
             </button>
           </li>
           <li>
-            <button type="button" title="Export Excel (placeholder)" disabled>
+            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
               <i className="feather icon-download" />
             </button>
           </li>
@@ -353,20 +457,6 @@ export default function AdminCategories() {
                   </label>
                 </div>
               </div>
-            </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select
-                className="form-select form-select-sm"
-                value={rows}
-                onChange={(e) => setRows(Number(e.target.value))}
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
             </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Active or trash">
               <button
@@ -439,127 +529,19 @@ export default function AdminCategories() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th className="no-sort">
-                    <label className="checkboxs mb-0">
-                      <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
-                      <span className="checkmarks" />
-                    </label>
-                  </th>
-                  <th>Name</th>
-                  <th>Slug</th>
-                  <th>{viewTrash ? 'Deleted' : 'Created'}</th>
-                  <th className="no-sort" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-5 text-muted">
-                      No categories found.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((c) => (
-                    <tr key={c.id}>
-                      <td>
-                        <label className="checkboxs mb-0">
-                          <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleRow(c.id)} />
-                          <span className="checkmarks" />
-                        </label>
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(c.name)}</div>
-                          <span>{c.name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="tf-mono">{c.slug ?? '—'}</span>
-                      </td>
-                      <td>
-                        <span className="userimgname text-muted small">
-                          {formatListDate(viewTrash ? c.deleted_at : c.created_at)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="edit-delete-action d-flex align-items-center">
-                          {viewTrash ? (
-                            <button
-                              type="button"
-                              className="p-2 d-flex align-items-center border rounded bg-transparent"
-                              disabled={restoreSubmittingId === c.id}
-                              onClick={() => void handleRestore(c.id)}
-                              title="Restore"
-                            >
-                              <i className="feather icon-rotate-ccw" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => startEdit(c)}
-                                title="Edit"
-                              >
-                                <i className="feather icon-edit" />
-                              </button>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => openDeleteModal(c.id, c.name)}
-                                title="Move to trash"
-                              >
-                                <i className="feather icon-trash-2" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((x) => Math.max(1, x - 1))}
-                >
-                  Previous
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((x) => Math.min(totalPages, x + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

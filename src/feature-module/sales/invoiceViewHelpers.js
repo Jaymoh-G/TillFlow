@@ -10,7 +10,7 @@ export { INVOICE_STATUSES_EXPORT as INVOICE_STATUSES };
 export function invoiceStatusBadgeClass(st) {
   const s = String(st ?? "");
   if (s === "Paid") {
-    return "badge-soft-info";
+    return "badge-soft-success";
   }
   if (s === "Draft") {
     return "badge-soft-secondary";
@@ -18,7 +18,10 @@ export function invoiceStatusBadgeClass(st) {
   if (s === "Cancelled") {
     return "badge-soft-dark";
   }
-  if (s === "Overdue" || s === "Unpaid") {
+  if (s === "Overdue") {
+    return "badge-soft-warning text-dark";
+  }
+  if (s === "Unpaid") {
     return "badge-soft-danger";
   }
   if (s === "Partially_paid") {
@@ -105,13 +108,12 @@ export function formatRelativeTimeAgoEn(iso) {
   return rtf.format(-year, "year");
 }
 
-/** Issued / emailed flow: no longer draft and not cancelled. */
+/** True only after an email send to customer was actually recorded. */
 export function invoiceWasIssuedToCustomer(row) {
-  const st = String(row?.status ?? "");
-  return st !== "Draft" && st !== "Cancelled";
+  return row?.emailSentConfirmed === true;
 }
 
-/** Tooltip when the send-to-customer action is disabled because the invoice was already sent. */
+/** Tooltip for actions when the invoice was already sent to customer. */
 export function invoiceSentToCustomerHoverTitle(row) {
   if (!invoiceWasIssuedToCustomer(row)) {
     return "";
@@ -121,6 +123,17 @@ export function invoiceSentToCustomerHoverTitle(row) {
   return rel
     ? `This invoice is already sent to the customer ${rel}.`
     : "This invoice is already sent to the customer.";
+}
+
+export function receiptWasSentToCustomer(payment) {
+  const raw = String(payment?.sent_to_customer_at ?? payment?.sentToCustomerAt ?? "").trim();
+  if (!raw) {
+    return false;
+  }
+  if (!raw.includes(":")) {
+    return false;
+  }
+  return Number.isFinite(Date.parse(raw));
 }
 
 export function buildReceiptViewData(payment, invoiceRow) {
@@ -230,6 +243,28 @@ export function taxTotalFromInvoiceLineItems(items) {
 
 /** Map API invoice to list row (when backend is available). */
 export function apiInvoiceToRow(inv) {
+  const emailStatusNorm = String(inv.email_status ?? inv.mail_status ?? "").trim().toLowerCase();
+  const emailSentAtPrimaryRaw =
+    inv.email_sent_at ??
+    inv.last_email_sent_at ??
+    inv.sent_email_at ??
+    inv.email_last_sent_at ??
+    inv.last_sent_at ??
+    null;
+  const legacySentAtRaw = inv.sent_to_customer_at ?? inv.sentToCustomerAt ?? null;
+  const emailSentAt = String(emailSentAtPrimaryRaw ?? legacySentAtRaw ?? "").trim();
+  const emailTimestampLooksValid = emailSentAt.includes(":") && Number.isFinite(Date.parse(emailSentAt));
+  const createdAtForHeuristicRaw = String(inv.created_at ?? "").trim();
+  const createdAtForHeuristicTs = createdAtForHeuristicRaw ? Date.parse(createdAtForHeuristicRaw) : NaN;
+  const sentAtTs = emailTimestampLooksValid ? Date.parse(emailSentAt) : NaN;
+  const sentLooksLikeCreateStamp =
+    Number.isFinite(createdAtForHeuristicTs) &&
+    Number.isFinite(sentAtTs) &&
+    Math.abs(sentAtTs - createdAtForHeuristicTs) < 15000;
+  const emailSentConfirmed =
+    emailStatusNorm === "sent" ||
+    emailStatusNorm === "delivered" ||
+    (emailTimestampLooksValid && !sentLooksLikeCreateStamp);
   const total = Number(inv.total_amount ?? 0);
   const paid = Number(inv.amount_paid ?? 0);
   const due = roundMoney(Math.max(0, total - paid));
@@ -241,6 +276,28 @@ export function apiInvoiceToRow(inv) {
   const createdAtRaw = String(inv.created_at ?? "").trim();
   const createdAtTs = createdAtRaw ? new Date(createdAtRaw).getTime() : NaN;
   const statusNorm = String(inv.status ?? "Draft");
+  const recurringEnabled = Boolean(
+    inv.is_recurring ??
+      inv.recurring ??
+      inv.recurring_enabled ??
+      inv.isRecurring
+  );
+  const recurringEveryRaw =
+    inv.recurring_interval_value ??
+    inv.recurring_interval ??
+    inv.recurring_every ??
+    inv.recurring_every_months ??
+    inv.repeat_every ??
+    inv.interval_value;
+  const recurringEveryNum = Number(recurringEveryRaw ?? 0);
+  const recurringEvery = Number.isFinite(recurringEveryNum) && recurringEveryNum > 0 ? recurringEveryNum : 1;
+  const recurringUnitRaw =
+    inv.recurring_interval_unit ??
+    inv.recurring_unit ??
+    inv.repeat_unit ??
+    inv.interval_unit;
+  const recurringUnitNorm = String(recurringUnitRaw ?? "month").toLowerCase();
+  const recurringUnit = recurringUnitNorm === "day" || recurringUnitNorm === "week" ? recurringUnitNorm : "month";
   const rawRef = inv.invoice_ref != null ? String(inv.invoice_ref).trim() : "";
   let invoiceRefStored = rawRef;
   if (invoiceRefStored === "" && statusNorm !== "Draft") {
@@ -277,6 +334,9 @@ export function apiInvoiceToRow(inv) {
     items: Array.isArray(inv.items) ? inv.items : [],
     taxNum: taxTotalFromInvoiceLineItems(Array.isArray(inv.items) ? inv.items : []),
     payments: Array.isArray(inv.payments) ? inv.payments : [],
+    isRecurring: recurringEnabled,
+    recurringEveryMonths: recurringEvery,
+    recurringIntervalUnit: recurringUnit,
     paymentCount:
       typeof inv.payment_count === "number"
         ? inv.payment_count
@@ -284,7 +344,8 @@ export function apiInvoiceToRow(inv) {
           ? inv.payments.length
           : 0,
     createdAtTs: Number.isFinite(createdAtTs) ? createdAtTs : null,
-    sentToCustomerAt: inv.sent_to_customer_at ? String(inv.sent_to_customer_at).trim() : null
+    sentToCustomerAt: emailTimestampLooksValid ? emailSentAt : null,
+    emailSentConfirmed
   };
 }
 

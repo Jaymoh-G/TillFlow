@@ -13,7 +13,7 @@ import {
     Search,
     X
 } from "react-feather";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
 import DocumentFormActions from "../../components/DocumentFormActions";
@@ -639,6 +639,7 @@ function quoteLineEligibleForAddAbove(line, useApiProductLines) {
 const QuotationList = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { quotationId: routeQuotationId } = useParams();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
 
   const auth = useOptionalAuth();
@@ -762,6 +763,8 @@ const QuotationList = () => {
 
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [detailSidebarRows, setDetailSidebarRows] = useState(10);
+  const [detailSidebarPage, setDetailSidebarPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterProduct, setFilterProduct] = useState("");
   const [filterCustomer, setFilterCustomer] = useState("");
@@ -1388,6 +1391,25 @@ const QuotationList = () => {
       if (quotationFormMode !== "edit" || editingRowId !== row.id) {
         openEditQuotation(row);
       }
+      return;
+    }
+
+    const detailRe = new RegExp(
+      `^${TILLFLOW_QUOTATIONS_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([^/]+)$`
+    );
+    const detailMatch = norm.match(detailRe);
+    if (detailMatch) {
+      const targetId = detailMatch[1];
+      if (listLoading) {
+        return;
+      }
+      const row = quotations.find((r) => String(r.apiId ?? r.id) === targetId);
+      if (!row) {
+        navigate(TILLFLOW_QUOTATIONS_BASE, { replace: true });
+        return;
+      }
+      setQuotationFormMode("list");
+      setViewRow(row);
       return;
     }
 
@@ -2036,16 +2058,22 @@ const QuotationList = () => {
         field: "quoteRef",
         sortable: true,
         body: (row) => (
-          <Link
-            to="#"
-            style={{ color: "#0d6efd" }}
-            onClick={(e) => {
-              e.preventDefault();
-              openViewQuotation(row);
-              showBsModal("view-quotation-modal");
-            }}>
-            {row.quoteRef}
-          </Link>
+          inTillflowShell ? (
+            <Link to={`${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}`} style={{ color: "#0d6efd" }}>
+              {row.quoteRef}
+            </Link>
+          ) : (
+            <Link
+              to="#"
+              style={{ color: "#0d6efd" }}
+              onClick={(e) => {
+                e.preventDefault();
+                openViewQuotation(row);
+                showBsModal("view-quotation-modal");
+              }}>
+              {row.quoteRef}
+            </Link>
+          )
         )
       },
       {
@@ -2233,6 +2261,47 @@ const QuotationList = () => {
     ]
   );
 
+  const quotationDetailSidebarColumns = useMemo(
+    () => [
+      {
+        header: "QT #",
+        field: "quoteRef",
+        body: (r) => (
+          <Link to={`${TILLFLOW_QUOTATIONS_BASE}/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
+            {r.quoteRef || `QT-${r.apiId ?? r.id}`}
+          </Link>
+        )
+      },
+      {
+        header: "Customer",
+        field: "Custmer_Name",
+        body: (r) => (
+          <span className="small text-truncate d-inline-block" style={{ maxWidth: 120 }} title={r.Custmer_Name}>
+            {r.Custmer_Name || "—"}
+          </span>
+        )
+      },
+      {
+        header: "Amount",
+        field: "Total",
+        className: "text-end",
+        body: (r) => (
+          <span className="small text-end d-block text-nowrap">{formatQuoteMoneyKes(r.Total)}</span>
+        )
+      },
+      {
+        header: "Status",
+        field: "Status",
+        body: (r) => (
+          <span className={`badge ${quotationStatusBadgeClass(r.Status)} badge-xs shadow-none`}>
+            {String(r.Status ?? "")}
+          </span>
+        )
+      }
+    ],
+    []
+  );
+
   const formIsCreate = quotationFormMode === "create";
   const formLines = formIsCreate ? addLines : editLines;
   const setFormLines = formIsCreate ? setAddLines : setEditLines;
@@ -2242,6 +2311,11 @@ const QuotationList = () => {
   const formQuoteTotal = formIsCreate ? addQuoteTotal : editQuoteTotal;
   const formError = formIsCreate ? addError : editError;
   const crmQuotationForm = inTillflowShell && quotationFormMode !== "list";
+  const quotationDetailRouteActive =
+    inTillflowShell &&
+    Boolean(routeQuotationId) &&
+    location.pathname.replace(/\/$/, "") ===
+      `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(routeQuotationId))}`;
   const discountFieldsActive =
     (formIsCreate ? addDiscountType : editDiscountType) !== "none";
 
@@ -2602,9 +2676,9 @@ const QuotationList = () => {
       <div
         className={`page-wrapper quotation-list-page${
           inTillflowShell ? " quotation-list-page--tillflow" : ""
-        }`}>
+        }${inTillflowShell && quotationDetailRouteActive ? " tf-admin-invoice-detail" : ""}`}>
         <div className="content">
-          {quotationFormMode === "list" ? (
+          {quotationFormMode === "list" && !quotationDetailRouteActive ? (
             <>
               <div className="page-header">
                 <div className="add-item d-flex">
@@ -2738,6 +2812,93 @@ const QuotationList = () => {
                 </div>
               </div>
             </>
+          ) : quotationDetailRouteActive ? (
+            <div className="tf-admin-invoice-detail__layout tf-quotation-detail__layout">
+              <aside className="tf-admin-invoice-detail__list">
+                <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
+                  <h5 className="tf-heading mb-0">Quotations</h5>
+                  <NavLink to={`${TILLFLOW_QUOTATIONS_BASE}/new`} className="btn btn-sm btn-outline-primary">
+                    New
+                  </NavLink>
+                </div>
+                {listError ? <div className="alert alert-warning py-2 small">{listError}</div> : null}
+                {listLoading ? <p className="text-muted small">Loading…</p> : null}
+                <div className="tf-admin-invoice-detail__list-scroll">
+                  <PrimeDataTable
+                    column={quotationDetailSidebarColumns}
+                    data={quotations}
+                    rows={detailSidebarRows}
+                    setRows={setDetailSidebarRows}
+                    currentPage={detailSidebarPage}
+                    setCurrentPage={setDetailSidebarPage}
+                    totalRecords={quotations.length}
+                    loading={listLoading}
+                    isPaginationEnabled
+                  />
+                </div>
+                <div className="mt-2">
+                  <NavLink to={TILLFLOW_QUOTATIONS_BASE} className="small">
+                    Full quotations list
+                  </NavLink>
+                </div>
+              </aside>
+              <main className="tf-admin-invoice-detail__main">
+                <div className="quotation-view-modal-body-inner">
+                  <div className="page-header border-0 pb-2 quotation-view-no-print">
+                    <div className="d-flex flex-wrap align-items-start gap-3 justify-content-between w-100">
+                      <div className="page-title mb-0 min-w-0 flex-grow-1 pe-2">
+                        <h4 className="mb-0">Quotation details</h4>
+                      </div>
+                      <Link to={TILLFLOW_QUOTATIONS_BASE} className="btn btn-outline-secondary">
+                        <i className="feather icon-arrow-left me-1" />
+                        Back to quotations
+                      </Link>
+                    </div>
+                  </div>
+                  {viewRow && quotationViewModel ? (
+                    <div className="card border-0 shadow-sm">
+                      <div className="card-body bg-white">
+                        <div className="page-btn mb-2 quotation-view-no-print d-flex flex-wrap align-items-center gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-primary d-flex justify-content-center align-items-center"
+                            onClick={() => void handleDownloadViewQuotationPdf()}>
+                            <i className="ti ti-file-download me-2" />
+                            Download PDF
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary d-flex justify-content-center align-items-center"
+                            onClick={handlePrintViewQuotation}>
+                            <i className="ti ti-printer me-2" />
+                            Print quotation
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary d-flex justify-content-center align-items-center"
+                            onClick={handleEditFromViewQuotation}>
+                            <Edit2 size={18} strokeWidth={1.75} className="me-2" aria-hidden />
+                            Edit quote
+                          </button>
+                        </div>
+                        <QuotationPrintDocument
+                          ref={quotationViewPrintRootRef}
+                          viewRow={viewRow}
+                          quotationViewModel={quotationViewModel}
+                          companySnapshot={companySnapshot}
+                          quotationFooter={quotationFooter}
+                          quotationLogoSrc={quotationLogoSrc}
+                          quotationLogoDarkSrc={quotationLogoDarkSrc}
+                          formatMoney={viewFormatMoney}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="alert alert-warning mb-0">Quotation not found.</div>
+                  )}
+                </div>
+              </main>
+            </div>
           ) : (
             <form
               className={`quotation-form-sheet${crmQuotationForm ? " quotation-form-sheet--crm" : ""}`}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
+import PrimeDataTable from '../../components/data-table';
 import {
   createBrandWithLogoRequest,
   deleteBrandRequest,
@@ -12,6 +13,7 @@ import {
 import { TillFlowApiError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
   if (!iso) {
@@ -318,7 +320,110 @@ export default function AdminBrands() {
     }
   }
 
-  const colCount = 6;
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((b) => ({
+      Name: String(b.name ?? ''),
+      Slug: String(b.slug ?? ''),
+      Logo: String(b.logo_url ?? ''),
+      [viewTrash ? 'Deleted' : 'Created']: formatListDate(viewTrash ? b.deleted_at : b.created_at)
+    }));
+    await downloadRowsExcel(records, 'Brands', viewTrash ? 'brands-trash' : 'brands');
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((b) => [
+      String(b.name ?? ''),
+      String(b.slug ?? ''),
+      String(b.logo_url ?? ''),
+      formatListDate(viewTrash ? b.deleted_at : b.created_at)
+    ]);
+    await downloadRowsPdf(
+      viewTrash ? 'Brands (trash)' : 'Brands',
+      ['Name', 'Slug', 'Logo URL', viewTrash ? 'Deleted' : 'Created'],
+      body,
+      viewTrash ? 'brands-trash' : 'brands'
+    );
+  }, [filtered, viewTrash]);
+
+  const columns = useMemo(
+    () => [
+      {
+        header: (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
+            <span className="checkmarks" />
+          </label>
+        ),
+        field: 'select',
+        sortable: false,
+        body: (b) => (
+          <label className="checkboxs mb-0">
+            <input type="checkbox" checked={selectedIds.has(b.id)} onChange={() => toggleRow(b.id)} />
+            <span className="checkmarks" />
+          </label>
+        )
+      },
+      { header: 'Logo', field: 'logo_url', body: (b) => <LogoThumb url={b.logo_url} /> },
+      {
+        header: 'Name',
+        field: 'name',
+        body: (b) => (
+          <div className="d-flex align-items-center">
+            <div className="avatar avatar-md me-2">{initials(b.name)}</div>
+            <span>{b.name}</span>
+          </div>
+        )
+      },
+      { header: 'Slug', field: 'slug', body: (b) => <span className="tf-mono">{b.slug ?? '—'}</span> },
+      {
+        header: viewTrash ? 'Deleted' : 'Created',
+        field: viewTrash ? 'deleted_at' : 'created_at',
+        body: (b) => <span className="userimgname text-muted small">{formatListDate(viewTrash ? b.deleted_at : b.created_at)}</span>
+      },
+      {
+        header: 'Actions',
+        field: 'actions',
+        sortable: false,
+        className: 'text-end',
+        headerClassName: 'text-end',
+        body: (b) => (
+          <div className="edit-delete-action d-flex align-items-center justify-content-end">
+            {viewTrash ? (
+              <button
+                type="button"
+                className="p-2 d-flex align-items-center border rounded bg-transparent"
+                disabled={restoreSubmittingId === b.id}
+                onClick={() => void handleRestore(b.id)}
+                title="Restore"
+              >
+                <i className="feather icon-rotate-ccw" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => startEdit(b)}
+                  title="Edit"
+                >
+                  <i className="feather icon-edit" />
+                </button>
+                <button
+                  type="button"
+                  className="p-2 d-flex align-items-center border rounded bg-transparent"
+                  onClick={() => openDeleteModal(b.id, b.name)}
+                  title="Move to trash"
+                >
+                  <i className="feather icon-trash-2" />
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+    ],
+    [allPageSelected, selectedIds, viewTrash, restoreSubmittingId]
+  );
 
   // Create/revoke object URLs for local logo previews.
   useEffect(() => {
@@ -353,6 +458,16 @@ export default function AdminBrands() {
           </div>
         </div>
         <ul className="table-top-head">
+          <li>
+            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-file-text" />
+            </button>
+          </li>
+          <li>
+            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
+              <i className="feather icon-download" />
+            </button>
+          </li>
           <li>
             <button type="button" title="Refresh" onClick={() => void load()}>
               <i className="feather icon-refresh-cw" />
@@ -406,20 +521,6 @@ export default function AdminBrands() {
                 </div>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="small text-muted mb-0">Rows</label>
-              <select
-                className="form-select form-select-sm"
-                value={rows}
-                onChange={(e) => setRows(Number(e.target.value))}
-                aria-label="Rows per page"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             <div className="btn-group btn-group-sm" role="group" aria-label="Active or trash">
               <button
                 type="button"
@@ -440,131 +541,19 @@ export default function AdminBrands() {
         </div>
 
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table datatable table-nowrap">
-              <thead>
-                <tr>
-                  <th className="no-sort">
-                    <label className="checkboxs mb-0">
-                      <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAllOnPage} />
-                      <span className="checkmarks" />
-                    </label>
-                  </th>
-                  <th>Logo</th>
-                  <th>Name</th>
-                  <th>Slug</th>
-                  <th>{viewTrash ? 'Deleted' : 'Created'}</th>
-                  <th className="no-sort" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={colCount} className="text-center py-5 text-muted">
-                      Loading…
-                    </td>
-                  </tr>
-                ) : pageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={colCount} className="text-center py-5 text-muted">
-                      No brands found.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((b) => (
-                    <tr key={b.id}>
-                      <td>
-                        <label className="checkboxs mb-0">
-                          <input type="checkbox" checked={selectedIds.has(b.id)} onChange={() => toggleRow(b.id)} />
-                          <span className="checkmarks" />
-                        </label>
-                      </td>
-                      <td>
-                        <LogoThumb url={b.logo_url} />
-                      </td>
-                      <td>
-                        <div className="d-flex align-items-center">
-                          <div className="avatar avatar-md me-2">{initials(b.name)}</div>
-                          <span>{b.name}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="tf-mono">{b.slug ?? '—'}</span>
-                      </td>
-                      <td>
-                        <span className="userimgname text-muted small">
-                          {formatListDate(viewTrash ? b.deleted_at : b.created_at)}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="edit-delete-action d-flex align-items-center">
-                          {viewTrash ? (
-                            <button
-                              type="button"
-                              className="p-2 d-flex align-items-center border rounded bg-transparent"
-                              disabled={restoreSubmittingId === b.id}
-                              onClick={() => void handleRestore(b.id)}
-                              title="Restore"
-                            >
-                              <i className="feather icon-rotate-ccw" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="me-2 p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => startEdit(b)}
-                                title="Edit"
-                              >
-                                <i className="feather icon-edit" />
-                              </button>
-                              <button
-                                type="button"
-                                className="p-2 d-flex align-items-center border rounded bg-transparent"
-                                onClick={() => openDeleteModal(b.id, b.name)}
-                                title="Move to trash"
-                              >
-                                <i className="feather icon-trash-2" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="custom-datatable-filter table-responsive">
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={rows}
+              setRows={setRows}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
-
-          {!loading && filtered.length > 0 ? (
-            <div className="pagination-block px-3 pb-3">
-              <div>
-                Showing {showingFrom} to {showingTo} of {filtered.length} entries
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage <= 1}
-                  onClick={() => setCurrentPage((x) => Math.max(1, x - 1))}
-                >
-                  Previous
-                </button>
-                <span className="text-muted small">
-                  Page {safePage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setCurrentPage((x) => Math.min(totalPages, x + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

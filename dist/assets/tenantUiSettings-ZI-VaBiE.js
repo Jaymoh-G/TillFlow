@@ -1,1 +1,0 @@
-import{ac as e}from"./index-BQ6TP1jC.js";function o(t){return e("/tenant/company-profile",{token:t})}function i(t,n){return e("/tenant/company-profile",{method:"PATCH",token:t,body:n})}function r(t){return e("/tenant/ui-settings",{token:t})}function u(t,n){return e("/tenant/ui-settings",{method:"PATCH",token:t,body:{merge:n}})}export{r as a,o as g,u as m,i as u};

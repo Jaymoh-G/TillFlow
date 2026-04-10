@@ -3,6 +3,7 @@ import Modal from "react-bootstrap/Modal";
 import { Link, NavLink, useSearchParams, useParams } from "react-router-dom";
 import DocumentPdfPreviewModal from "../../components/DocumentPdfPreviewModal";
 import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
+import PrimeDataTable from "../../components/data-table";
 import CommonFooter from "../../components/footer/commonFooter";
 import DeliveryNotePrintDocument from "../../feature-module/sales/DeliveryNotePrintDocument";
 import {
@@ -36,6 +37,8 @@ export default function AdminDeliveryNoteDetail() {
   const [listRows, setListRows] = useState([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState("");
+  const [listSidebarRows, setListSidebarRows] = useState(10);
+  const [listSidebarCurrentPage, setListSidebarCurrentPage] = useState(1);
   const [row, setRow] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState("");
@@ -127,6 +130,61 @@ export default function AdminDeliveryNoteDetail() {
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    if (!deliveryNoteId || !listRows.length) {
+      return;
+    }
+    const idx = listRows.findIndex((item) => String(item.apiId) === String(deliveryNoteId));
+    if (idx < 0) {
+      return;
+    }
+    const page = Math.floor(idx / listSidebarRows) + 1;
+    setListSidebarCurrentPage(page);
+  }, [deliveryNoteId, listRows, listSidebarRows]);
+
+  const listSidebarColumns = useMemo(
+    () => [
+      {
+        header: "Note",
+        field: "deliveryNoteNo",
+        body: (item) => (
+          <Link to={`/tillflow/admin/delivery-notes/${item.apiId}`} className="fw-medium text-nowrap">
+            {item.deliveryNoteNo}
+          </Link>
+        )
+      },
+      {
+        header: "Customer",
+        field: "customerName",
+        body: (item) => (
+          <span className="small text-truncate d-inline-block" style={{ maxWidth: 120 }} title={item.customerName}>
+            {item.customerName || "—"}
+          </span>
+        )
+      },
+      {
+        header: "Invoice",
+        field: "invoiceRef",
+        body: (item) =>
+          item.invoiceId ? (
+            <Link to={`/tillflow/admin/invoices/${item.invoiceId}`} className="small">
+              {item.invoiceRef || item.invoiceId}
+            </Link>
+          ) : (
+            <span className="small">—</span>
+          )
+      },
+      {
+        header: "Status",
+        field: "status",
+        body: (item) => (
+          <span className={`badge ${deliveryStatusBadgeClass(item.status)} badge-xs shadow-none`}>{item.status}</span>
+        )
+      }
+    ],
+    []
+  );
 
   const viewDoc = useMemo(() => (row ? buildDeliveryNoteViewDocumentData(row) : null), [row]);
 
@@ -321,27 +379,18 @@ export default function AdminDeliveryNoteDetail() {
           {listError ? <div className="alert alert-warning py-2 small">{listError}</div> : null}
           {listLoading ? <p className="text-muted small">Loading...</p> : null}
           <div className="tf-admin-invoice-detail__list-scroll">
-            <table className="table table-sm table-hover mb-0 align-middle">
-              <thead className="sticky-top bg-body">
-                <tr>
-                  <th>Note</th>
-                  <th>Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listRows.map((item) => {
-                  const active = String(item.apiId) === String(deliveryNoteId);
-                  return (
-                    <tr key={item.id} className={active ? "table-active" : undefined}>
-                      <td className="fw-medium text-nowrap">
-                        <Link to={`/tillflow/admin/delivery-notes/${item.apiId}`}>{item.deliveryNoteNo}</Link>
-                      </td>
-                      <td className="small">{item.invoiceRef || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <PrimeDataTable
+              column={listSidebarColumns}
+              data={listRows}
+              rows={listSidebarRows}
+              setRows={setListSidebarRows}
+              currentPage={listSidebarCurrentPage}
+              setCurrentPage={setListSidebarCurrentPage}
+              totalRecords={listRows.length}
+              loading={listLoading}
+              isPaginationEnabled
+              sortable={false}
+            />
           </div>
           <div className="mt-2">
             <NavLink to="/tillflow/admin/delivery-notes" className="small">

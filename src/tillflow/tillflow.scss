@@ -1094,6 +1094,26 @@
   min-height: auto;
 }
 
+/* Quotation full-page detail: sidebar + main (same workspace pattern as invoice detail) */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page.tf-admin-invoice-detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page.tf-admin-invoice-detail > .content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .tf-quotation-detail__layout {
+  flex: 1;
+  min-height: 0;
+}
+
 .tf-admin .tf-admin__body .page-wrapper.quotation-list-page .page-header,
 .tf-admin .tf-admin__body .page-wrapper.invoice-list-page .page-header {
   margin-bottom: 1rem;
@@ -1803,15 +1823,12 @@
 
 .tf-pos-register {
   flex: 1;
-  border-radius: var(--tf-radius-md);
-  border: 2px dashed var(--tf-border);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 2rem;
-  color: var(--tf-muted);
+  text-align: left;
+  padding: 0;
+  color: inherit;
 }
 
 .tf-pos-register__title {
@@ -1826,6 +1843,243 @@
   max-width: 22rem;
   line-height: 1.5;
   margin: 0;
+}
+
+/* TillFlow POS visual parity pass (closer to /pos-4) */
+.tf-pos-shell .content.pos-design.p-0 {
+  padding: 0 !important;
+}
+
+.tf-pos-shell .tf-pos-register .pos-wrapper {
+  --bs-gutter-x: 0.9rem;
+  --bs-gutter-y: 0.9rem;
+}
+
+.tf-pos-shell .tf-pos-register .pos-categories {
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.tf-pos-shell .tf-pos-register .pos-categories h5 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.tf-pos-shell .tf-pos-register .pos-categories p {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.tf-pos-shell .tf-pos-register .pos-search .form-control {
+  height: 34px;
+  font-size: 12px;
+}
+
+.tf-pos-shell .tf-pos-register .pos-products .product-info.card {
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.tf-pos-shell .tf-pos-register .product-info .product-content .fs-14 {
+  line-height: 1.25;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .customer-info {
+  padding: 16px;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .product-added.block-section {
+  padding: 14px 16px;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method {
+  padding: 12px 16px;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method {
+  padding: 12px 16px 14px;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method h5 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .card-footer {
+  padding: 12px 16px;
+}
+
+@media (max-width: 1199.98px) {
+  .tf-pos-shell .tf-pos-register .pos-categories {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .tf-pos-shell .tf-pos-register .pos-wrapper {
+    --bs-gutter-x: 0.75rem;
+    --bs-gutter-y: 0.75rem;
+  }
+
+  .tf-pos-shell .tf-pos-register .pos-categories {
+    height: auto;
+    max-height: none;
+    padding: 14px;
+  }
+
+  .tf-pos-shell .tf-pos-register .pos-products .tab_content.active .row {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .tf-pos-shell .tf-pos-register .pos-categories h5 {
+    font-size: 16px;
+  }
+
+  .tf-pos-shell .tf-pos-register .customer-info .d-flex.align-items-center.justify-content-between {
+    gap: 0.5rem !important;
+  }
+
+  .tf-pos-shell .tf-pos-register .product-order-list .customer-info,
+  .tf-pos-shell .tf-pos-register .product-order-list .product-added.block-section,
+  .tf-pos-shell .tf-pos-register .product-order-list .order-method,
+  .tf-pos-shell .tf-pos-register .product-order-list .payment-method,
+  .tf-pos-shell .tf-pos-register .product-order-list .card-footer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* POS qty input: hide native number spinners to avoid overlap with +/- icons */
+.tf-pos-shell .tf-pos-register .tf-pos-qty-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-qty-input[type="number"]::-webkit-outer-spin-button,
+.tf-pos-shell .tf-pos-register .tf-pos-qty-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.tf-pos-shell .tf-pos-register .qty-item .dec,
+.tf-pos-shell .tf-pos-register .qty-item .inc {
+  color: #111827 !important;
+  background-color: transparent !important;
+}
+
+.tf-pos-shell .tf-pos-register .qty-item .dec:hover,
+.tf-pos-shell .tf-pos-register .qty-item .inc:hover,
+.tf-pos-shell .tf-pos-register .qty-item .dec:focus,
+.tf-pos-shell .tf-pos-register .qty-item .inc:focus,
+.tf-pos-shell .tf-pos-register .qty-item .dec:focus-visible,
+.tf-pos-shell .tf-pos-register .qty-item .inc:focus-visible {
+  color: #111827 !important;
+  background-color: transparent !important;
+}
+
+.tf-pos-shell .tf-pos-register .qty-item .dec i,
+.tf-pos-shell .tf-pos-register .qty-item .inc i,
+.tf-pos-shell .tf-pos-register .qty-item .dec:hover i,
+.tf-pos-shell .tf-pos-register .qty-item .inc:hover i,
+.tf-pos-shell .tf-pos-register .qty-item .dec:focus i,
+.tf-pos-shell .tf-pos-register .qty-item .inc:focus i,
+.tf-pos-shell .tf-pos-register .qty-item .dec:active i,
+.tf-pos-shell .tf-pos-register .qty-item .inc:active i {
+  color: #111827 !important;
+}
+
+/* POS receipt parity with /pos-4 print receipt */
+.tf-pos-receipt {
+  color: var(--tf-text, #111827);
+  padding: 24px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.tf-pos-receipt .info h6 {
+  margin: 10px 0;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.tf-pos-receipt .tax-invoice h6 {
+  margin: 10px 0;
+  font-weight: 700;
+  position: relative;
+}
+
+.tf-pos-receipt .tax-invoice h6::before,
+.tf-pos-receipt .tax-invoice h6::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  border-top: 1px dashed #d1d5db;
+}
+
+.tf-pos-receipt .tax-invoice h6::before {
+  left: 0;
+}
+
+.tf-pos-receipt .tax-invoice h6::after {
+  right: 0;
+}
+
+.tf-pos-receipt .tax-invoice .invoice-user-name {
+  margin-bottom: 8px;
+}
+
+.tf-pos-receipt .table-fit thead th {
+  padding: 10px 5px;
+  border-top: 1px dashed #d1d5db;
+  border-bottom: 1px dashed #d1d5db;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tf-pos-receipt .table-fit tbody td {
+  padding: 5px;
+  font-size: 14px;
+}
+
+.tf-pos-receipt .table-fit tbody tr td .table-fit {
+  border-top: 1px dashed #d1d5db;
+}
+
+.tf-pos-receipt .invoice-bar {
+  border-top: 1px dashed #d1d5db;
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.tf-pos-receipt .invoice-bar img {
+  margin: 12px 0 8px;
+  max-width: 100%;
+  height: auto;
+}
+
+.tf-pos-receipt-modal {
+  max-width: 424px;
+}
+
+.tf-pos-receipt-modal .modal-header {
+  padding: 14px 16px;
+}
+
+.tf-pos-receipt-modal .modal-body {
+  padding: 0;
+}
+
+.tf-pos-receipt-modal .modal-footer {
+  padding: 12px 16px;
 }
 
 .tf-link-quiet {

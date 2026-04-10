@@ -5,9 +5,7 @@ import ReceiptPrintDocument from "./ReceiptPrintDocument";
 import {
   buildReceiptViewData,
   formatInvoiceMoneyKes,
-  formatRelativeTimeAgoEn,
-  invoiceSentToCustomerHoverTitle,
-  invoiceWasIssuedToCustomer
+  receiptWasSentToCustomer
 } from "./invoiceViewHelpers";
 import { roundMoney } from "../../utils/salesDocumentLineItems";
 
@@ -117,7 +115,7 @@ export function InvoiceReceiptPreviewModal({
   onHide,
   onDownloadPdf,
   tillflowEmailActionsEnabled = false,
-  onOpenInvoiceEmailPreview,
+  onSendReceiptToCustomer,
   onViewInvoicePdf,
   onActivityLog
 }) {
@@ -126,20 +124,15 @@ export function InvoiceReceiptPreviewModal({
     [receiptPreview, receiptPreviewRow]
   );
 
-  const issued = receiptPreviewRow ? invoiceWasIssuedToCustomer(receiptPreviewRow) : false;
   const hasEmail = Boolean(String(receiptPreviewRow?.customerEmail ?? "").trim());
   const canEmail = Boolean(
     tillflowEmailActionsEnabled &&
-      onOpenInvoiceEmailPreview &&
+      onSendReceiptToCustomer &&
       receiptPreviewRow?.apiId &&
       hasEmail &&
       receiptPreviewRow.status !== "Cancelled"
   );
-  const sentRel =
-    issued && String(receiptPreviewRow?.sentToCustomerAt ?? "").trim()
-      ? formatRelativeTimeAgoEn(String(receiptPreviewRow.sentToCustomerAt).trim())
-      : "";
-
+  const receiptIssued = receiptWasSentToCustomer(receiptPreview);
   return (
     <Modal show={Boolean(receiptPreview)} onHide={onHide} size="lg" centered scrollable>
       <Modal.Header closeButton>
@@ -170,23 +163,14 @@ export function InvoiceReceiptPreviewModal({
               ) : null}
               {tillflowEmailActionsEnabled && receiptPreviewRow ? (
                 <>
-                  {issued ? (
-                    <span className="badge rounded-pill bg-success px-2 py-1 small">
-                      Sent{sentRel ? ` · ${sentRel}` : ""}
-                    </span>
-                  ) : null}
                   {canEmail ? (
                     <button
                       type="button"
-                      className={`btn btn-sm ${issued ? "btn-outline-danger" : "btn-outline-success"}`}
-                      title={
-                        issued
-                          ? invoiceSentToCustomerHoverTitle(receiptPreviewRow)
-                          : "Send this invoice to the customer's email"
-                      }
-                      onClick={() => void onOpenInvoiceEmailPreview()}>
+                      className={`btn btn-sm ${receiptIssued ? "btn-outline-danger" : "btn-outline-success"}`}
+                      title="Send this receipt to the customer's email"
+                      onClick={() => void onSendReceiptToCustomer()}>
                       <i className="ti ti-mail me-1" />
-                      {issued ? "Resend to customer" : "Send to customer"}
+                      {receiptIssued ? "Resend receipt" : "Send receipt"}
                     </button>
                   ) : null}
                 </>

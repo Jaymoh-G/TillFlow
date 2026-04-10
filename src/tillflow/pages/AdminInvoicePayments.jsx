@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
 import Modal from "react-bootstrap/Modal";
 import CommonFooter from "../../components/footer/commonFooter";
+import PrimeDataTable from "../../components/data-table";
 import { TillFlowApiError } from "../api/errors";
 import {
   INVOICE_PAYMENT_METHOD_OPTIONS,
@@ -52,6 +53,8 @@ export default function AdminInvoicePayments() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [customerFilter, setCustomerFilter] = useState("");
+  const [tableRows, setTableRows] = useState(10);
+  const [tableCurrentPage, setTableCurrentPage] = useState(1);
 
   const [editRow, setEditRow] = useState(null);
   const [editAmount, setEditAmount] = useState("");
@@ -183,6 +186,82 @@ export default function AdminInvoicePayments() {
     [token, load]
   );
 
+  const columns = useMemo(
+    () => [
+      {
+        header: "Receipt",
+        field: "receipt_ref",
+        body: (p) => (
+          <Link to={`/tillflow/admin/invoice-payments/${p.id}`} className="fw-medium">
+            {p.receipt_ref}
+          </Link>
+        )
+      },
+      { header: "Paid", field: "paid_at", body: (p) => <span className="text-nowrap small">{formatPaidAt(p.paid_at)}</span> },
+      {
+        header: "Invoice",
+        field: "invoice_ref",
+        body: (p) => <Link to={`/tillflow/admin/invoices/${p.invoice_id}`}>{p.invoice_ref}</Link>
+      },
+      { header: "Customer", field: "customer_name", body: (p) => p.customer_name || "—" },
+      {
+        header: "Amount",
+        field: "amount",
+        className: "text-end",
+        body: (p) => <span className="text-end fw-medium d-block">{formatKes(p.amount)}</span>
+      },
+      { header: "Method", field: "payment_method", body: (p) => paymentMethodLabel(p.payment_method) },
+      { header: "Txn ID", field: "transaction_id", body: (p) => <span className="small text-break">{p.transaction_id || "—"}</span> },
+      {
+        header: "Actions",
+        field: "action",
+        sortable: false,
+        className: "text-end",
+        body: (p) => (
+          <div className="text-end">
+            <Dropdown align="end">
+              <Dropdown.Toggle
+                variant="light"
+                id={`invoice-payment-actions-${String(p.id)}`}
+                className="btn btn-sm btn-light border rounded py-1 px-2 d-inline-flex align-items-center justify-content-center tf-invoice-payments-kebab"
+                aria-label="Payment actions">
+                <i className="ti ti-dots-vertical" />
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}`)}>
+                  <i className="ti ti-eye me-2 text-dark" />
+                  View
+                </Dropdown.Item>
+                <Dropdown.Item
+                  as="button"
+                  type="button"
+                  onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}?emailCustomer=1`)}>
+                  <i className="ti ti-send me-2 text-dark" />
+                  Send to customer
+                </Dropdown.Item>
+                <Dropdown.Item as="button" type="button" onClick={() => openEdit(p)}>
+                  <i className="ti ti-edit me-2 text-dark" />
+                  Edit
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <Dropdown.Item
+                  as="button"
+                  type="button"
+                  className="text-danger"
+                  disabled={String(p.payment_method ?? "") === "opening_balance"}
+                  onClick={() => void deletePayment(p)}>
+                  <i className="ti ti-trash me-2" />
+                  Delete
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </div>
+        )
+      }
+    ],
+    [deletePayment, navigate, openEdit]
+  );
+
   return (
     <div className="page-wrapper invoice-payments-page">
       <div className="content">
@@ -247,93 +326,17 @@ export default function AdminInvoicePayments() {
               </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Receipt</th>
-                    <th>Paid</th>
-                    <th>Invoice</th>
-                    <th>Customer</th>
-                    <th className="text-end">Amount</th>
-                    <th>Method</th>
-                    <th>Txn ID</th>
-                    <th className="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={8} className="text-muted py-4 text-center">
-                        Loading…
-                      </td>
-                    </tr>
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-muted py-4 text-center">
-                        No payments found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((p) => (
-                      <tr key={p.id}>
-                        <td>
-                          <Link to={`/tillflow/admin/invoice-payments/${p.id}`} className="fw-medium">
-                            {p.receipt_ref}
-                          </Link>
-                        </td>
-                        <td className="text-nowrap small">{formatPaidAt(p.paid_at)}</td>
-                        <td>
-                          <Link to={`/tillflow/admin/invoices/${p.invoice_id}`}>{p.invoice_ref}</Link>
-                        </td>
-                        <td>{p.customer_name || "—"}</td>
-                        <td className="text-end fw-medium">{formatKes(p.amount)}</td>
-                        <td>{paymentMethodLabel(p.payment_method)}</td>
-                        <td className="small text-break">{p.transaction_id || "—"}</td>
-                        <td className="text-end text-nowrap">
-                          <Dropdown align="end">
-                            <Dropdown.Toggle
-                              variant="light"
-                              id={`invoice-payment-actions-${String(p.id)}`}
-                              className="btn btn-sm btn-light border rounded py-1 px-2 d-inline-flex align-items-center justify-content-center tf-invoice-payments-kebab"
-                              aria-label="Payment actions">
-                              <i className="ti ti-dots-vertical" />
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu>
-                              <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}`)}>
-                                <i className="ti ti-eye me-2 text-dark" />
-                                View
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                as="button"
-                                type="button"
-                                onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}?emailCustomer=1`)}>
-                                <i className="ti ti-send me-2 text-dark" />
-                                Send to customer
-                              </Dropdown.Item>
-                              <Dropdown.Item as="button" type="button" onClick={() => openEdit(p)}>
-                                <i className="ti ti-edit me-2 text-dark" />
-                                Edit
-                              </Dropdown.Item>
-                              <Dropdown.Divider />
-                              <Dropdown.Item
-                                as="button"
-                                type="button"
-                                className="text-danger"
-                                disabled={String(p.payment_method ?? "") === "opening_balance"}
-                                onClick={() => void deletePayment(p)}>
-                                <i className="ti ti-trash me-2" />
-                                Delete
-                              </Dropdown.Item>
-                            </Dropdown.Menu>
-                          </Dropdown>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <PrimeDataTable
+              column={columns}
+              data={filtered}
+              rows={tableRows}
+              setRows={setTableRows}
+              currentPage={tableCurrentPage}
+              setCurrentPage={setTableCurrentPage}
+              totalRecords={filtered.length}
+              loading={loading}
+              isPaginationEnabled
+            />
           </div>
         </div>
       </div>

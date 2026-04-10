@@ -23,6 +23,8 @@ import {
   createInvoicePaymentRequest,
   INVOICE_PAYMENT_METHOD_OPTIONS,
   paymentMethodLabel,
+  previewInvoicePaymentReceiptEmailRequest,
+  sendInvoicePaymentReceiptToCustomerRequest,
   updateInvoicePaymentRequest
 } from "../../tillflow/api/invoicePayments";
 import {
@@ -69,6 +71,7 @@ import {
   invoiceSentToCustomerHoverTitle,
   invoiceStatusBadgeClass,
   invoiceWasIssuedToCustomer,
+  receiptWasSentToCustomer,
   parseMoneyish,
   parseRowDateFlexible,
   parseRowDateStr,
@@ -98,6 +101,11 @@ const DISCOUNT_BASIS_OPTIONS = [
   { label: "Percentage", value: "percent" },
   { label: "Fixed amount (Ksh)", value: "fixed" }
 ];
+
+const RECURRING_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  label: `Every ${i + 1} month${i + 1 === 1 ? "" : "s"}`,
+  value: String(i + 1)
+}));
 
 function nextInvoiceRefLocal(list) {
   let max = 0;
@@ -339,6 +347,10 @@ const Invoice = () => {
   const [invCreateStatus, setInvCreateStatus] = useState("Draft");
   const [invEditStatus, setInvEditStatus] = useState("Draft");
   const [invInitialPaymentMethod, setInvInitialPaymentMethod] = useState("cash");
+  const [invIsRecurring, setInvIsRecurring] = useState(false);
+  const [invRecurringChoice, setInvRecurringChoice] = useState("1");
+  const [invRecurringCustomEvery, setInvRecurringCustomEvery] = useState("13");
+  const [invRecurringCustomUnit, setInvRecurringCustomUnit] = useState("month");
   const [editingHasPayments, setEditingHasPayments] = useState(false);
   const [invLines, setInvLines] = useState(() => [emptyApiSalesLine()]);
   const [invDiscountType, setInvDiscountType] = useState("none");
@@ -360,6 +372,8 @@ const Invoice = () => {
   const [invoiceEmailPreviewLoading, setInvoiceEmailPreviewLoading] = useState(false);
   const [invoiceEmailPreviewError, setInvoiceEmailPreviewError] = useState("");
   const [invoiceEmailPreviewSending, setInvoiceEmailPreviewSending] = useState(false);
+  const [invoiceEmailPreviewSource, setInvoiceEmailPreviewSource] = useState("invoice");
+  const [invoiceEmailPreviewPaymentId, setInvoiceEmailPreviewPaymentId] = useState(null);
   const [invSaving, setInvSaving] = useState(false);
   const [catalogQuickSearchText, setCatalogQuickSearchText] = useState("");
   const [catalogQuickSuggestions, setCatalogQuickSuggestions] = useState([]);
@@ -376,6 +390,10 @@ const Invoice = () => {
     setInvCreateStatus("Draft");
     setInvEditStatus("Draft");
     setInvInitialPaymentMethod("cash");
+    setInvIsRecurring(false);
+    setInvRecurringChoice("1");
+    setInvRecurringCustomEvery("13");
+    setInvRecurringCustomUnit("month");
     setEditingHasPayments(false);
     setInvLines([emptyApiSalesLine()]);
     setInvDiscountType("none");
@@ -461,6 +479,28 @@ const Invoice = () => {
       ),
     [formSubtotalBreakdown, lineTotalPreDiscount, invDiscountType, invDiscountBasis, invDiscountValue]
   );
+
+  const autoPaymentStatus = useCallback((baseStatus, paidAmount, grandAmount) => {
+    const paid = Number(paidAmount ?? 0);
+    const grand = Number(grandAmount ?? 0);
+    if (!Number.isFinite(paid) || paid <= 0 || !Number.isFinite(grand) || grand <= 0) {
+      return baseStatus;
+    }
+    return paid >= grand ? "Paid" : "Partially_paid";
+  }, []);
+
+  useEffect(() => {
+    if (editingHasPayments) {
+      return;
+    }
+    const paidRaw = Math.max(0, Number(String(invAmountPaid).replace(/[^0-9.-]/g, "")) || 0);
+    const paid = roundMoney(Math.min(paidRaw, invoiceKesSummary.grandTotal));
+    if (invoiceFormMode === "edit") {
+      setInvEditStatus((prev) => autoPaymentStatus(prev, paid, invoiceKesSummary.grandTotal));
+    } else if (invoiceFormMode === "create") {
+      setInvCreateStatus((prev) => autoPaymentStatus(prev, paid, invoiceKesSummary.grandTotal));
+    }
+  }, [invAmountPaid, invoiceKesSummary.grandTotal, invoiceFormMode, editingHasPayments, autoPaymentStatus]);
 
   const appendProductFromCatalog = useCallback(
     (productIdStr) => {
@@ -663,6 +703,17 @@ const Invoice = () => {
         showInvPopupError("Due date cannot be before the issue date.");
         return;
       }
+      let recurringEvery = 1;
+      let recurringUnit = "month";
+      if (invIsRecurring) {
+        const rawEvery = invRecurringChoice === "custom" ? Number(invRecurringCustomEvery) : Number(invRecurringChoice);
+        recurringEvery = Number.isFinite(rawEvery) && rawEvery > 0 ? Math.floor(rawEvery) : 0;
+        recurringUnit = invRecurringChoice === "custom" ? invRecurringCustomUnit : "month";
+        if (recurringEvery <= 0) {
+          showInvPopupError("Recurring interval must be at least 1.");
+          return;
+        }
+      }
       const validLines = filterValidApiSalesLines(invLines);
       if (validLines.length === 0) {
         showInvPopupError("add atleast one item");
@@ -673,7 +724,8 @@ const Invoice = () => {
       const paid = roundMoney(Math.min(paidRaw, grand));
 
       const items = validLines.map((l) => apiFormSalesLineToPayload(l, catalogProducts));
-      const effectiveStatus = invoiceFormMode === "edit" ? invEditStatus : invCreateStatus;
+      const selectedStatus = invoiceFormMode === "edit" ? invEditStatus : invCreateStatus;
+      const effectiveStatus = autoPaymentStatus(selectedStatus, paid, grand);
       const invoiceRef =
         String(effectiveStatus) === "Draft"
           ? null
@@ -696,6 +748,13 @@ const Invoice = () => {
           invDiscountType === "none" ? null : Number(invDiscountValue.replace(/,/g, "")) || 0,
         items
       };
+      if (invIsRecurring) {
+        body.is_recurring = true;
+        body.recurring_interval_value = recurringEvery;
+        body.recurring_interval_unit = recurringUnit;
+      } else {
+        body.is_recurring = false;
+      }
       const isEditing = invoiceFormMode === "edit";
       const editingApiIdStr = editingInvoiceApiId != null ? String(editingInvoiceApiId) : "";
 
@@ -733,7 +792,7 @@ const Invoice = () => {
         }
       } catch (err) {
         const due = roundMoney(grand - paid);
-        const rowStatusOffline = isEditing ? invEditStatus : invCreateStatus;
+        const rowStatusOffline = effectiveStatus;
         const localRow = {
           id: isEditing ? String(editingInvoiceId ?? `local-${Date.now()}`) : `local-${Date.now()}`,
           apiId: null,
@@ -757,6 +816,9 @@ const Invoice = () => {
           paidNum: paid,
           invoiceTitle: String(invTitle || "").trim(),
           taxNum: invoiceKesSummary.taxTotal,
+          isRecurring: invIsRecurring,
+          recurringEveryMonths: invIsRecurring ? recurringEvery : 1,
+          recurringIntervalUnit: invIsRecurring ? recurringUnit : "month",
           createdAtTs: Date.now()
         };
         if (isEditing) {
@@ -786,6 +848,10 @@ const Invoice = () => {
       invLines,
       invoiceKesSummary,
       invAmountPaid,
+      invIsRecurring,
+      invRecurringChoice,
+      invRecurringCustomEvery,
+      invRecurringCustomUnit,
       invCreateStatus,
       invEditStatus,
       invInitialPaymentMethod,
@@ -795,6 +861,7 @@ const Invoice = () => {
       invDiscountBasis,
       invDiscountValue,
       invTitle,
+      autoPaymentStatus,
       invoiceFormMode,
       editingInvoiceApiId,
       editingInvoiceId,
@@ -856,6 +923,17 @@ const Invoice = () => {
     setInvDiscountType(String(row.discountType ?? "none"));
     setInvDiscountBasis(String(row.discountBasis ?? "percent"));
     setInvDiscountValue(String(row.discountValue ?? "0"));
+    const editRecurringEvery = Number(row.recurringEveryMonths ?? 1);
+    const normalizedRecurringEvery =
+      Number.isFinite(editRecurringEvery) && editRecurringEvery > 0 ? Math.floor(editRecurringEvery) : 1;
+    const normalizedRecurringUnit = ["day", "week", "month"].includes(String(row.recurringIntervalUnit ?? "month"))
+      ? String(row.recurringIntervalUnit ?? "month")
+      : "month";
+    const useCustomRecurringChoice = normalizedRecurringUnit !== "month" || normalizedRecurringEvery > 12;
+    setInvIsRecurring(Boolean(row.isRecurring));
+    setInvRecurringChoice(useCustomRecurringChoice ? "custom" : String(normalizedRecurringEvery));
+    setInvRecurringCustomEvery(String(normalizedRecurringEvery));
+    setInvRecurringCustomUnit(normalizedRecurringUnit);
     setInvError("");
     setInvoiceFormMode("edit");
   }, [catalogCustomers, token]);
@@ -1399,10 +1477,12 @@ const Invoice = () => {
     setInvoiceEmailPreviewLoading(false);
     setInvoiceEmailPreviewError("");
     setInvoiceEmailPreviewSending(false);
+    setInvoiceEmailPreviewSource("invoice");
+    setInvoiceEmailPreviewPaymentId(null);
   }, []);
 
   const openInvoiceEmailPreview = useCallback(
-    async (row) => {
+    async (row, source = "invoice") => {
       if (!token || !row?.apiId || row.status === "Cancelled") {
         return;
       }
@@ -1418,6 +1498,7 @@ const Invoice = () => {
       setInvoiceEmailPreviewError("");
       setInvoiceEmailPreviewOpen(true);
       setInvoiceEmailPreviewLoading(true);
+      setInvoiceEmailPreviewSource(source === "receipt" ? "receipt" : "invoice");
       try {
         const data = await previewInvoiceEmailRequest(token, row.apiId);
         setInvoiceEmailPreviewSubject(String(data?.subject ?? ""));
@@ -1446,6 +1527,45 @@ const Invoice = () => {
     }
     setInvoiceEmailPreviewSending(true);
     try {
+      if (invoiceEmailPreviewSource === "receipt") {
+        const paymentId = invoiceEmailPreviewPaymentId;
+        if (!paymentId) {
+          throw new Error("Missing receipt payment id.");
+        }
+        const data = await sendInvoicePaymentReceiptToCustomerRequest(token, row.apiId, paymentId, {
+          toEmail: String(invoiceEmailPreviewTo ?? "").trim(),
+          subject: String(invoiceEmailPreviewSubject ?? "").trim(),
+          message: String(invoiceEmailPreviewMessage ?? "")
+        });
+        if (data?.payment?.id) {
+          const sentPay = data.payment;
+          setReceiptPreview((prev) => (prev && String(prev.id) === String(sentPay.id) ? { ...prev, ...sentPay } : prev));
+          setInvoices((prev) =>
+            prev.map((invRow) => {
+              if (String(invRow.apiId ?? invRow.id) !== String(row.apiId)) {
+                return invRow;
+              }
+              const nextPayments = Array.isArray(invRow.payments)
+                ? invRow.payments.map((p) => (String(p.id) === String(sentPay.id) ? { ...p, ...sentPay } : p))
+                : invRow.payments;
+              return { ...invRow, payments: nextPayments };
+            })
+          );
+          setViewInvoice((prev) => {
+            if (!prev || String(prev.apiId ?? prev.id) !== String(row.apiId)) {
+              return prev;
+            }
+            const nextPayments = Array.isArray(prev.payments)
+              ? prev.payments.map((p) => (String(p.id) === String(sentPay.id) ? { ...p, ...sentPay } : p))
+              : prev.payments;
+            return { ...prev, payments: nextPayments };
+          });
+        }
+        const msg = String(data?.message ?? "").trim() || "Receipt was sent to the customer.";
+        showInvPopupSuccess(msg);
+        resetInvoiceEmailPreview();
+        return;
+      }
       /** First issue from Draft: server PDF (correct INV-#). Resend: match on-screen layout like quotations. */
       let pdfBlob = null;
       const useClientPdf = invoiceWasIssuedToCustomer(row);
@@ -1508,7 +1628,16 @@ const Invoice = () => {
         const rowOut = {
           ...inv,
           id: String(inv.id),
-          taxNum: taxTotalFromInvoiceLineItems(inv.items)
+          taxNum: taxTotalFromInvoiceLineItems(inv.items),
+          ...(invoiceEmailPreviewSource === "invoice"
+            ? {
+                sentToCustomerAt: inv.sentToCustomerAt || new Date().toISOString(),
+                emailSentConfirmed: true
+              }
+            : {
+                sentToCustomerAt: row.sentToCustomerAt ?? null,
+                emailSentConfirmed: Boolean(row.emailSentConfirmed)
+              })
         };
         setInvoices((prev) =>
           prev.map((r) => (String(r.apiId ?? r.id) === String(inv.apiId) ? rowOut : r))
@@ -1540,21 +1669,54 @@ const Invoice = () => {
     invoiceEmailPreviewTo,
     invoiceEmailPreviewSubject,
     invoiceEmailPreviewMessage,
+    invoiceEmailPreviewSource,
+    invoiceEmailPreviewPaymentId,
     catalogCustomers,
     resetInvoiceEmailPreview,
     showInvPopupError,
     showInvPopupSuccess
   ]);
 
-  const handleOpenInvoiceEmailFromReceipt = useCallback(() => {
+  const handleSendReceiptToCustomer = useCallback(async () => {
     const row = receiptPreviewRow;
-    if (!token || !row?.apiId || row.status === "Cancelled" || !String(row.customerEmail ?? "").trim()) {
+    const receipt = receiptPreview;
+    if (
+      !token ||
+      !row?.apiId ||
+      !receipt?.id ||
+      row.status === "Cancelled" ||
+      !String(row.customerEmail ?? "").trim()
+    ) {
       return;
     }
-    setReceiptPreview(null);
-    setReceiptPreviewRow(null);
-    void openInvoiceEmailPreview(row);
-  }, [token, receiptPreviewRow, openInvoiceEmailPreview]);
+    try {
+      setInvoiceEmailPreviewRow(row);
+      setInvoiceEmailPreviewSource("receipt");
+      setInvoiceEmailPreviewPaymentId(receipt.id);
+      setInvoiceEmailPreviewSubject("");
+      setInvoiceEmailPreviewHtml("");
+      setInvoiceEmailPreviewTo(String(row.customerEmail ?? "").trim());
+      setInvoiceEmailPreviewMessage("");
+      setInvoiceEmailPreviewError("");
+      setInvoiceEmailPreviewOpen(true);
+      setInvoiceEmailPreviewLoading(true);
+      const data = await previewInvoicePaymentReceiptEmailRequest(token, receipt.id);
+      setInvoiceEmailPreviewSubject(String(data?.subject ?? ""));
+      setInvoiceEmailPreviewHtml(String(data?.html ?? ""));
+      if (String(data?.to_email ?? "").trim()) {
+        setInvoiceEmailPreviewTo(String(data.to_email).trim());
+      }
+      setInvoiceEmailPreviewMessage(String(data?.message_template ?? "Please find your payment receipt details below."));
+    } catch (err) {
+      if (err instanceof TillFlowApiError) {
+        setInvoiceEmailPreviewError(err.message);
+      } else {
+        setInvoiceEmailPreviewError("Could not load receipt email preview.");
+      }
+    } finally {
+      setInvoiceEmailPreviewLoading(false);
+    }
+  }, [token, receiptPreviewRow, receiptPreview]);
 
   const submitRecordPayment = useCallback(async () => {
     if (!token || !recordPayTarget?.apiId) {
@@ -2195,6 +2357,65 @@ const Invoice = () => {
                         onChange={(e) => setInvDueAt(e.target.value)}
                       />
                     </div>
+                    <div className="col-md-4">
+                      <label className="form-label d-block">Recurring invoice</label>
+                      <div className="form-check form-switch mt-1">
+                        <input
+                          id="inv-recurring-toggle"
+                          type="checkbox"
+                          className="form-check-input"
+                          checked={invIsRecurring}
+                          onChange={(e) => setInvIsRecurring(e.target.checked)}
+                        />
+                        <label className="form-check-label" htmlFor="inv-recurring-toggle">
+                          Enable recurring
+                        </label>
+                      </div>
+                    </div>
+                    {invIsRecurring ? (
+                      <>
+                        <div className="col-md-4">
+                          <label className="form-label">Repeat every</label>
+                          <select
+                            className="form-select"
+                            value={invRecurringChoice}
+                            onChange={(e) => setInvRecurringChoice(e.target.value)}>
+                            {RECURRING_MONTH_OPTIONS.map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                            <option value="custom">Custom</option>
+                          </select>
+                        </div>
+                        {invRecurringChoice === "custom" ? (
+                          <div className="col-md-4 col-lg-2">
+                            <label className="form-label">Custom interval</label>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              className="form-control"
+                              value={invRecurringCustomEvery}
+                              onChange={(e) => setInvRecurringCustomEvery(e.target.value)}
+                            />
+                          </div>
+                        ) : null}
+                        {invRecurringChoice === "custom" ? (
+                          <div className="col-md-4 col-lg-2">
+                            <label className="form-label">Unit</label>
+                            <select
+                              className="form-select"
+                              value={invRecurringCustomUnit}
+                              onChange={(e) => setInvRecurringCustomUnit(e.target.value)}>
+                              <option value="day">Day(s)</option>
+                              <option value="week">Week(s)</option>
+                              <option value="month">Month(s)</option>
+                            </select>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
                     {token && inTillflowShell ? (
                       <div className="col-md-4">
                         <label className="form-label">Status</label>
@@ -2776,9 +2997,7 @@ const Invoice = () => {
           }}
           onDownloadPdf={handleDownloadReceiptPdf}
           tillflowEmailActionsEnabled={Boolean(token && inTillflowShell)}
-          onOpenInvoiceEmailPreview={
-            token && inTillflowShell ? handleOpenInvoiceEmailFromReceipt : undefined
-          }
+          onSendReceiptToCustomer={token && inTillflowShell ? handleSendReceiptToCustomer : undefined}
           onViewInvoicePdf={
             token && inTillflowShell && receiptPreviewRow ? handleViewInvoicePdfFromReceipt : undefined
           }
@@ -2852,9 +3071,11 @@ const Invoice = () => {
           showHtmlPreview={false}
           sending={invoiceEmailPreviewSending}
           sendButtonLabel={
-            invoiceEmailPreviewRow && invoiceWasIssuedToCustomer(invoiceEmailPreviewRow)
-              ? "Resend email"
-              : "Send email"
+            invoiceEmailPreviewSource === "receipt"
+              ? (receiptWasSentToCustomer(receiptPreview) ? "Resend receipt" : "Send receipt")
+              : invoiceEmailPreviewRow && invoiceWasIssuedToCustomer(invoiceEmailPreviewRow)
+                ? "Resend email"
+                : "Send email"
           }
           sendDisabled={
             !invoiceEmailPreviewRow ||
