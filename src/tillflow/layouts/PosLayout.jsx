@@ -1,25 +1,59 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { TILLFLOW_TENANT_UI_SETTINGS_HYDRATED } from "../tenantUiSettings/events";
+import { loadCompanyLogoSettings } from "../../utils/companySettingsStorage";
 import {
   avator1,
   clockIcon,
   logoPng,
   logoSmallPng,
   logoWhitePng,
-  logOut,
-  store_01,
-  store_02,
-  store_03,
-  store_04
+  logOut
 } from "../../utils/imagepath";
 
 function formatClock(d) {
   return d.toLocaleTimeString("en-GB", { hour12: false });
 }
 
+function formatDateLabel(d) {
+  return d.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+}
+
 export default function PosLayout() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [companyLogos, setCompanyLogos] = useState(() => loadCompanyLogoSettings());
   const [now, setNow] = useState(() => new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const primaryLogoSrc = companyLogos.logo || logoPng;
+  const darkBgLogoSrc = companyLogos.darkLogo || companyLogos.logo || logoWhitePng;
+  const smallLogoSrc = companyLogos.icon || companyLogos.logo || logoSmallPng;
+
+  const displayName = user?.name?.trim() || user?.email?.trim() || "User";
+  const roleLabel =
+    typeof user?.role === "string" && user.role.trim()
+      ? user.role.trim()
+      : typeof user?.role_label === "string" && user.role_label.trim()
+        ? user.role_label.trim()
+        : "Account";
+
+  useEffect(() => {
+    const refreshLogos = () => setCompanyLogos(loadCompanyLogoSettings());
+    refreshLogos();
+    window.addEventListener(TILLFLOW_TENANT_UI_SETTINGS_HYDRATED, refreshLogos);
+    window.addEventListener("focus", refreshLogos);
+    return () => {
+      window.removeEventListener(TILLFLOW_TENANT_UI_SETTINGS_HYDRATED, refreshLogos);
+      window.removeEventListener("focus", refreshLogos);
+    };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate("/tillflow/login", { replace: true });
+  }, [logout, navigate]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 1000);
@@ -45,19 +79,29 @@ export default function PosLayout() {
     }
   }, []);
 
+  const openLatestReceipt = useCallback((e) => {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("tillflow:open-latest-receipt"));
+  }, []);
+
   return (
     <div className="main-wrapper pos-three tf-pos-shell">
       <div className="header pos-header">
         <div className="header-left active">
           <Link to="/tillflow/admin" className="logo logo-normal">
-            <img src={logoPng} alt="Img" />
+            <img src={primaryLogoSrc} alt="" />
           </Link>
           <Link to="/tillflow/admin" className="logo logo-white">
-            <img src={logoWhitePng} alt="Img" />
+            <img src={darkBgLogoSrc} alt="" />
           </Link>
           <Link to="/tillflow/admin" className="logo-small">
-            <img src={logoSmallPng} alt="Img" />
+            <img src={smallLogoSrc} alt="" />
           </Link>
+          <div className="d-none d-md-flex align-items-center ms-2">
+            <span className="fw-semibold text-dark">
+              Welcome, {displayName} | {formatDateLabel(now)}
+            </span>
+          </div>
         </div>
 
         <Link id="mobile_btn" className="mobile_btn d-none" to="#sidebar">
@@ -82,30 +126,6 @@ export default function PosLayout() {
             </Link>
           </li>
 
-          <li className="nav-item dropdown has-arrow main-drop select-store-dropdown">
-            <Link to="#" className="dropdown-toggle nav-link select-store" data-bs-toggle="dropdown">
-              <span className="user-info">
-                <span className="user-letter">
-                  <img src={store_01} alt="Store Logo" className="img-fluid" />
-                </span>
-                <span className="user-detail">
-                  <span className="user-name">Freshmart</span>
-                </span>
-              </span>
-            </Link>
-            <div className="dropdown-menu dropdown-menu-right">
-              <Link to="#" className="dropdown-item"><img src={store_01} alt="Store Logo" className="img-fluid" />Freshmart</Link>
-              <Link to="#" className="dropdown-item"><img src={store_02} alt="Store Logo" className="img-fluid" />Grocery Apex</Link>
-              <Link to="#" className="dropdown-item"><img src={store_03} alt="Store Logo" className="img-fluid" />Grocery Bevy</Link>
-              <Link to="#" className="dropdown-item"><img src={store_04} alt="Store Logo" className="img-fluid" />Grocery Eden</Link>
-            </div>
-          </li>
-
-          <li className="nav-item nav-item-box">
-            <Link to="#" data-bs-toggle="modal" data-bs-target="#calculator" className="bg-orange border-orange text-white">
-              <i className="ti ti-calculator" />
-            </Link>
-          </li>
           <li className="nav-item nav-item-box">
             <Link to="#" id="btnFullscreen" onClick={toggleFullscreen} className={isFullscreen ? "Exit Fullscreen" : "Go Fullscreen"}>
               <i className="ti ti-maximize" />
@@ -117,7 +137,7 @@ export default function PosLayout() {
             </Link>
           </li>
           <li className="nav-item nav-item-box">
-            <Link to="#" data-bs-toggle="modal" data-bs-target="#print-receipt">
+            <Link to="#" onClick={openLatestReceipt}>
               <i className="ti ti-printer" />
             </Link>
           </li>
@@ -126,22 +146,15 @@ export default function PosLayout() {
               <i className="ti ti-progress" />
             </Link>
           </li>
-          <li className="nav-item nav-item-box">
-            <Link to="#" data-bs-toggle="modal" data-bs-target="#today-profit">
-              <i className="ti ti-chart-infographic" />
-            </Link>
-          </li>
-          <li className="nav-item nav-item-box">
-            <Link to="/tillflow/admin/settings/pos">
-              <i className="ti ti-settings" />
-            </Link>
-          </li>
-
           <li className="nav-item dropdown has-arrow main-drop profile-nav">
-            <Link to="#" className="nav-link userset" data-bs-toggle="dropdown">
+            <Link to="#" className="nav-link userset" data-bs-toggle="dropdown" title={user?.email ?? ""}>
               <span className="user-info p-0">
                 <span className="user-letter">
-                  <img src={avator1} alt="Img" className="img-fluid" />
+                  <img
+                    src={user?.avatar_url || avator1}
+                    alt=""
+                    className="img-fluid"
+                  />
                 </span>
               </span>
             </Link>
@@ -149,12 +162,12 @@ export default function PosLayout() {
               <div className="profilename">
                 <div className="profileset">
                   <span className="user-img">
-                    <img src={avator1} alt="Img" />
+                    <img src={user?.avatar_url || avator1} alt="" />
                     <span className="status online" />
                   </span>
                   <div className="profilesets">
-                    <h6>John Smilga</h6>
-                    <h5>Super Admin</h5>
+                    <h6>{displayName}</h6>
+                    <h5>{roleLabel}</h5>
                   </div>
                 </div>
                 <hr className="m-0" />
@@ -167,8 +180,14 @@ export default function PosLayout() {
                   Settings
                 </Link>
                 <hr className="m-0" />
-                <Link className="dropdown-item logout pb-0" to="/tillflow/login">
-                  <img src={logOut} className="me-2" alt="img" />
+                <Link
+                  className="dropdown-item logout pb-0"
+                  to="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void handleLogout();
+                  }}>
+                  <img src={logOut} className="me-2" alt="" />
                   Logout
                 </Link>
               </div>
@@ -183,7 +202,15 @@ export default function PosLayout() {
           <div className="dropdown-menu dropdown-menu-right">
             <Link className="dropdown-item" to="/tillflow/admin/settings/profile">My Profile</Link>
             <Link className="dropdown-item" to="/tillflow/admin/settings/system">Settings</Link>
-            <Link className="dropdown-item" to="/tillflow/login">Logout</Link>
+            <Link
+              className="dropdown-item"
+              to="#"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleLogout();
+              }}>
+              Logout
+            </Link>
           </div>
         </div>
       </div>

@@ -12,9 +12,7 @@ import {
 import { useOnlineStatus } from '../offline/useOnlineStatus';
 
 const INVENTORY_PATH_RE =
-  /\/tillflow\/admin\/(items|add-product|expired-items|low-stock|categories|brands|units|variant-attributes|warranties)(\/|$)/;
-const STOCK_PATH_RE =
-  /\/tillflow\/admin\/(manage-stocks|stock-adjustment|stock-transfer|stores|print-barcode)(\/|$)/;
+  /\/tillflow\/admin\/(items|add-product|expired-items|low-stock|categories|brands|units|variant-attributes|warranties|manage-stocks|stock-adjustment|stock-transfer|stores|print-barcode)(\/|$)/;
 const SALES_PATH_RE = TILLFLOW_ADMIN_SALES_NAV_PATH_RE;
 const PEOPLE_PATH_RE =
   /\/tillflow\/admin\/(customers|billers|suppliers|store-managers)(\/|$)/;
@@ -40,7 +38,6 @@ export default function AdminLayout() {
   const adminOutletBlockedOffline = !isOnline && !tillflowAdminPathAllowsOfflineUse(location.pathname);
 
   const [inventoryOpen, setInventoryOpen] = useState(false);
-  const [stockOpen, setStockOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [purchasesOpen, setPurchasesOpen] = useState(false);
@@ -55,9 +52,6 @@ export default function AdminLayout() {
   const syncSectionsToPath = useCallback((pathname) => {
     if (INVENTORY_PATH_RE.test(pathname)) {
       setInventoryOpen(true);
-    }
-    if (STOCK_PATH_RE.test(pathname)) {
-      setStockOpen(true);
     }
     if (SALES_PATH_RE.test(pathname)) {
       setSalesOpen(true);
@@ -173,26 +167,17 @@ export default function AdminLayout() {
                   <i className="feather icon-shield tf-nav__icon" aria-hidden />
                   Warranties
                 </NavLink>
-              </div>
-            ) : null}
-          </div>
-          <div className="tf-nav-group">
-            <button
-              type="button"
-              className="tf-nav-group__hdr"
-              onClick={() => setStockOpen((v) => !v)}
-              aria-expanded={stockOpen}
-            >
-              Stock
-              <i className={`feather icon-chevron-${stockOpen ? 'up' : 'down'}`} aria-hidden />
-            </button>
-            {stockOpen ? (
-              <div className="tf-nav-group__body">
                 <NavLink
                   to="/tillflow/admin/manage-stocks"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-layers tf-nav__icon" aria-hidden />
                   Manage stock
+                </NavLink>
+                <NavLink
+                  to="/tillflow/admin/stores"
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                  <i className="feather icon-home tf-nav__icon" aria-hidden />
+                  Stores
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/stock-adjustment"
@@ -205,12 +190,6 @@ export default function AdminLayout() {
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-corner-up-right tf-nav__icon" aria-hidden />
                   Stock transfer
-                </NavLink>
-                <NavLink
-                  to="/tillflow/admin/stores"
-                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
-                  <i className="feather icon-home tf-nav__icon" aria-hidden />
-                  Stores
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/print-barcode"
@@ -234,16 +213,10 @@ export default function AdminLayout() {
             {salesOpen ? (
               <div className="tf-nav-group__body">
                 <NavLink
-                  to="/tillflow/admin/online-orders"
-                  className={({ isActive }) => (isActive ? 'active' : undefined)}>
-                  <i className="feather icon-shopping-cart tf-nav__icon" aria-hidden />
-                  Online orders
-                </NavLink>
-                <NavLink
-                  to="/tillflow/admin/pos-orders"
+                  to="/tillflow/admin/orders"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-file-text tf-nav__icon" aria-hidden />
-                  POS orders
+                  Orders
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/quotations"
@@ -312,7 +285,7 @@ export default function AdminLayout() {
                   to="/tillflow/admin/billers"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-user-check tf-nav__icon" aria-hidden />
-                  Billers
+                  Sellers
                 </NavLink>
                 <NavLink
                   to="/tillflow/admin/suppliers"

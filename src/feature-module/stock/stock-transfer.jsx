@@ -1,26 +1,26 @@
-import { stockTransferData } from "../../core/json/stock-transfer-data";
-import PrimeDataTable from "../../components/data-table";
-import SearchFromApi from "../../components/data-table/search";
-import CommonSelect from "../../components/select/common-select";
-import TableTopHead from "../../components/table-top-head";
-import CommonFooter from "../../components/footer/commonFooter";
-import { downloadImg } from "../../utils/imagepath";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useStores } from "../../stores/useStores";
+import { AutoComplete } from "primereact/autocomplete";
+import PrimeDataTable from "../../components/data-table";
+import SearchFromApi from "../../components/data-table/search";
+import CommonFooter from "../../components/footer/commonFooter";
+import CommonSelect from "../../components/select/common-select";
+import TableTopHead from "../../components/table-top-head";
+import { stockTransferData } from "../../core/json/stock-transfer-data";
 import { storeLabel } from "../../stores/storesRegistry";
-import { listProductsRequest } from "../../tillflow/api/products";
+import { useStores } from "../../stores/useStores";
 import { TillFlowApiError } from "../../tillflow/api/errors";
-
-const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
-
-function readTillflowToken() {
-  try {
-    return sessionStorage.getItem(TILLFLOW_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
+import { listProductsRequest } from "../../tillflow/api/products";
+import {
+  apiStockTransferToRow,
+  createStockTransferRequest,
+  deleteStockTransferRequest,
+  listStockTransfersRequest,
+  updateStockTransferRequest
+} from "../../tillflow/api/stockTransfers";
+import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
+import { downloadImg } from "../../utils/imagepath";
 
 const DEMO_PRODUCTS = [
   { sku: "PT001", name: "Apple iMac Pro", category: "Electronics" },
@@ -53,9 +53,44 @@ function parseRowDate(s) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Prefer ISO `createdAt` from API; fall back to display `date` string. */
+function parseTransferRowDate(row) {
+  if (row?.createdAt) {
+    const d = new Date(row.createdAt);
+    if (!Number.isNaN(d.getTime())) {
+      return d;
+    }
+  }
+  return parseRowDate(row?.date);
+}
+
 function summarizeLines(lines) {
   const qty = lines.reduce((sum, l) => sum + (Number(l.qty) || 0), 0);
   return { noOfProducts: lines.length, quantityTransferred: qty };
+}
+
+/** Same product → increase qty; merged row moves to the top. */
+function upsertTransferLine(prev, newLine, liveMode) {
+  const matchIndex = prev.findIndex((l) =>
+    liveMode
+      ? l.productId != null &&
+        newLine.productId != null &&
+        Number(l.productId) === Number(newLine.productId)
+      : String(l.sku ?? "") === String(newLine.sku ?? "") &&
+        String(l.sku ?? "") !== "" &&
+        String(newLine.sku ?? "") !== ""
+  );
+  if (matchIndex === -1) {
+    return [newLine, ...prev];
+  }
+  const next = [...prev];
+  const existing = next[matchIndex];
+  const merged = {
+    ...existing,
+    qty: (Number(existing.qty) || 0) + (Number(newLine.qty) || 0)
+  };
+  next.splice(matchIndex, 1);
+  return [merged, ...next];
 }
 
 const ALL_FILTER = { label: "All", value: "" };
@@ -73,10 +108,13 @@ const StockTransfer = () => {
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
   const stores = useStores();
 
-  const [token] = useState(() => readTillflowToken());
+  const auth = useOptionalAuth();
+  const token = auth?.token ?? readTillflowStoredToken();
   const liveMode = Boolean(token);
   const [catalogProducts, setCatalogProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(Boolean(token));
+  const [productsLoading, setProductsLoading] = useState(
+    () => Boolean(readTillflowStoredToken())
+  );
   const [productsError, setProductsError] = useState("");
 
   const loadCatalog = useCallback(async () => {
@@ -109,11 +147,50 @@ const StockTransfer = () => {
   }, [token, loadCatalog]);
 
   const [transfers, setTransfers] = useState(() =>
-    stockTransferData.map((r) => ({
-      ...r,
-      lines: Array.isArray(r.lines) ? r.lines : []
-    }))
+    readTillflowStoredToken()
+      ? []
+      : stockTransferData.map((r) => ({
+          ...r,
+          lines: Array.isArray(r.lines) ? r.lines : []
+        }))
   );
+  const [transfersLoading, setTransfersLoading] = useState(() =>
+    Boolean(readTillflowStoredToken())
+  );
+  const [transfersError, setTransfersError] = useState("");
+
+  const loadTransfers = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    setTransfersError("");
+    setTransfersLoading(true);
+    try {
+      const data = await listStockTransfersRequest(token);
+      const raw = Array.isArray(data?.transfers) ? data.transfers : [];
+      const mapped = raw
+        .map((t) => apiStockTransferToRow(t))
+        .filter(Boolean);
+      setTransfers(mapped);
+    } catch (e) {
+      setTransfers([]);
+      if (e instanceof TillFlowApiError) {
+        setTransfersError(
+          e.status === 403 ? `${e.message} (needs catalog access)` : e.message
+        );
+      } else {
+        setTransfersError("Could not load stock transfers.");
+      }
+    } finally {
+      setTransfersLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      void loadTransfers();
+    }
+  }, [token, loadTransfers]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
@@ -128,8 +205,12 @@ const StockTransfer = () => {
   const [addRef, setAddRef] = useState("");
   const [addNotes, setAddNotes] = useState("");
   const [addLines, setAddLines] = useState([]);
-  /** @type {null | number | string} — product id (API) or demo SKU */
-  const [addProductValue, setAddProductValue] = useState(null);
+  /** Input must stay a string (Prime AutoComplete + field breaks if value is an object). */
+  const [addProductQuery, setAddProductQuery] = useState("");
+  /** Set when user picks a row from the suggestion list (used by Add). */
+  const [addPendingProduct, setAddPendingProduct] = useState(null);
+  const [addProductSuggestions, setAddProductSuggestions] = useState([]);
+  const [addProductAutocompleteKey, setAddProductAutocompleteKey] = useState(0);
   const [addLineQty, setAddLineQty] = useState("1");
   const [formError, setFormError] = useState("");
 
@@ -139,11 +220,15 @@ const StockTransfer = () => {
   const [editRef, setEditRef] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editLines, setEditLines] = useState([]);
-  const [editProductValue, setEditProductValue] = useState(null);
+  const [editProductQuery, setEditProductQuery] = useState("");
+  const [editPendingProduct, setEditPendingProduct] = useState(null);
+  const [editProductSuggestions, setEditProductSuggestions] = useState([]);
+  const [editProductAutocompleteKey, setEditProductAutocompleteKey] = useState(0);
   const [editLineQty, setEditLineQty] = useState("1");
   const [editError, setEditError] = useState("");
 
   const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   const [importFrom, setImportFrom] = useState(null);
   const [importTo, setImportTo] = useState(null);
@@ -178,25 +263,94 @@ const StockTransfer = () => {
     [stores]
   );
 
-  const productSelectOptions = useMemo(() => {
-    const head = { label: "Select product", value: null };
-    if (liveMode) {
-      return [
-        head,
-        ...catalogProducts.map((p) => ({
-          label: `${p.name}${p.sku ? ` (${p.sku})` : ""}`,
-          value: p.id
-        }))
-      ];
+  const filterProductsForTransfer = useCallback(
+    (query) => {
+      const q = String(query ?? "")
+        .trim()
+        .toLowerCase();
+      if (liveMode) {
+        if (!catalogProducts.length) {
+          return [];
+        }
+        return catalogProducts
+          .filter((p) => {
+            if (!q) {
+              return true;
+            }
+            const name = String(p.name ?? "").toLowerCase();
+            const sku = String(p.sku ?? "").toLowerCase();
+            return name.includes(q) || sku.includes(q);
+          })
+          .slice(0, 60);
+      }
+      return DEMO_PRODUCTS.filter((p) => {
+        if (!q) {
+          return true;
+        }
+        const name = String(p.name ?? "").toLowerCase();
+        const sku = String(p.sku ?? "").toLowerCase();
+        return name.includes(q) || sku.includes(q);
+      }).slice(0, 60);
+    },
+    [liveMode, catalogProducts]
+  );
+
+  const completeAddProduct = useCallback(
+    (e) => {
+      setAddProductSuggestions(filterProductsForTransfer(e.query));
+    },
+    [filterProductsForTransfer]
+  );
+
+  const completeEditProduct = useCallback(
+    (e) => {
+      setEditProductSuggestions(filterProductsForTransfer(e.query));
+    },
+    [filterProductsForTransfer]
+  );
+
+  const onAddProductChange = useCallback((e) => {
+    const v = e.value;
+    if (v != null && typeof v === "object" && !Array.isArray(v)) {
+      if (liveMode ? v.id != null : v.sku != null) {
+        return;
+      }
     }
-    return [
-      head,
-      ...DEMO_PRODUCTS.map((p) => ({
-        label: `${p.name} (${p.sku})`,
-        value: p.sku
-      }))
-    ];
-  }, [liveMode, catalogProducts]);
+    setAddPendingProduct(null);
+    setAddProductQuery(typeof v === "string" || v == null ? v ?? "" : String(v));
+  }, [liveMode]);
+
+  const onAddProductSelect = useCallback(
+    (e) => {
+      const p = e.value;
+      if (!p) {
+        return;
+      }
+      setAddPendingProduct(p);
+      setAddProductQuery(String(p.name ?? ""));
+    },
+    []
+  );
+
+  const onEditProductChange = useCallback((e) => {
+    const v = e.value;
+    if (v != null && typeof v === "object" && !Array.isArray(v)) {
+      if (liveMode ? v.id != null : v.sku != null) {
+        return;
+      }
+    }
+    setEditPendingProduct(null);
+    setEditProductQuery(typeof v === "string" || v == null ? v ?? "" : String(v));
+  }, [liveMode]);
+
+  const onEditProductSelect = useCallback((e) => {
+    const p = e.value;
+    if (!p) {
+      return;
+    }
+    setEditPendingProduct(p);
+    setEditProductQuery(String(p.name ?? ""));
+  }, []);
 
   const statusOptions = [
     { label: "Select", value: "" },
@@ -246,12 +400,12 @@ const StockTransfer = () => {
 
     if (sortMode === "lastMonth") {
       list = list.filter((r) => {
-        const d = parseRowDate(r.date);
+        const d = parseTransferRowDate(r);
         return d && d >= startOfMonth;
       });
     } else if (sortMode === "last7") {
       list = list.filter((r) => {
-        const d = parseRowDate(r.date);
+        const d = parseTransferRowDate(r);
         return d && d >= last7;
       });
     }
@@ -266,8 +420,8 @@ const StockTransfer = () => {
       );
     } else {
       list.sort((a, b) => {
-        const da = parseRowDate(a.date);
-        const db = parseRowDate(b.date);
+        const da = parseTransferRowDate(a);
+        const db = parseTransferRowDate(b);
         if (!da && !db) {
           return 0;
         }
@@ -292,7 +446,10 @@ const StockTransfer = () => {
     setAddRef("");
     setAddNotes("");
     setAddLines([]);
-    setAddProductValue(null);
+    setAddProductQuery("");
+    setAddPendingProduct(null);
+    setAddProductSuggestions([]);
+    setAddProductAutocompleteKey((k) => k + 1);
     setAddLineQty("1");
     setFormError("");
   }, []);
@@ -303,7 +460,10 @@ const StockTransfer = () => {
     setEditTo(row.toStoreId ?? null);
     setEditRef(row.refNumber);
     setEditNotes(row.notes ?? "");
-    setEditProductValue(null);
+    setEditProductQuery("");
+    setEditPendingProduct(null);
+    setEditProductSuggestions([]);
+    setEditProductAutocompleteKey((k) => k + 1);
     setEditLineQty("1");
     setEditError("");
     let lines = row.lines?.length
@@ -324,8 +484,14 @@ const StockTransfer = () => {
   }, []);
 
   const handleAddLine = () => {
-    if (addProductValue == null || addProductValue === "") {
-      setFormError("Select a product.");
+    let p = addPendingProduct;
+    if (p && liveMode && p.id != null) {
+      p = catalogProducts.find((x) => x.id === p.id) ?? p;
+    } else if (p && !liveMode && p.sku) {
+      p = DEMO_PRODUCTS.find((x) => x.sku === p.sku) ?? p;
+    }
+    if (!p) {
+      setFormError("Search and select a product from the list.");
       return;
     }
     const q = parseInt(addLineQty, 10);
@@ -334,45 +500,39 @@ const StockTransfer = () => {
       return;
     }
     setFormError("");
-    if (liveMode) {
-      const p = catalogProducts.find((x) => x.id === addProductValue);
-      if (!p) {
-        return;
-      }
-      setAddLines((prev) => [
-        ...prev,
-        {
-          lineId: `ln-${Date.now()}`,
+    const newLine = liveMode
+      ? {
+          lineId: `ln-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           productId: p.id,
           name: p.name ?? "—",
           sku: p.sku ?? "—",
           category: p.category?.name ?? "—",
           qty: q
         }
-      ]);
-    } else {
-      const p = DEMO_PRODUCTS.find((x) => x.sku === addProductValue);
-      if (!p) {
-        return;
-      }
-      setAddLines((prev) => [
-        ...prev,
-        {
-          lineId: `ln-${Date.now()}`,
+      : {
+          lineId: `ln-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           name: p.name,
           sku: p.sku,
           category: p.category,
           qty: q
-        }
-      ]);
-    }
-    setAddProductValue(null);
+        };
+    setAddLines((prev) => upsertTransferLine(prev, newLine, liveMode));
+    setAddProductQuery("");
+    setAddPendingProduct(null);
+    setAddProductSuggestions([]);
+    setAddProductAutocompleteKey((k) => k + 1);
     setAddLineQty("1");
   };
 
   const handleEditAddLine = () => {
-    if (editProductValue == null || editProductValue === "") {
-      setEditError("Select a product.");
+    let p = editPendingProduct;
+    if (p && liveMode && p.id != null) {
+      p = catalogProducts.find((x) => x.id === p.id) ?? p;
+    } else if (p && !liveMode && p.sku) {
+      p = DEMO_PRODUCTS.find((x) => x.sku === p.sku) ?? p;
+    }
+    if (!p) {
+      setEditError("Search and select a product from the list.");
       return;
     }
     const q = parseInt(editLineQty, 10);
@@ -381,43 +541,31 @@ const StockTransfer = () => {
       return;
     }
     setEditError("");
-    if (liveMode) {
-      const p = catalogProducts.find((x) => x.id === editProductValue);
-      if (!p) {
-        return;
-      }
-      setEditLines((prev) => [
-        ...prev,
-        {
-          lineId: `ln-${Date.now()}`,
+    const newLine = liveMode
+      ? {
+          lineId: `ln-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           productId: p.id,
           name: p.name ?? "—",
           sku: p.sku ?? "—",
           category: p.category?.name ?? "—",
           qty: q
         }
-      ]);
-    } else {
-      const p = DEMO_PRODUCTS.find((x) => x.sku === editProductValue);
-      if (!p) {
-        return;
-      }
-      setEditLines((prev) => [
-        ...prev,
-        {
-          lineId: `ln-${Date.now()}`,
+      : {
+          lineId: `ln-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           name: p.name,
           sku: p.sku,
           category: p.category,
           qty: q
-        }
-      ]);
-    }
-    setEditProductValue(null);
+        };
+    setEditLines((prev) => upsertTransferLine(prev, newLine, liveMode));
+    setEditProductQuery("");
+    setEditPendingProduct(null);
+    setEditProductSuggestions([]);
+    setEditProductAutocompleteKey((k) => k + 1);
     setEditLineQty("1");
   };
 
-  const handleCreateTransfer = (e) => {
+  const handleCreateTransfer = async (e) => {
     e.preventDefault();
     if (addFrom == null || addTo == null) {
       setFormError("Choose both stores.");
@@ -431,9 +579,49 @@ const StockTransfer = () => {
       setFormError("Add at least one product line.");
       return;
     }
-    const ref =
+    const refRaw =
       addRef.trim() ||
-      `#ST-${Date.now().toString(36).toUpperCase()}`;
+      `ST-${Date.now().toString(36).toUpperCase()}`;
+    const refNumber = refRaw.startsWith("#")
+      ? refRaw
+      : `#${refRaw.replace(/^#/, "")}`;
+
+    if (liveMode && token) {
+      const missingPid = addLines.some(
+        (l) => l.productId == null || Number(l.productId) < 1
+      );
+      if (missingPid) {
+        setFormError("Each line must include a catalog product.");
+        return;
+      }
+      setFormError("");
+      try {
+        const data = await createStockTransferRequest(token, {
+          from_store_id: Number(addFrom),
+          to_store_id: Number(addTo),
+          ref_number: refNumber,
+          notes: addNotes.trim() ? addNotes.trim() : null,
+          lines: addLines.map((l) => ({
+            product_id: Number(l.productId),
+            qty: Number(l.qty) || 0
+          }))
+        });
+        const row = apiStockTransferToRow(data?.transfer);
+        if (row) {
+          setTransfers((prev) => [row, ...prev]);
+        }
+        resetAddForm();
+        hideBsModal("add-stock-transfer");
+      } catch (err) {
+        setFormError(
+          err instanceof TillFlowApiError
+            ? err.message
+            : "Could not create stock transfer."
+        );
+      }
+      return;
+    }
+
     const { noOfProducts, quantityTransferred } = summarizeLines(addLines);
     const when = new Date().toLocaleDateString(undefined, {
       day: "numeric",
@@ -447,7 +635,7 @@ const StockTransfer = () => {
         toStoreId: Number(addTo),
         noOfProducts,
         quantityTransferred,
-        refNumber: ref.startsWith("#") ? ref : `#${ref.replace(/^#/, "")}`,
+        refNumber,
         date: when,
         notes: addNotes.trim() || undefined,
         lines: addLines.map(({ lineId: _lid, ...rest }) => ({ ...rest }))
@@ -458,7 +646,7 @@ const StockTransfer = () => {
     hideBsModal("add-stock-transfer");
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editing) {
       return;
@@ -475,9 +663,48 @@ const StockTransfer = () => {
       setEditError("Keep at least one product line.");
       return;
     }
-    const { noOfProducts, quantityTransferred } = summarizeLines(editLines);
     const ref =
       editRef.trim().startsWith("#") ? editRef.trim() : `#${editRef.replace(/^#/, "")}`;
+
+    if (liveMode && token) {
+      const missingPid = editLines.some(
+        (l) => l.productId == null || Number(l.productId) < 1
+      );
+      if (missingPid) {
+        setEditError("Each line must include a catalog product.");
+        return;
+      }
+      setEditError("");
+      try {
+        const data = await updateStockTransferRequest(token, editing.id, {
+          from_store_id: Number(editFrom),
+          to_store_id: Number(editTo),
+          ref_number: ref,
+          notes: editNotes.trim() ? editNotes.trim() : null,
+          lines: editLines.map((l) => ({
+            product_id: Number(l.productId),
+            qty: Number(l.qty) || 0
+          }))
+        });
+        const updated = apiStockTransferToRow(data?.transfer);
+        if (updated) {
+          setTransfers((prev) =>
+            prev.map((r) => (r.id === editing.id ? updated : r))
+          );
+        }
+        setEditing(null);
+        hideBsModal("edit-stock-transfer");
+      } catch (err) {
+        setEditError(
+          err instanceof TillFlowApiError
+            ? err.message
+            : "Could not update stock transfer."
+        );
+      }
+      return;
+    }
+
+    const { noOfProducts, quantityTransferred } = summarizeLines(editLines);
 
     setTransfers((prev) =>
       prev.map((r) =>
@@ -499,12 +726,29 @@ const StockTransfer = () => {
     hideBsModal("edit-stock-transfer");
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteTargetId == null) {
       return;
     }
-    setTransfers((prev) => prev.filter((r) => r.id !== deleteTargetId));
-    setSelectedTransfers((sel) => sel.filter((r) => r.id !== deleteTargetId));
+    const id = deleteTargetId;
+    setDeleteError("");
+    if (liveMode && token) {
+      try {
+        await deleteStockTransferRequest(token, id);
+        setTransfers((prev) => prev.filter((r) => r.id !== id));
+        setSelectedTransfers((sel) => sel.filter((r) => r.id !== id));
+      } catch (e) {
+        setDeleteError(
+          e instanceof TillFlowApiError
+            ? e.message
+            : "Could not delete stock transfer."
+        );
+        return;
+      }
+    } else {
+      setTransfers((prev) => prev.filter((r) => r.id !== id));
+      setSelectedTransfers((sel) => sel.filter((r) => r.id !== id));
+    }
     setDeleteTargetId(null);
     hideBsModal("delete-stock-transfer");
   };
@@ -551,7 +795,10 @@ const StockTransfer = () => {
             className="p-2 d-flex align-items-center justify-content-between border rounded bg-transparent"
             data-bs-toggle="modal"
             data-bs-target="#delete-stock-transfer"
-            onClick={() => setDeleteTargetId(row.id)}
+            onClick={() => {
+              setDeleteError("");
+              setDeleteTargetId(row.id);
+            }}
             title="Delete">
             <i className="feather icon-trash-2" />
           </button>
@@ -589,12 +836,16 @@ const StockTransfer = () => {
                 setFilterTo("");
                 setSortMode("recent");
                 setSearchQuery("");
-                setTransfers(
-                  stockTransferData.map((r) => ({
-                    ...r,
-                    lines: Array.isArray(r.lines) ? r.lines : []
-                  }))
-                );
+                if (token) {
+                  void loadTransfers();
+                } else {
+                  setTransfers(
+                    stockTransferData.map((r) => ({
+                      ...r,
+                      lines: Array.isArray(r.lines) ? r.lines : []
+                    }))
+                  );
+                }
                 setCurrentPage(1);
                 void loadCatalog();
               }}
@@ -646,6 +897,14 @@ const StockTransfer = () => {
                 rows={rows}
                 setRows={setRows}
               />
+              {liveMode && transfersError ? (
+                <div className="alert alert-danger py-2 mb-0 w-100">
+                  {transfersError}
+                </div>
+              ) : null}
+              {liveMode && transfersLoading ? (
+                <div className="text-muted small w-100">Loading transfers…</div>
+              ) : null}
               <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3 gap-2">
                 <div style={{ minWidth: "10rem" }}>
                   <CommonSelect
@@ -798,49 +1057,96 @@ const StockTransfer = () => {
                     </div>
                   </div>
                   <div className="col-lg-12">
-                    <label className="form-label">
+                    <label className="form-label mb-2">
                       Products <span className="text-danger ms-1">*</span>
                     </label>
-                    <div className="row g-2 align-items-end mb-2">
-                      <div className="col-md-7">
-                        <CommonSelect
-                          className="w-100"
-                          options={productSelectOptions}
-                          value={addProductValue}
-                          onChange={(e) => {
-                            const v = e.value;
-                            setAddProductValue(
-                              v == null || v === "" ? null : v
-                            );
-                          }}
-                          placeholder="Product"
-                          filter
-                          disabled={liveMode && (productsLoading || !!productsError)}
-                        />
-                      </div>
-                      <div className="col-md-3">
-                        <input
-                          type="number"
-                          min={1}
-                          className="form-control"
-                          value={addLineQty}
-                          onChange={(e) => setAddLineQty(e.target.value)}
-                          placeholder="Qty"
-                        />
-                      </div>
-                      <div className="col-md-2">
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary w-100"
-                          onClick={handleAddLine}
-                          disabled={
-                            liveMode &&
-                            (productsLoading ||
-                              !!productsError ||
-                              !catalogProducts.length)
-                          }>
-                          Add
-                        </button>
+                    <div className="row g-2 align-items-end mb-2 pb-2 border-bottom quotation-catalog-add">
+                      <div className="col-12">
+                        <label
+                          className="visually-hidden"
+                          htmlFor={`transfer-add-product-${addProductAutocompleteKey}`}>
+                          Search product to add
+                        </label>
+                        <div className="row g-2 g-md-3 align-items-stretch quotation-crm-items-toolbar">
+                          <div className="col-12 col-md min-w-0">
+                            <div className="primereact-common-select w-100">
+                              <AutoComplete
+                                key={`add-transfer-product-${addProductAutocompleteKey}`}
+                                inputId={`transfer-add-product-${addProductAutocompleteKey}`}
+                                value={addProductQuery}
+                                suggestions={addProductSuggestions}
+                                completeMethod={completeAddProduct}
+                                onChange={onAddProductChange}
+                                onSelect={onAddProductSelect}
+                                field="name"
+                                placeholder="Product"
+                                className="w-100 quotation-catalog-autocomplete"
+                                inputClassName="form-control"
+                                appendTo={
+                                  typeof document !== "undefined"
+                                    ? document.body
+                                    : null
+                                }
+                                minLength={0}
+                                dropdown
+                                dropdownMode="current"
+                                showEmptyMessage
+                                emptyMessage={
+                                  liveMode && !catalogProducts.length
+                                    ? "No items in catalog"
+                                    : "No products match"
+                                }
+                                disabled={
+                                  liveMode &&
+                                  (productsLoading || !!productsError)
+                                }
+                                itemTemplate={(item) => (
+                                  <span>
+                                    {item.name}{" "}
+                                    <span className="text-muted">
+                                      (
+                                      {item.sku != null &&
+                                      String(item.sku) !== ""
+                                        ? item.sku
+                                        : "—"}
+                                      )
+                                    </span>
+                                  </span>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-12 col-md-auto flex-shrink-0">
+                            <label
+                              className="visually-hidden"
+                              htmlFor={`transfer-add-qty-${addProductAutocompleteKey}`}>
+                              Quantity
+                            </label>
+                            <input
+                              id={`transfer-add-qty-${addProductAutocompleteKey}`}
+                              type="number"
+                              min={1}
+                              className="form-control text-end tf-transfer-line-qty"
+                              value={addLineQty}
+                              onChange={(e) => setAddLineQty(e.target.value)}
+                              placeholder="Qty"
+                            />
+                          </div>
+                          <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-stretch">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary tf-transfer-add-line-btn w-100 w-md-auto align-self-center px-2"
+                              onClick={handleAddLine}
+                              disabled={
+                                liveMode &&
+                                (productsLoading ||
+                                  !!productsError ||
+                                  !catalogProducts.length)
+                              }>
+                              Add
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {addLines.length ? (
@@ -1000,46 +1306,93 @@ const StockTransfer = () => {
                     </div>
                   </div>
                   <div className="col-lg-12">
-                    <label className="form-label">Products</label>
-                    <div className="row g-2 align-items-end mb-2">
-                      <div className="col-md-7">
-                        <CommonSelect
-                          className="w-100"
-                          options={productSelectOptions}
-                          value={editProductValue}
-                          onChange={(e) => {
-                            const v = e.value;
-                            setEditProductValue(
-                              v == null || v === "" ? null : v
-                            );
-                          }}
-                          placeholder="Product"
-                          filter
-                          disabled={liveMode && (productsLoading || !!productsError)}
-                        />
-                      </div>
-                      <div className="col-md-3">
-                        <input
-                          type="number"
-                          min={1}
-                          className="form-control"
-                          value={editLineQty}
-                          onChange={(e) => setEditLineQty(e.target.value)}
-                        />
-                      </div>
-                      <div className="col-md-2">
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary w-100"
-                          onClick={handleEditAddLine}
-                          disabled={
-                            liveMode &&
-                            (productsLoading ||
-                              !!productsError ||
-                              !catalogProducts.length)
-                          }>
-                          Add
-                        </button>
+                    <label className="form-label mb-2">Products</label>
+                    <div className="row g-2 align-items-end mb-2 pb-2 border-bottom quotation-catalog-add">
+                      <div className="col-12">
+                        <label
+                          className="visually-hidden"
+                          htmlFor={`transfer-edit-product-${editProductAutocompleteKey}`}>
+                          Search product to add
+                        </label>
+                        <div className="row g-2 g-md-3 align-items-stretch quotation-crm-items-toolbar">
+                          <div className="col-12 col-md min-w-0">
+                            <div className="primereact-common-select w-100">
+                              <AutoComplete
+                                key={`edit-transfer-product-${editProductAutocompleteKey}`}
+                                inputId={`transfer-edit-product-${editProductAutocompleteKey}`}
+                                value={editProductQuery}
+                                suggestions={editProductSuggestions}
+                                completeMethod={completeEditProduct}
+                                onChange={onEditProductChange}
+                                onSelect={onEditProductSelect}
+                                field="name"
+                                placeholder="Product"
+                                className="w-100 quotation-catalog-autocomplete"
+                                inputClassName="form-control"
+                                appendTo={
+                                  typeof document !== "undefined"
+                                    ? document.body
+                                    : null
+                                }
+                                minLength={0}
+                                dropdown
+                                dropdownMode="current"
+                                showEmptyMessage
+                                emptyMessage={
+                                  liveMode && !catalogProducts.length
+                                    ? "No items in catalog"
+                                    : "No products match"
+                                }
+                                disabled={
+                                  liveMode &&
+                                  (productsLoading || !!productsError)
+                                }
+                                itemTemplate={(item) => (
+                                  <span>
+                                    {item.name}{" "}
+                                    <span className="text-muted">
+                                      (
+                                      {item.sku != null &&
+                                      String(item.sku) !== ""
+                                        ? item.sku
+                                        : "—"}
+                                      )
+                                    </span>
+                                  </span>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          <div className="col-12 col-md-auto flex-shrink-0">
+                            <label
+                              className="visually-hidden"
+                              htmlFor={`transfer-edit-qty-${editProductAutocompleteKey}`}>
+                              Quantity
+                            </label>
+                            <input
+                              id={`transfer-edit-qty-${editProductAutocompleteKey}`}
+                              type="number"
+                              min={1}
+                              className="form-control text-end tf-transfer-line-qty"
+                              value={editLineQty}
+                              onChange={(e) => setEditLineQty(e.target.value)}
+                            />
+                          </div>
+                          <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-stretch">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary tf-transfer-add-line-btn w-100 w-md-auto align-self-center px-2"
+                              onClick={handleEditAddLine}
+                              disabled={
+                                liveMode &&
+                                (productsLoading ||
+                                  !!productsError ||
+                                  !catalogProducts.length)
+                              }>
+                              Add
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="table-responsive border rounded">
@@ -1059,11 +1412,11 @@ const StockTransfer = () => {
                               <td>{l.name}</td>
                               <td>{l.sku}</td>
                               <td>{l.category}</td>
-                              <td className="text-end" style={{ minWidth: "7rem" }}>
+                              <td className="text-end">
                                 <input
                                   type="number"
                                   min={1}
-                                  className="form-control form-control-sm text-end"
+                                  className="form-control form-control-sm text-end tf-transfer-line-qty"
                                   value={l.qty}
                                   onChange={(e) => {
                                     const n = parseInt(e.target.value, 10);
@@ -1257,15 +1610,22 @@ const StockTransfer = () => {
                 Delete this stock transfer?
               </h4>
               <p className="text-muted small mt-2 mb-0">
-                This only removes the row from the list in the browser until a
-                server API is connected.
+                {liveMode
+                  ? "This permanently deletes the transfer record from the database."
+                  : "This only removes the row from the list in the browser until you sign in to TillFlow."}
               </p>
+              {deleteError ? (
+                <p className="text-danger small mt-2 mb-0">{deleteError}</p>
+              ) : null}
               <div className="modal-footer-btn mt-3 d-flex justify-content-center gap-2">
                 <button
                   type="button"
                   className="btn btn-secondary"
                   data-bs-dismiss="modal"
-                  onClick={() => setDeleteTargetId(null)}>
+                  onClick={() => {
+                    setDeleteTargetId(null);
+                    setDeleteError("");
+                  }}>
                   Cancel
                 </button>
                 <button

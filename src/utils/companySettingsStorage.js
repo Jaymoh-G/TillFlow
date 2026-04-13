@@ -180,3 +180,52 @@ export function saveCompanySettings(data) {
 export function getCompanySettingsSnapshot() {
   return loadCompanySettings();
 }
+
+/** Same key as `companysettings.jsx` — tenant UI / company settings page. */
+const COMPANY_LOGOS_STORAGE_KEY = "retailpos_company_logo_settings_v1";
+
+/** @returns {{ icon: string|null, favicon: string|null, logo: string|null, darkLogo: string|null }} */
+export function defaultCompanyLogoSettings() {
+  return {
+    icon: null,
+    favicon: null,
+    logo: null,
+    darkLogo: null
+  };
+}
+
+/**
+ * Company image slots saved from Settings → Company (data URLs or absolute URLs).
+ * @returns {ReturnType<typeof defaultCompanyLogoSettings>}
+ */
+export function loadCompanyLogoSettings() {
+  if (typeof window === "undefined") {
+    return defaultCompanyLogoSettings();
+  }
+  try {
+    const raw = localStorage.getItem(COMPANY_LOGOS_STORAGE_KEY);
+    if (!raw) {
+      return defaultCompanyLogoSettings();
+    }
+    const src = JSON.parse(raw);
+    if (!src || typeof src !== "object") {
+      return defaultCompanyLogoSettings();
+    }
+    return {
+      icon:
+        typeof src.icon === "string" && src.icon.trim() ? src.icon.trim() : null,
+      favicon:
+        typeof src.favicon === "string" && src.favicon.trim()
+          ? src.favicon.trim()
+          : null,
+      logo:
+        typeof src.logo === "string" && src.logo.trim() ? src.logo.trim() : null,
+      darkLogo:
+        typeof src.darkLogo === "string" && src.darkLogo.trim()
+          ? src.darkLogo.trim()
+          : null
+    };
+  } catch {
+    return defaultCompanyLogoSettings();
+  }
+}

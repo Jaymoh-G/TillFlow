@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
-import { customer15, logo, logoSmall, logoWhite } from "../../utils/imagepath";
 import { all_routes } from "../../routes/all_routes";
+import { customer15, logo, logoSmall, logoWhite } from "../../utils/imagepath";
 
 const TwoColumnSidebar = () => {
   const route = all_routes;
@@ -18,14 +18,14 @@ const TwoColumnSidebar = () => {
                 id="sidebar-tabs"
                 role="tablist"
                 aria-orientation="vertical">
-                
+
                 <Link
                   to="#"
                   className="nav-link active"
                   title="Dashboard"
                   data-bs-toggle="tab"
                   data-bs-target="#dashboard">
-                  
+
                   <i className="ti ti-smart-home" />
                 </Link>
                 <Link
@@ -34,7 +34,7 @@ const TwoColumnSidebar = () => {
                   title="Super Admin"
                   data-bs-toggle="tab"
                   data-bs-target="#super-admin">
-                  
+
                   <i className="ti ti-user-star" />
                 </Link>
                 <Link
@@ -43,7 +43,7 @@ const TwoColumnSidebar = () => {
                   title="Apps"
                   data-bs-toggle="tab"
                   data-bs-target="#application">
-                  
+
                   <i className="ti ti-layout-grid-add" />
                 </Link>
                 <Link
@@ -52,7 +52,7 @@ const TwoColumnSidebar = () => {
                   title="Layout"
                   data-bs-toggle="tab"
                   data-bs-target="#layout">
-                  
+
                   <i className="ti ti-layout-board-split" />
                 </Link>
                 <Link
@@ -61,7 +61,7 @@ const TwoColumnSidebar = () => {
                   title="Inventory"
                   data-bs-toggle="tab"
                   data-bs-target="#inventory">
-                  
+
                   <i className="ti ti-table-plus" />
                 </Link>
                 <Link
@@ -70,7 +70,7 @@ const TwoColumnSidebar = () => {
                   title="Stock"
                   data-bs-toggle="tab"
                   data-bs-target="#stock">
-                  
+
                   <i className="ti ti-stack-3" />
                 </Link>
                 <Link
@@ -79,7 +79,7 @@ const TwoColumnSidebar = () => {
                   title="Sales"
                   data-bs-toggle="tab"
                   data-bs-target="#sales">
-                  
+
                   <i className="ti ti-device-laptop" />
                 </Link>
                 <Link
@@ -88,7 +88,7 @@ const TwoColumnSidebar = () => {
                   title="Finance"
                   data-bs-toggle="tab"
                   data-bs-target="#finance">
-                  
+
                   <i className="ti ti-shopping-cart-dollar" />
                 </Link>
                 <Link
@@ -97,7 +97,7 @@ const TwoColumnSidebar = () => {
                   title="Hrm"
                   data-bs-toggle="tab"
                   data-bs-target="#hrm">
-                  
+
                   <i className="ti ti-cash" />
                 </Link>
                 <Link
@@ -106,7 +106,7 @@ const TwoColumnSidebar = () => {
                   title="Reports"
                   data-bs-toggle="tab"
                   data-bs-target="#reports">
-                  
+
                   <i className="ti ti-license" />
                 </Link>
                 <Link
@@ -115,7 +115,7 @@ const TwoColumnSidebar = () => {
                   title="Pages"
                   data-bs-toggle="tab"
                   data-bs-target="#pages">
-                  
+
                   <i className="ti ti-page-break" />
                 </Link>
                 <Link
@@ -124,7 +124,7 @@ const TwoColumnSidebar = () => {
                   title="Settings"
                   data-bs-toggle="tab"
                   data-bs-target="#settings">
-                  
+
                   <i className="ti ti-lock-check" />
                 </Link>
                 <Link
@@ -133,7 +133,7 @@ const TwoColumnSidebar = () => {
                   title="UI Elements"
                   data-bs-toggle="tab"
                   data-bs-target="#ui-elements">
-                  
+
                   <i className="ti ti-ux-circle" />
                 </Link>
                 <Link
@@ -142,7 +142,7 @@ const TwoColumnSidebar = () => {
                   title="Extras"
                   data-bs-toggle="tab"
                   data-bs-target="#extras">
-                  
+
                   <i className="ti ti-vector-triangle" />
                 </Link>
               </div>
@@ -172,7 +172,7 @@ const TwoColumnSidebar = () => {
                     src={customer15}
                     alt="Img"
                     className="img-fluid rounded-circle" />
-                  
+
                 </div>
                 <h6 className="fs-12 fw-bold mb-1">Adrian Herman</h6>
                 <p className="fs-10 mb-0">System Admin</p>
@@ -431,9 +431,6 @@ const TwoColumnSidebar = () => {
                         <span className="menu-arrow" />
                       </Link>
                       <ul>
-                        <li>
-                          <Link to={route.onlineorder}>Online Orders</Link>
-                        </li>
                         <li>
                           <Link to={route.posorder}>POS Orders</Link>
                         </li>

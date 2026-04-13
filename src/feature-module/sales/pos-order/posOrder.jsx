@@ -1,13 +1,12 @@
-import PrimeDataTable from "../../../components/data-table";
-import { posOrderData } from "../../../core/json/posOrderData";
-import { Link, useLocation } from "react-router-dom";
-import OnlineorderModal from "../online-order/onlineorderModal";
-import CommonFooter from "../../../components/footer/commonFooter";
-import TableTopHead from "../../../components/table-top-head";
-import DeleteModal from "../../../components/delete-modal";
-import SearchFromApi from "../../../components/data-table/search";
-import CommonSelect from "../../../components/select/common-select";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import PrimeDataTable from "../../../components/data-table";
+import SearchFromApi from "../../../components/data-table/search";
+import DeleteModal from "../../../components/delete-modal";
+import CommonFooter from "../../../components/footer/commonFooter";
+import CommonSelect from "../../../components/select/common-select";
+import TableTopHead from "../../../components/table-top-head";
+import { posOrderData } from "../../../core/json/posOrderData";
 import { all_routes } from "../../../routes/all_routes";
 
 const ALL = { label: "All", value: "" };
@@ -339,21 +338,6 @@ const PosOrder = () => {
                 <i className="ti ti-circle-plus me-1" />
                 Add sale
               </Link>
-              {inTillflowShell ? (
-                <Link
-                  to="/tillflow/admin/online-orders"
-                  className="btn btn-outline-secondary">
-                  <i className="ti ti-shopping-cart me-1" />
-                  Online orders
-                </Link>
-              ) : (
-                <Link
-                  to={all_routes.onlineorder}
-                  className="btn btn-outline-secondary">
-                  <i className="ti ti-shopping-cart me-1" />
-                  Online orders
-                </Link>
-              )}
               <Link
                 to={inTillflowShell ? "/tillflow/pos" : all_routes.pos}
                 className="btn btn-outline-primary">
@@ -444,7 +428,6 @@ const PosOrder = () => {
         </div>
         <CommonFooter />
       </div>
-      <OnlineorderModal />
       <DeleteModal />
     </div>
   );

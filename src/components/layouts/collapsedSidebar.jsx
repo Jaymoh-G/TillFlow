@@ -1,6 +1,6 @@
-import { calendars, menuIcon, printer, product, purchase1, sales1, users1 } from "../../utils/imagepath";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { calendars, menuIcon, printer, product, purchase1, sales1, users1 } from "../../utils/imagepath";
 
 
 const CollapsedSidebar = () => {
@@ -49,7 +49,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#home"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <img src={menuIcon} alt="img" />
                 </Link>
               </li>
@@ -62,7 +62,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#product"
                   role="tab"
                   aria-selected="false">
-                  
+
                   <img src={product} alt="img" />
                 </Link>
               </li>
@@ -75,7 +75,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#sales"
                   role="tab"
                   aria-selected="false">
-                  
+
                   <img src={sales1} alt="img" />
                 </Link>
               </li>
@@ -88,7 +88,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#purchase"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <img src={purchase1} alt="img" />
                 </Link>
               </li>
@@ -101,7 +101,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#user"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <img src={users1} alt="img" />
                 </Link>
               </li>
@@ -114,7 +114,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#employee"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <img src={calendars} alt="img" />
                 </Link>
               </li>
@@ -127,7 +127,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#report"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <img src={printer} alt="" />
                 </Link>
               </li>
@@ -140,7 +140,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#document"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <i className="feather icon-user" />
                 </Link>
               </li>
@@ -153,7 +153,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#permission"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <i className="feather icon-file-text" />
                 </Link>
               </li>
@@ -166,7 +166,7 @@ const CollapsedSidebar = () => {
                   data-bs-target="#settings"
                   role="tab"
                   aria-selected="true">
-                  
+
                   <i className="feather icon-settings" />
                 </Link>
               </li>
@@ -179,7 +179,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick}
                   className={isActive ? "subdrop" : ""}>
-                  
+
                   <span>Dashboard</span> <span className="menu-arrow" />
                 </Link>
                 <ul style={{ display: isActive ? "block" : "none" }}>
@@ -196,7 +196,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick2}
                   className={isActive2 ? "subdrop" : ""}>
-                  
+
                   <span>Application</span>
                   <span className="menu-arrow" />
                 </Link>
@@ -209,7 +209,7 @@ const CollapsedSidebar = () => {
                       to="#"
                       onClick={handleSelectClick7}
                       className={isActive7 ? "subdrop" : ""}>
-                      
+
                       <span>Call</span>
                       <span className="menu-arrow inside-submenu" />
                     </Link>
@@ -247,7 +247,7 @@ const CollapsedSidebar = () => {
               className="tab-pane"
               id="product"
               aria-labelledby="messages-tab">
-              
+
               <li>
                 <Link to="product-list">
                   <span>Products</span>
@@ -336,11 +336,6 @@ const CollapsedSidebar = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/online-orders">
-                  <span>Online Orders</span>
-                </Link>
-              </li>
-              <li>
                 <Link to="/pos-orders">
                   <span>POS Orders</span>
                 </Link>
@@ -387,7 +382,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick3}
                   className={isActive3 ? "subdrop" : ""}>
-                  
+
                   <span>Expenses</span>
                   <span className="menu-arrow" />
                 </Link>
@@ -444,7 +439,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick4}
                   className={isActive4 ? "subdrop" : ""}>
-                  
+
                   <span>Attendence</span>
                   <span className="menu-arrow" />
                 </Link>
@@ -462,7 +457,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick5}
                   className={isActive5 ? "subdrop" : ""}>
-                  
+
                   <span>Leaves</span>
                   <span className="menu-arrow" />
                 </Link>
@@ -488,7 +483,7 @@ const CollapsedSidebar = () => {
                   to="#"
                   onClick={handleSelectClick6}
                   className={isActive6 ? "subdrop" : ""}>
-                  
+
                   <span>Payroll</span>
                   <span className="menu-arrow" />
                 </Link>
@@ -506,7 +501,7 @@ const CollapsedSidebar = () => {
               className="tab-pane active"
               id="report"
               aria-labelledby="set-tab3">
-              
+
               <li>
                 <Link to="sales-report">
                   <span>Sales Report</span>

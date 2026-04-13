@@ -11,16 +11,13 @@ export default function AdminOfflineWait() {
         <h2 className="tf-offline-wait__title">You&apos;re offline</h2>
         <p className="tf-offline-wait__text">
           This section needs an internet connection. You can keep working in{' '}
-          <strong>POS orders</strong>, <strong>online orders</strong>, <strong>quotations</strong>,{' '}
+          <strong>orders</strong>, <strong>quotations</strong>,{' '}
           <strong>sales returns</strong>, and the <strong>POS register</strong> while offline; changes can sync when
           you&apos;re back online. Invoicing will join this list once that module is implemented.
         </p>
         <ul className="tf-offline-wait__links">
           <li>
-            <Link to="/tillflow/admin/pos-orders">POS orders</Link>
-          </li>
-          <li>
-            <Link to="/tillflow/admin/online-orders">Online orders</Link>
+            <Link to="/tillflow/admin/orders">Orders</Link>
           </li>
           <li>
             <Link to="/tillflow/admin/quotations">Quotations</Link>

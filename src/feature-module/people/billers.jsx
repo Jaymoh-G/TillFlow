@@ -3,6 +3,7 @@ import { billersData } from "../../core/json/billers-data";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
 import CommonSelect from "../../components/select/common-select";
+import MultiSelectProps from "../../components/select/multi-select";
 import TableTopHead from "../../components/table-top-head";
 import { downloadBillersExcel, downloadBillersPdf } from "../../utils/billerExport";
 import { user33 } from "../../utils/imagepath";
@@ -17,6 +18,7 @@ import {
   updateBillerMultipartRequest,
   updateBillerRequest
 } from "../../tillflow/api/billers";
+import { listStoresRequest } from "../../tillflow/api/stores";
 import { TILLFLOW_API_BASE_URL } from "../../tillflow/config";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
@@ -106,28 +108,46 @@ function readFileAsDataUrl(file) {
 }
 
 function apiBillerToRow(b) {
+  const storeIds = Array.isArray(b?.store_ids)
+    ? b.store_ids.map((id) => String(id))
+    : Array.isArray(b?.stores)
+      ? b.stores.map((s) => String(s?.id ?? "")).filter(Boolean)
+      : b?.store_id != null
+        ? [String(b.store_id)]
+        : [];
+  const storeNames = Array.isArray(b?.stores)
+    ? b.stores.map((s) => String(s?.name ?? "").trim()).filter(Boolean)
+    : [];
+  const rawCode = String(b?.code ?? "").trim();
+  const normalizedCodeMatch = /^(?:BI|SE)-?(\d+)$/i.exec(rawCode);
+  const normalizedCode = normalizedCodeMatch
+    ? `se-${String(parseInt(normalizedCodeMatch[1], 10)).padStart(3, "0")}`
+    : rawCode;
   return {
     id: b.id,
-    code: b.code,
+    code: normalizedCode,
     biller: b.name,
+    username: b.username ?? "",
     avatar: resolveBillerAvatarUrl(b.avatar_url),
     company: b.company ?? "",
     email: b.email ?? "",
     phone: b.phone,
     location: b.location ?? "",
-    status: b.status
+    status: b.status,
+    storeIds,
+    storeNames
   };
 }
 
 function nextBillerCode(list) {
   let max = 0;
   for (const r of list) {
-    const m = /^BI(\d+)$/i.exec(String(r.code ?? ""));
+    const m = /^(?:BI|SE)-?(\d+)$/i.exec(String(r.code ?? ""));
     if (m) {
       max = Math.max(max, parseInt(m[1], 10));
     }
   }
-  return `BI${String(max + 1).padStart(3, "0")}`;
+  return `se-${String(max + 1).padStart(3, "0")}`;
 }
 
 function splitDisplayName(full) {
@@ -154,6 +174,7 @@ const Biller = () => {
   const token = auth?.token ?? null;
 
   const [billers, setBillers] = useState(getInitialBillerRows);
+  const [storeOptions, setStoreOptions] = useState([]);
   const [listLoading, setListLoading] = useState(() => Boolean(token));
   const [listError, setListError] = useState("");
   /** Ignores stale GET /billers responses so a slow initial load cannot overwrite data after a mutation. */
@@ -191,12 +212,31 @@ const Biller = () => {
     }
   }, [token]);
 
+  const loadStores = useCallback(async () => {
+    if (!token) {
+      setStoreOptions([]);
+      return;
+    }
+    try {
+      const data = await listStoresRequest(token);
+      const rows = Array.isArray(data?.stores) ? data.stores : [];
+      setStoreOptions(
+        rows
+          .map((s) => ({ label: String(s?.name ?? "").trim(), value: String(s?.id ?? "") }))
+          .filter((o) => o.label && o.value)
+      );
+    } catch {
+      setStoreOptions([]);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) {
       return;
     }
     loadBillers();
-  }, [token, loadBillers]);
+    loadStores();
+  }, [token, loadBillers, loadStores]);
 
   useEffect(() => {
     if (inTillflowShell) {
@@ -223,6 +263,7 @@ const Biller = () => {
   const [addPhone, setAddPhone] = useState("");
   const [addLocation, setAddLocation] = useState("");
   const [addStatusActive, setAddStatusActive] = useState(true);
+  const [addStoreIds, setAddStoreIds] = useState([]);
   const [addError, setAddError] = useState("");
   const addAvatarInputRef = useRef(null);
   const addAvatarBlobRef = useRef(null);
@@ -238,6 +279,7 @@ const Biller = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editStatusActive, setEditStatusActive] = useState(true);
+  const [editStoreIds, setEditStoreIds] = useState([]);
   const [editAvatar, setEditAvatar] = useState(user33);
   const [editError, setEditError] = useState("");
   const editAvatarInputRef = useRef(null);
@@ -342,6 +384,7 @@ const Biller = () => {
     setAddPhone("");
     setAddLocation("");
     setAddStatusActive(true);
+    setAddStoreIds([]);
     setAddError("");
   }, []);
 
@@ -388,6 +431,7 @@ const Biller = () => {
     setEditPhone(row.phone);
     setEditLocation(row.location ?? "");
     setEditStatusActive(row.status === "Active");
+    setEditStoreIds(Array.isArray(row.storeIds) ? row.storeIds : []);
     setEditAvatar(row.avatar ?? user33);
     setEditError("");
   }, []);
@@ -433,6 +477,10 @@ const Biller = () => {
       setAddError("Please fill in first name, last name, company, and phone.");
       return;
     }
+    if (!Array.isArray(addStoreIds) || addStoreIds.length === 0) {
+      setAddError("Assign at least one store.");
+      return;
+    }
     if (em && !isValidEmail(em)) {
       setAddError("Enter a valid email address.");
       return;
@@ -441,11 +489,11 @@ const Biller = () => {
       em &&
       billers.some((b) => String(b.email ?? "").toLowerCase() === em.toLowerCase())
     ) {
-      setAddError("A biller with this email already exists.");
+      setAddError("A seller with this email already exists.");
       return;
     }
     if (billers.some((b) => String(b.phone ?? "").trim() === ph)) {
-      setAddError("A biller with this phone number already exists.");
+      setAddError("A seller with this phone number already exists.");
       return;
     }
     const name = `${fn} ${ln}`.trim();
@@ -463,7 +511,8 @@ const Biller = () => {
               email: em || null,
               phone: ph,
               location: loc || null,
-              status
+              status,
+              store_ids: addStoreIds.map((id) => Number(id)).filter(Number.isFinite)
             },
             addAvatarFile
           );
@@ -475,6 +524,7 @@ const Biller = () => {
             phone: ph,
             location: loc || null,
             status,
+            store_ids: addStoreIds.map((id) => Number(id)).filter(Number.isFinite),
             avatar_url: null
           });
         }
@@ -488,7 +538,7 @@ const Biller = () => {
         if (e instanceof TillFlowApiError) {
           setAddError(e.message);
         } else {
-          setAddError("Could not create biller.");
+          setAddError("Could not create seller.");
         }
         return;
       }
@@ -518,7 +568,11 @@ const Biller = () => {
           email: em,
           phone: ph,
           location: loc,
-          status
+          status,
+          storeIds: addStoreIds,
+          storeNames: storeOptions
+            .filter((s) => addStoreIds.includes(String(s.value)))
+            .map((s) => s.label)
         };
         return [...prev, row];
       });
@@ -534,11 +588,13 @@ const Biller = () => {
     addPhone,
     addLocation,
     addStatusActive,
+    addStoreIds,
     addAvatarFile,
     billers,
     resetAddForm,
     token,
-    loadBillers
+    loadBillers,
+    storeOptions
   ]);
 
   const handleAddSubmit = (e) => {
@@ -561,6 +617,10 @@ const Biller = () => {
       setEditError("Please fill in first name, last name, company, and phone.");
       return;
     }
+    if (!Array.isArray(editStoreIds) || editStoreIds.length === 0) {
+      setEditError("Assign at least one store.");
+      return;
+    }
     if (em && !isValidEmail(em)) {
       setEditError("Enter a valid email address.");
       return;
@@ -573,14 +633,14 @@ const Biller = () => {
           String(b.email ?? "").toLowerCase() === em.toLowerCase()
       );
     if (emailDup) {
-      setEditError("Another biller already uses this email.");
+      setEditError("Another seller already uses this email.");
       return;
     }
     const phoneDup = billers.some(
       (b) => b.code !== editingCode && String(b.phone ?? "").trim() === ph
     );
     if (phoneDup) {
-      setEditError("Another biller already uses this phone number.");
+      setEditError("Another seller already uses this phone number.");
       return;
     }
     const billerName = `${fn} ${ln}`.trim();
@@ -599,7 +659,8 @@ const Biller = () => {
               email: em || null,
               phone: ph,
               location: loc || null,
-              status
+              status,
+              store_ids: editStoreIds.map((id) => Number(id)).filter(Number.isFinite)
             },
             editAvatarFile
           );
@@ -610,7 +671,8 @@ const Biller = () => {
             email: em || null,
             phone: ph,
             location: loc || null,
-            status
+            status,
+            store_ids: editStoreIds.map((id) => Number(id)).filter(Number.isFinite)
           });
         }
         if (!data?.biller) {
@@ -648,7 +710,11 @@ const Biller = () => {
                 phone: ph,
                 location: loc,
                 status,
-                avatar: nextAvatar
+                avatar: nextAvatar,
+                storeIds: editStoreIds,
+                storeNames: storeOptions
+                  .filter((s) => editStoreIds.includes(String(s.value)))
+                  .map((s) => s.label)
               }
             : b
         )
@@ -676,11 +742,13 @@ const Biller = () => {
     editPhone,
     editLocation,
     editStatusActive,
+    editStoreIds,
     editAvatar,
     editAvatarFile,
     billers,
     token,
-    loadBillers
+    loadBillers,
+    storeOptions
   ]);
 
   const handleEditSubmit = (e) => {
@@ -701,7 +769,7 @@ const Biller = () => {
         if (e instanceof TillFlowApiError) {
           setListError(e.message);
         } else {
-          setListError("Could not delete biller.");
+          setListError("Could not delete seller.");
         }
         return;
       }
@@ -718,7 +786,7 @@ const Biller = () => {
     () => [
       { header: "Code", field: "code", sortable: true },
       {
-        header: "Biller",
+        header: "Seller",
         field: "biller",
         sortable: true,
         body: (row) => (
@@ -730,7 +798,22 @@ const Biller = () => {
           </div>
         )
       },
+      {
+        header: "Username",
+        field: "username",
+        sortable: true,
+        body: (row) => (row.username ? row.username : "—")
+      },
       { header: "Company", field: "company", sortable: true },
+      {
+        header: "Store",
+        field: "storeNames",
+        sortable: false,
+        body: (row) =>
+          Array.isArray(row.storeNames) && row.storeNames.length > 0
+            ? row.storeNames.join(", ")
+            : "—"
+      },
       {
         header: "Email",
         field: "email",
@@ -818,7 +901,7 @@ const Biller = () => {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4 className="fw-bold">Billers</h4>
+                <h4 className="fw-bold">Sellers</h4>
                 <h6>Staff and partners who can ring sales — search, filter by location or status.</h6>
               </div>
             </div>
@@ -843,7 +926,7 @@ const Biller = () => {
                   openAddModal();
                 }}>
                 <PlusCircle size={18} strokeWidth={1.75} className="me-1" aria-hidden />
-                Add biller
+                Add seller
               </Link>
             </div>
           </div>
@@ -909,7 +992,7 @@ const Biller = () => {
           <div className="modal-content">
             <div className="modal-header">
               <div className="page-title">
-                <h4>Add biller</h4>
+                <h4>Add seller</h4>
               </div>
               <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">×</span>
@@ -1004,6 +1087,17 @@ const Biller = () => {
                     />
                   </div>
                   <div className="col-lg-12 mb-3">
+                    <label className="form-label">
+                      Assigned stores<span className="text-danger ms-1">*</span>
+                    </label>
+                    <MultiSelectProps
+                      value={addStoreIds}
+                      options={storeOptions}
+                      placeholder={storeOptions.length ? "Select stores" : "No stores available"}
+                      onChange={(e) => setAddStoreIds(Array.isArray(e.value) ? e.value : [])}
+                    />
+                  </div>
+                  <div className="col-lg-12 mb-3">
                     <label className="form-label">Location</label>
                     <input
                       type="text"
@@ -1046,7 +1140,7 @@ const Biller = () => {
                   type="button"
                   className="btn btn-primary fs-13 fw-medium p-2 px-3"
                   onClick={saveNewBiller}>
-                  Add biller
+                  Add seller
                 </button>
               </div>
             </form>
@@ -1061,7 +1155,7 @@ const Biller = () => {
               <div className="content">
                 <div className="modal-header">
                   <div className="page-title">
-                    <h4>Edit biller</h4>
+                    <h4>Edit seller</h4>
                     {editingCode ? (
                       <p className="text-muted small mb-0 mt-1">Code: {editingCode}</p>
                     ) : null}
@@ -1158,6 +1252,17 @@ const Biller = () => {
                         />
                       </div>
                       <div className="col-lg-12 mb-3">
+                        <label className="form-label">
+                          Assigned stores<span className="text-danger ms-1">*</span>
+                        </label>
+                        <MultiSelectProps
+                          value={editStoreIds}
+                          options={storeOptions}
+                          placeholder={storeOptions.length ? "Select stores" : "No stores available"}
+                          onChange={(e) => setEditStoreIds(Array.isArray(e.value) ? e.value : [])}
+                        />
+                      </div>
+                      <div className="col-lg-12 mb-3">
                         <label className="form-label">Location</label>
                         <input
                           type="text"
@@ -1215,7 +1320,7 @@ const Biller = () => {
           <div className="modal-content">
             <div className="modal-header">
               <div className="page-title">
-                <h4>Biller details</h4>
+                <h4>Seller details</h4>
               </div>
               <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">×</span>
@@ -1234,6 +1339,12 @@ const Biller = () => {
                     <dd className="col-sm-8 mb-2">{viewRow.biller}</dd>
                     <dt className="col-sm-4 text-muted small">Company</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.company || "—"}</dd>
+                    <dt className="col-sm-4 text-muted small">Stores</dt>
+                    <dd className="col-sm-8 mb-2">
+                      {Array.isArray(viewRow.storeNames) && viewRow.storeNames.length
+                        ? viewRow.storeNames.join(", ")
+                        : "—"}
+                    </dd>
                     <dt className="col-sm-4 text-muted small">Phone</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.phone || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Email</dt>
@@ -1245,7 +1356,7 @@ const Biller = () => {
                   </dl>
                 </div>
               ) : (
-                <p className="text-muted mb-0">No biller selected.</p>
+                <p className="text-muted mb-0">No seller selected.</p>
               )}
             </div>
             <div className="modal-footer">
@@ -1268,7 +1379,7 @@ const Biller = () => {
                 <span className="rounded-circle d-inline-flex p-2 bg-danger-transparent mb-2">
                   <Trash2 size={28} strokeWidth={1.75} className="text-danger" aria-hidden />
                 </span>
-                <h4 className="mb-0 delete-account-font">Delete this biller?</h4>
+                <h4 className="mb-0 delete-account-font">Delete this seller?</h4>
                 {deleteCode ? (
                   <p className="text-muted small mt-2 mb-0">
                     {token && deleteBillerId != null ? (

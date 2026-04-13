@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
 import PrimeDataTable from '../../components/data-table';
+import TableTopHead from '../../components/table-top-head';
 import { TillFlowApiError } from '../api/errors';
 import { createUnitRequest, deleteUnitRequest, listTrashedUnitsRequest, listUnitsRequest, restoreUnitRequest, updateUnitRequest } from '../api/units';
 import { useAuth } from '../auth/AuthContext';
@@ -355,23 +356,11 @@ export default function AdminUnits() {
             <h6>{viewTrash ? 'Restore deleted units' : 'Manage product units'}</h6>
           </div>
         </div>
-        <ul className="table-top-head">
-          <li>
-            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
-              <i className="feather icon-file-text" />
-            </button>
-          </li>
-          <li>
-            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
-              <i className="feather icon-download" />
-            </button>
-          </li>
-          <li>
-            <button type="button" title="Refresh" onClick={() => void load()}>
-              <i className="feather icon-refresh-cw" />
-            </button>
-          </li>
-        </ul>
+        <TableTopHead
+          onRefresh={() => void load()}
+          onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
+          onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+        />
         <div className="page-header-actions">
           <div className="page-btn">
             {viewTrash ? (

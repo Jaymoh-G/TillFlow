@@ -48,3 +48,13 @@ export function uploadProductVariantImageRequest(token, productId, variantId, im
     formData,
   });
 }
+
+export function uploadProductMainImageRequest(token, productId, imageFile) {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  return tillflowUpload(`/products/${productId}/image`, {
+    method: 'POST',
+    token,
+    formData,
+  });
+}

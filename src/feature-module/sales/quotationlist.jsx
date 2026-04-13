@@ -23,6 +23,7 @@ import TableTopHead from "../../components/table-top-head";
 import { quotationlistdata } from "../../core/json/quotationlistdata";
 import { all_routes } from "../../routes/all_routes";
 import { listBillersRequest } from "../../tillflow/api/billers";
+import { listCategoriesRequest } from "../../tillflow/api/categories";
 import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
@@ -38,6 +39,10 @@ import { getTenantCompanyProfileRequest } from "../../tillflow/api/tenantCompany
 import { getTenantUiSettingsRequest } from "../../tillflow/api/tenantUiSettings";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { TILLFLOW_API_BASE_URL } from "../../tillflow/config";
+import {
+  buildCategoryFilterValue,
+  filterCatalogProducts
+} from "../../tillflow/utils/catalogCategoryFilter";
 import {
     getCompanySettingsSnapshot,
     profileApiToForm,
@@ -656,6 +661,8 @@ const QuotationList = () => {
   const listLoadGenRef = useRef(0);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
+  const [catalogCategories, setCatalogCategories] = useState([]);
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("");
   const [catalogCustomers, setCatalogCustomers] = useState([]);
   const [catalogBillers, setCatalogBillers] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -670,15 +677,17 @@ const QuotationList = () => {
     setCatalogLoading(true);
     setCatalogError("");
     try {
-      const [prodData, custData, billerData] = await Promise.all([
+      const [prodData, custData, billerData, categoryData] = await Promise.all([
         listSalesCatalogProductsRequest(token),
         listCustomersRequest(token),
-        listBillersRequest(token)
+        listBillersRequest(token),
+        listCategoriesRequest(token)
       ]);
       if (gen !== catalogLoadGenRef.current) {
         return;
       }
       setCatalogProducts(prodData.products ?? []);
+      setCatalogCategories(categoryData.categories ?? []);
       setCatalogCustomers(custData.customers ?? []);
       setCatalogBillers(billerData.billers ?? []);
     } catch (e) {
@@ -686,6 +695,7 @@ const QuotationList = () => {
         return;
       }
       setCatalogProducts([]);
+      setCatalogCategories([]);
       setCatalogCustomers([]);
       setCatalogBillers([]);
       if (e instanceof TillFlowApiError) {
@@ -971,12 +981,28 @@ const QuotationList = () => {
     () => [
       PICK_PLACEHOLDER,
       ...catalogBillers.map((b) => ({
-        label: `${b.name} (${b.code})`,
+        label: `${b.name} (${b.code})${
+          Array.isArray(b?.stores) && b.stores.length
+            ? ` - ${b.stores.map((s) => String(s?.name ?? "").trim()).filter(Boolean).join(", ")}`
+            : ""
+        }`,
         value: String(b.id)
       }))
     ],
     [catalogBillers]
   );
+
+  const selectedCreateSellerStoreNames = useMemo(() => {
+    const selected = catalogBillers.find((b) => String(b?.id ?? "") === String(addBillerId));
+    const stores = Array.isArray(selected?.stores) ? selected.stores : [];
+    return stores.map((s) => String(s?.name ?? "").trim()).filter(Boolean);
+  }, [catalogBillers, addBillerId]);
+
+  const selectedEditSellerStoreNames = useMemo(() => {
+    const selected = catalogBillers.find((b) => String(b?.id ?? "") === String(editBillerId));
+    const stores = Array.isArray(selected?.stores) ? selected.stores : [];
+    return stores.map((s) => String(s?.name ?? "").trim()).filter(Boolean);
+  }, [catalogBillers, editBillerId]);
 
   const displayRows = useMemo(() => {
     let list = [...quotations];
@@ -1119,6 +1145,7 @@ const QuotationList = () => {
     setAddSalesAgentName("");
     setCatalogQuickSearchText("");
     setCatalogQuickSuggestions([]);
+    setCatalogCategoryFilter("");
     setCatalogQuickAddKey((k) => k + 1);
     setAddError("");
   }, [token]);
@@ -2631,23 +2658,18 @@ const QuotationList = () => {
 
   const catalogQuickComplete = useCallback(
     (e) => {
-      const raw = String(e.query ?? "").trim().toLowerCase();
       if (!catalogProducts.length) {
         setCatalogQuickSuggestions([]);
         return;
       }
-      const filtered = raw
-        ? catalogProducts
-            .filter((p) => {
-              const name = String(p.name ?? "").toLowerCase();
-              const sku = String(p.sku ?? "").toLowerCase();
-              return name.includes(raw) || sku.includes(raw);
-            })
-            .slice(0, 80)
-        : catalogProducts.slice(0, 80);
+      const filtered = filterCatalogProducts(catalogProducts, {
+        query: e.query,
+        categoryFilterValue: catalogCategoryFilter,
+        limit: 80
+      });
       setCatalogQuickSuggestions(filtered);
     },
-    [catalogProducts]
+    [catalogProducts, catalogCategoryFilter]
   );
 
   const catalogQuickOnChange = useCallback((e) => {
@@ -3160,7 +3182,7 @@ const QuotationList = () => {
                   <div className="row g-3 mt-1 pt-3 border-top border-light-subtle">
                     <div
                       className={`col-md-6 ${discountFieldsActive ? "col-lg-3" : "col-lg-6"}`}>
-                      <label className="form-label">Sales agent</label>
+                      <label className="form-label">Seller</label>
                       {token ? (
                         <CommonSelect
                           className="w-100"
@@ -3183,7 +3205,7 @@ const QuotationList = () => {
                               setEditBillerId(s);
                             }
                           }}
-                          placeholder="Sales agent"
+                          placeholder="Seller"
                           filter
                         />
                       ) : (
@@ -3199,6 +3221,17 @@ const QuotationList = () => {
                           }
                         />
                       )}
+                      {token ? (
+                        <p className="text-muted small mb-0 mt-1">
+                          {formIsCreate
+                            ? selectedCreateSellerStoreNames.length
+                              ? `Assigned stores: ${selectedCreateSellerStoreNames.join(", ")}`
+                              : "No assigned stores"
+                            : selectedEditSellerStoreNames.length
+                              ? `Assigned stores: ${selectedEditSellerStoreNames.join(", ")}`
+                              : "No assigned stores"}
+                        </p>
+                      ) : null}
                     </div>
                     <div
                       className={`col-md-6 ${discountFieldsActive ? "col-lg-3" : "col-lg-6"}`}>
@@ -3349,6 +3382,24 @@ const QuotationList = () => {
                                 )}
                               />
                             </div>
+                          </div>
+                          <div
+                            className={
+                              crmQuotationForm && useApiProductLines
+                                ? "col-12 col-md-3"
+                                : "mb-2"
+                            }>
+                            <select
+                              className="form-select quotation-catalog-category-select"
+                              value={catalogCategoryFilter}
+                              onChange={(e) => setCatalogCategoryFilter(e.target.value)}>
+                              <option value="">All categories</option>
+                              {catalogCategories.map((c) => (
+                                <option key={String(c.id)} value={buildCategoryFilterValue(c)}>
+                                  {String(c.name ?? "")}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           {crmQuotationForm && useApiProductLines ? (
                             <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-center">

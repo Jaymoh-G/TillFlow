@@ -58,7 +58,7 @@ const OnlineorderModal = () => {
                   className="close"
                   data-bs-dismiss="modal"
                   aria-label="Close">
-                  
+
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
@@ -110,14 +110,14 @@ const OnlineorderModal = () => {
                                 }
                                 placeholder="Choose"
                                 filter={false} />
-                              
+
                             </div>
                             <div className="col-lg-2 col-sm-2 col-2 ps-0">
                               <div className="add-icon">
                                 <Link
                                   to="#"
                                   className="bg-dark text-white p-2 rounded">
-                                  
+
                                   <i className="feather icon-plus-circle" />
                                 </Link>
                               </div>
@@ -135,7 +135,7 @@ const OnlineorderModal = () => {
                               value={date1}
                               onChange={setDate1}
                               className="w-100" />
-                            
+
                             <i className="feather icon-calendar info-img" />
                           </div>
                         </div>
@@ -151,7 +151,7 @@ const OnlineorderModal = () => {
                             onChange={(e) => setSelectedSupplier(e.value)}
                             placeholder="Choose"
                             filter={false} />
-                          
+
                         </div>
                       </div>
                       <div className="col-lg-12 col-sm-6 col-12">
@@ -164,7 +164,7 @@ const OnlineorderModal = () => {
                               type="text"
                               className="form-control"
                               placeholder="Please type product code and select" />
-                            
+
                             <div className="addonset">
                               <img src={qrCodeImage} alt="img" />
                             </div>
@@ -207,7 +207,7 @@ const OnlineorderModal = () => {
                               type="text"
                               defaultValue={0}
                               className="form-control p-2" />
-                            
+
                           </div>
                         </div>
                       </div>
@@ -221,7 +221,7 @@ const OnlineorderModal = () => {
                               type="text"
                               defaultValue={0}
                               className="form-control p-2" />
-                            
+
                           </div>
                         </div>
                       </div>
@@ -235,7 +235,7 @@ const OnlineorderModal = () => {
                               type="text"
                               defaultValue={0}
                               className="form-control p-2" />
-                            
+
                           </div>
                         </div>
                       </div>
@@ -250,7 +250,7 @@ const OnlineorderModal = () => {
                             onChange={(e) => setSelectedOrderStatus(e.value)}
                             placeholder="Choose"
                             filter={false} />
-                          
+
                         </div>
                       </div>
                     </div>
@@ -261,14 +261,14 @@ const OnlineorderModal = () => {
                     type="button"
                     className="btn btn-secondary add-cancel me-3"
                     data-bs-dismiss="modal">
-                    
+
                     Cancel
                   </button>
                   <Link
                     to="#"
                     className="btn btn-primary add-sale"
                     data-bs-dismiss="modal">
-                    
+
                     Submit
                   </Link>
                 </div>
@@ -294,7 +294,7 @@ const OnlineorderModal = () => {
                       data-bs-toggle="tooltip"
                       data-bs-placement="top"
                       title="Pdf">
-                      
+
                       <img src={pdf} alt="img" />
                     </Link>
                   </li>
@@ -304,7 +304,7 @@ const OnlineorderModal = () => {
                       data-bs-toggle="tooltip"
                       data-bs-placement="top"
                       title="Pdf">
-                      
+
                       <img src={printer} alt="img" />
                     </Link>
                   </li>
@@ -314,7 +314,7 @@ const OnlineorderModal = () => {
                     to="#"
                     className="btn btn-secondary"
                     data-bs-dismiss="modal">
-                    
+
                     <i className="feather icon-arrow-left me-2" /> Back to Sales
                   </Link>
                 </div>
@@ -331,7 +331,7 @@ const OnlineorderModal = () => {
                         fontSize: 14,
                         color: "#555"
                       }}>
-                      
+
                       <div className="row sales-details-items d-flex">
                         <div className="col-md-4 details-item">
                           <h6>Customer Info</h6>
@@ -410,11 +410,11 @@ const OnlineorderModal = () => {
                                   <Link
                                     to="#"
                                     className="avatar avatar-md me-2">
-                                    
+
                                     <img
                                       src={stockImg02}
                                       alt="product" />
-                                    
+
                                   </Link>
                                   <Link to="#">Nike Jordan</Link>
                                 </div>
@@ -432,11 +432,11 @@ const OnlineorderModal = () => {
                                   <Link
                                     to="#"
                                     className="avatar avatar-md me-2">
-                                    
+
                                     <img
                                       src={stockImg03}
                                       alt="product" />
-                                    
+
                                   </Link>
                                   <Link to="#">Apple Series 5 Watch</Link>
                                 </div>
@@ -454,11 +454,11 @@ const OnlineorderModal = () => {
                                   <Link
                                     to="#"
                                     className="avatar avatar-md me-2">
-                                    
+
                                     <img
                                       src={stockImg05}
                                       alt="product" />
-                                    
+
                                   </Link>
                                   <Link to="#">Lobar Handy</Link>
                                 </div>
@@ -511,7 +511,7 @@ const OnlineorderModal = () => {
                     type="button"
                     className="btn btn-secondary me-2"
                     data-bs-dismiss="modal">
-                    
+
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-primary">
@@ -539,7 +539,7 @@ const OnlineorderModal = () => {
                         className="close"
                         data-bs-dismiss="modal"
                         aria-label="Close">
-                        
+
                         <span aria-hidden="true">×</span>
                       </button>
                     </div>
@@ -568,11 +568,11 @@ const OnlineorderModal = () => {
                                     <Link
                                       to="#"
                                       className="avatar avatar-md me-2">
-                                      
+
                                       <img
                                         src={stockImg02}
                                         alt="product" />
-                                      
+
                                     </Link>
                                     <Link to="#">Nike Jordan</Link>
                                   </div>
@@ -582,7 +582,7 @@ const OnlineorderModal = () => {
                                     <span
                                       className="quantity-btn"
                                       onClick={handleIncrement}>
-                                      
+
                                       +
                                       <i className="feather icon-plus-circle plus-circle" />
                                     </span>
@@ -590,11 +590,11 @@ const OnlineorderModal = () => {
                                       type="text"
                                       className="quntity-input form-control bg-transparent"
                                       defaultValue={2} />
-                                    
+
                                     <span
                                       className="quantity-btn"
                                       onClick={handleDecrement}>
-                                      
+
                                       <i className="feather icon-minus feather-search" />
                                     </span>
                                   </div>
@@ -612,11 +612,11 @@ const OnlineorderModal = () => {
                                     <Link
                                       to="#"
                                       className="avatar avatar-md me-2">
-                                      
+
                                       <img
                                         src={stockImg03}
                                         alt="product" />
-                                      
+
                                     </Link>
                                     <Link to="#">Apple Series 5 Watch</Link>
                                   </div>
@@ -626,7 +626,7 @@ const OnlineorderModal = () => {
                                     <span
                                       className="quantity-btn"
                                       onClick={handleIncrement}>
-                                      
+
                                       +
                                       <i className="feather icon-plus-circle plus-circle" />
                                     </span>
@@ -634,11 +634,11 @@ const OnlineorderModal = () => {
                                       type="text"
                                       className="quntity-input form-control bg-transparent"
                                       defaultValue={2} />
-                                    
+
                                     <span
                                       className="quantity-btn"
                                       onClick={handleDecrement}>
-                                      
+
                                       <i className="feather icon-minus feather-search" />
                                     </span>
                                   </div>
@@ -656,11 +656,11 @@ const OnlineorderModal = () => {
                                     <Link
                                       to="#"
                                       className="avatar avatar-md me-2">
-                                      
+
                                       <img
                                         src={stockImg05}
                                         alt="product" />
-                                      
+
                                     </Link>
                                     <Link to="#">Lobar Handy</Link>
                                   </div>
@@ -670,7 +670,7 @@ const OnlineorderModal = () => {
                                     <span
                                       className="quantity-btn"
                                       onClick={handleIncrement}>
-                                      
+
                                       +
                                       <i className="feather icon-plus-circle plus-circle" />
                                     </span>
@@ -678,11 +678,11 @@ const OnlineorderModal = () => {
                                       type="text"
                                       className="quntity-input form-control bg-transparent"
                                       defaultValue={2} />
-                                    
+
                                     <span
                                       className="quantity-btn"
                                       onClick={handleDecrement}>
-                                      
+
                                       <i className="feather icon-minus feather-search" />
                                     </span>
                                   </div>
@@ -714,14 +714,14 @@ const OnlineorderModal = () => {
                                     }
                                     placeholder="Choose"
                                     filter={false} />
-                                  
+
                                 </div>
                                 <div className="col-lg-2 col-sm-2 col-2 ps-0">
                                   <div className="add-icon">
                                     <Link
                                       to="#"
                                       className="bg-dark text-white p-2 rounded">
-                                      
+
                                       <i className="feather icon-plus-circle plus" />
                                     </Link>
                                   </div>
@@ -739,7 +739,7 @@ const OnlineorderModal = () => {
                                   value={date2}
                                   onChange={setDate2}
                                   className="w-100" />
-                                
+
                                 <i className="feather icon-calendar info-img" />
                               </div>
                             </div>
@@ -756,7 +756,7 @@ const OnlineorderModal = () => {
                                 onChange={(e) => setSelectedSupplier(e.value)}
                                 placeholder="Choose"
                                 filter={false} />
-                              
+
                             </div>
                           </div>
                           <div className="col-lg-12 col-sm-6 col-12">
@@ -770,12 +770,12 @@ const OnlineorderModal = () => {
                                   type="text"
                                   className="form-control"
                                   placeholder="Please type product code and select" />
-                                
+
                                 <div className="addonset">
                                   <img
                                     src={scanners}
                                     alt="img" />
-                                  
+
                                 </div>
                               </div>
                             </div>
@@ -817,7 +817,7 @@ const OnlineorderModal = () => {
                                   type="text"
                                   className="form-control"
                                   placeholder={"0"} />
-                                
+
                               </div>
                             </div>
                           </div>
@@ -832,7 +832,7 @@ const OnlineorderModal = () => {
                                   type="text"
                                   className="form-control"
                                   placeholder={"0"} />
-                                
+
                               </div>
                             </div>
                           </div>
@@ -847,7 +847,7 @@ const OnlineorderModal = () => {
                                   type="text"
                                   className="form-control"
                                   placeholder={"0"} />
-                                
+
                               </div>
                             </div>
                           </div>
@@ -865,7 +865,7 @@ const OnlineorderModal = () => {
                                 }
                                 placeholder="Choose"
                                 filter={false} />
-                              
+
                             </div>
                           </div>
                           <div className="col-lg-12">
@@ -877,7 +877,7 @@ const OnlineorderModal = () => {
                                 value={text}
                                 onTextChange={(e) => setText(e.htmlValue)}
                                 style={{ height: "200px" }} />
-                              
+
                             </div>
                           </div>
                         </div>
@@ -888,14 +888,14 @@ const OnlineorderModal = () => {
                         type="button"
                         className="btn btn-secondary add-cancel me-3"
                         data-bs-dismiss="modal">
-                        
+
                         Cancel
                       </button>
                       <Link
                         to="#"
                         className="btn btn-primary add-sale"
                         data-bs-dismiss="modal">
-                        
+
                         Save Changes
                       </Link>
                     </div>
@@ -913,7 +913,7 @@ const OnlineorderModal = () => {
           tabIndex={-1}
           aria-labelledby="showpayment"
           aria-hidden="true">
-          
+
           <div className="modal-dialog modal-dialog-centered stock-adjust-modal">
             <div className="modal-content">
               <div className="modal-header">
@@ -925,7 +925,7 @@ const OnlineorderModal = () => {
                   className="close"
                   data-bs-dismiss="modal"
                   aria-label="Close">
-                  
+
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
@@ -955,7 +955,7 @@ const OnlineorderModal = () => {
                                   <Link
                                     className="me-3 p-2 border rounded d-flex align-items-center"
                                     to="#">
-                                    
+
                                     <i className="feather icon-printer feather-rotate-ccw" />
                                   </Link>
                                   <Link
@@ -963,13 +963,13 @@ const OnlineorderModal = () => {
                                     to="#"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editpayment">
-                                    
+
                                     <i className="feather icon-edit feather-edit" />
                                   </Link>
                                   <Link
                                     className="p-2 border rounded d-flex align-items-center"
                                     to="#">
-                                    
+
                                     <i className="feather icon-trash-2" />
                                   </Link>
                                 </div>
@@ -993,7 +993,7 @@ const OnlineorderModal = () => {
           tabIndex={-1}
           aria-labelledby="createpayment"
           aria-hidden="true">
-          
+
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
@@ -1005,7 +1005,7 @@ const OnlineorderModal = () => {
                   className="close"
                   data-bs-dismiss="modal"
                   aria-label="Close">
-                  
+
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
@@ -1023,7 +1023,7 @@ const OnlineorderModal = () => {
                             value={date3}
                             onChange={setDate3}
                             className="w-100" />
-                          
+
                           <i className="feather icon-calendar info-img" />
                         </div>
                       </div>
@@ -1074,7 +1074,7 @@ const OnlineorderModal = () => {
                           onChange={(e) => setSelectedPaymentType(e.value)}
                           placeholder="Choose"
                           filter={false} />
-                        
+
                       </div>
                     </div>
                     <div className="col-lg-12">
@@ -1084,7 +1084,7 @@ const OnlineorderModal = () => {
                           value={text}
                           onTextChange={(e) => setText(e.htmlValue)}
                           style={{ height: "200px" }} />
-                        
+
                         <p>Maximum 60 Characters</p>
                       </div>
                     </div>
@@ -1095,14 +1095,14 @@ const OnlineorderModal = () => {
                     type="button"
                     className="btn btn-secondary me-2"
                     data-bs-dismiss="modal">
-                    
+
                     Cancel
                   </button>
                   <Link
                     to="#"
                     className="btn btn-primary"
                     data-bs-dismiss="modal">
-                    
+
                     Submit
                   </Link>
                 </div>
@@ -1118,7 +1118,7 @@ const OnlineorderModal = () => {
           tabIndex={-1}
           aria-labelledby="editpayment"
           aria-hidden="true">
-          
+
           <div className="modal-dialog modal-lg modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
@@ -1130,7 +1130,7 @@ const OnlineorderModal = () => {
                   className="close"
                   data-bs-dismiss="modal"
                   aria-label="Close">
-                  
+
                   <span aria-hidden="true">×</span>
                 </button>
               </div>
@@ -1148,7 +1148,7 @@ const OnlineorderModal = () => {
                             type="text"
                             className="datetimepicker form-control"
                             placeholder="Select Date" />
-                          
+
                         </div>
                       </div>
                     </div>
@@ -1161,7 +1161,7 @@ const OnlineorderModal = () => {
                           type="text"
                           className="form-control"
                           defaultValue="INV/SL0101" />
-                        
+
                       </div>
                     </div>
                   </div>
@@ -1178,7 +1178,7 @@ const OnlineorderModal = () => {
                             type="text"
                             className="form-control"
                             defaultValue={1500} />
-                          
+
                         </div>
                       </div>
                     </div>
@@ -1194,7 +1194,7 @@ const OnlineorderModal = () => {
                             type="text"
                             className="form-control"
                             defaultValue={1500} />
-                          
+
                         </div>
                       </div>
                     </div>
@@ -1225,7 +1225,7 @@ const OnlineorderModal = () => {
                     type="button"
                     className="btn btn-secondary me-2"
                     data-bs-dismiss="modal">
-                    
+
                     Cancel
                   </button>
                   <button type="submit" className="btn btn-primary">

@@ -1,11 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
+import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
 import PrimeDataTable from "../../components/data-table";
+import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
 import TableTopHead from "../../components/table-top-head";
+import { waitForPrintRootImages } from "../../utils/htmlDocumentPdfExport";
 import { TillFlowApiError } from "../api/errors";
-import { listPosOrdersRequest } from "../api/posOrders";
+import {
+  listPosOrdersRequest,
+  previewPosOrderReceiptEmailRequest,
+  sendPosOrderReceiptToCustomerRequest,
+  showPosOrderRequest
+} from "../api/posOrders";
 import { useAuth } from "../auth/AuthContext";
+import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
 import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 
 function formatKes(n) {
@@ -49,9 +58,31 @@ function paymentTypeLabel(s) {
   return v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function orderChannelLabel(order) {
+  const raw = String(order?.order_type ?? order?.source ?? order?.channel ?? "").trim().toLowerCase();
+  if (raw === "online" || raw === "web" || raw === "website" || raw === "ecommerce") {
+    return "Online";
+  }
+  return "POS";
+}
+
 export default function AdminPosOrders() {
   const { token } = useAuth();
   const navigate = useNavigate();
+
+  const printReceiptRef = useRef(null);
+  const [pendingPrintOrder, setPendingPrintOrder] = useState(null);
+
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+  const [emailPreviewLoading, setEmailPreviewLoading] = useState(false);
+  const [emailPreviewError, setEmailPreviewError] = useState("");
+  const [emailSendError, setEmailSendError] = useState("");
+  const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailTargetOrderId, setEmailTargetOrderId] = useState(null);
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +113,111 @@ export default function AdminPosOrders() {
     void load();
   }, [load]);
 
+  useLayoutEffect(() => {
+    if (!pendingPrintOrder) {
+      return undefined;
+    }
+    const el = printReceiptRef.current;
+    if (!el) {
+      setPendingPrintOrder(null);
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        await waitForPrintRootImages(el);
+        if (cancelled) {
+          return;
+        }
+        printPosReceiptThermal(
+          el,
+          pendingPrintOrder.order_no ? `Receipt ${pendingPrintOrder.order_no}` : "Receipt"
+        );
+      } catch {
+        window.alert("Could not print receipt.");
+      } finally {
+        if (!cancelled) {
+          setPendingPrintOrder(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingPrintOrder]);
+
+  const startPrintForOrder = useCallback(
+    async (orderId) => {
+      if (!token) {
+        return;
+      }
+      try {
+        const data = await showPosOrderRequest(token, orderId);
+        const order = data?.pos_order;
+        if (!order) {
+          window.alert("Could not load receipt.");
+          return;
+        }
+        setPendingPrintOrder(order);
+      } catch (e) {
+        window.alert(e instanceof TillFlowApiError ? e.message : "Could not load receipt for printing.");
+      }
+    },
+    [token]
+  );
+
+  const openEmailForOrder = useCallback(
+    async (orderId) => {
+      if (!token) {
+        return;
+      }
+      setEmailPreviewOpen(true);
+      setEmailPreviewLoading(true);
+      setEmailPreviewError("");
+      setEmailSendError("");
+      setEmailTargetOrderId(orderId);
+      try {
+        const [showData, previewData] = await Promise.all([
+          showPosOrderRequest(token, orderId),
+          previewPosOrderReceiptEmailRequest(token, orderId)
+        ]);
+        const order = showData?.pos_order;
+        setEmailPreviewHtml(String(previewData?.html ?? ""));
+        setEmailTo(String(order?.customer_email ?? ""));
+        setEmailSubject(String(previewData?.subject ?? `Receipt ${order?.order_no ?? ""}`));
+        setEmailMessage(
+          String(previewData?.message_template ?? "Please find your POS receipt details below.")
+        );
+      } catch (e) {
+        setEmailPreviewHtml("");
+        setEmailPreviewError(e instanceof TillFlowApiError ? e.message : "Failed to load email preview.");
+      } finally {
+        setEmailPreviewLoading(false);
+      }
+    },
+    [token]
+  );
+
+  const sendEmail = useCallback(async () => {
+    if (!token || emailTargetOrderId == null) {
+      return;
+    }
+    setEmailSending(true);
+    setEmailSendError("");
+    try {
+      await sendPosOrderReceiptToCustomerRequest(token, emailTargetOrderId, {
+        toEmail: emailTo,
+        subject: emailSubject,
+        message: emailMessage
+      });
+      setEmailPreviewOpen(false);
+    } catch (e) {
+      setEmailSendError(e instanceof TillFlowApiError ? e.message : "Failed to send email.");
+    } finally {
+      setEmailSending(false);
+    }
+  }, [token, emailTargetOrderId, emailTo, emailSubject, emailMessage]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return orders.filter((o) => {
@@ -93,7 +229,14 @@ export default function AdminPosOrders() {
       const customer = String(o.customer_name ?? "").toLowerCase();
       const biller = String(o.biller ?? "").toLowerCase();
       const reference = String(o.reference ?? "").toLowerCase();
-      return orderNo.includes(needle) || customer.includes(needle) || biller.includes(needle) || reference.includes(needle);
+      const channel = orderChannelLabel(o).toLowerCase();
+      return (
+        orderNo.includes(needle) ||
+        customer.includes(needle) ||
+        biller.includes(needle) ||
+        reference.includes(needle) ||
+        channel.includes(needle)
+      );
     });
   }, [orders, q, status, filterBiller, filterPaymentType]);
 
@@ -117,9 +260,10 @@ export default function AdminPosOrders() {
   const handleExportExcel = useCallback(async () => {
     const rows = filtered.map((o) => ({
       Receipt: o.order_no || `#${o.id}`,
+      Order: orderChannelLabel(o),
       Biller: o.biller || "",
       Reference: o.reference || "",
-      "Payment type": paymentTypeLabel(o.payment_type),
+      Payment: paymentTypeLabel(o.payment_type),
       Customer: o.customer_name || "Walk-in customer",
       Total: Number(o.total_amount ?? 0),
       Tendered: Number(o.tendered_amount ?? 0),
@@ -127,13 +271,14 @@ export default function AdminPosOrders() {
       Status: o.status || "",
       "Paid at": formatDt(o.completed_at)
     }));
-    await downloadRowsExcel(rows, "POS Orders", "pos-orders");
+    await downloadRowsExcel(rows, "Orders", "orders");
   }, [filtered]);
 
   const handleExportPdf = useCallback(async () => {
-    const head = ["Receipt", "Biller", "Reference", "Payment Type", "Customer", "Total", "Tendered", "Change", "Status", "Paid At"];
+    const head = ["Receipt", "Order", "Biller", "Reference", "Payment", "Customer", "Total", "Tendered", "Change", "Status", "Paid At"];
     const body = filtered.map((o) => [
       o.order_no || `#${o.id}`,
+      orderChannelLabel(o),
       o.biller || "—",
       o.reference || "—",
       paymentTypeLabel(o.payment_type),
@@ -144,7 +289,7 @@ export default function AdminPosOrders() {
       o.status || "—",
       formatDt(o.completed_at)
     ]);
-    await downloadRowsPdf("POS Orders", head, body, "pos-orders");
+    await downloadRowsPdf("Orders", head, body, "orders");
   }, [filtered]);
 
   const columns = useMemo(
@@ -153,10 +298,15 @@ export default function AdminPosOrders() {
         header: "Receipt",
         field: "order_no",
         body: (row) => (
-          <Link to={`/tillflow/admin/pos-orders/${row.id}`} className="fw-medium text-nowrap">
+          <Link to={`/tillflow/admin/orders/${row.id}`} className="fw-medium text-nowrap">
             {row.order_no || `#${row.id}`}
           </Link>
         )
+      },
+      {
+        header: "Order",
+        field: "order_type",
+        body: (row) => <span className="small text-nowrap">{orderChannelLabel(row)}</span>
       },
       {
         header: "Biller",
@@ -177,7 +327,7 @@ export default function AdminPosOrders() {
         )
       },
       {
-        header: "Payment type",
+        header: "Payment",
         field: "payment_type",
         body: (row) => <span className="small text-nowrap">{paymentTypeLabel(row.payment_type)}</span>
       },
@@ -241,16 +391,24 @@ export default function AdminPosOrders() {
               <i className="ti ti-dots-vertical" />
             </Dropdown.Toggle>
             <Dropdown.Menu>
-              <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/pos-orders/${row.id}`)}>
+              <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/orders/${row.id}`)}>
                 <i className="ti ti-eye me-2 text-dark" />
                 View
+              </Dropdown.Item>
+              <Dropdown.Item as="button" type="button" onClick={() => void startPrintForOrder(row.id)}>
+                <i className="ti ti-printer me-2 text-dark" />
+                Print
+              </Dropdown.Item>
+              <Dropdown.Item as="button" type="button" onClick={() => void openEmailForOrder(row.id)}>
+                <i className="ti ti-mail me-2 text-dark" />
+                Send to email
               </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
         )
       }
     ],
-    [navigate]
+    [navigate, startPrintForOrder, openEmailForOrder]
   );
 
   return (
@@ -259,8 +417,8 @@ export default function AdminPosOrders() {
         <div className="page-header">
           <div className="add-item d-flex flex-wrap align-items-center justify-content-between gap-2 w-100">
             <div className="page-title">
-              <h4>POS orders</h4>
-              <h6 className="mb-0">Receipts created from TillFlow POS checkouts.</h6>
+              <h4>Orders</h4>
+              <h6 className="mb-0">All orders. TillFlow POS orders show as POS; website orders show as Online.</h6>
             </div>
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <TableTopHead onRefresh={load} onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
@@ -310,7 +468,7 @@ export default function AdminPosOrders() {
                 </select>
               </div>
               <div className="col-md-3">
-                <label className="form-label small mb-0">Payment type</label>
+                <label className="form-label small mb-0">Payment</label>
                 <select className="form-select" value={filterPaymentType} onChange={(e) => setFilterPaymentType(e.target.value)}>
                   {paymentTypeOptions.map((s) => (
                     <option key={s || "all"} value={s}>
@@ -337,6 +495,34 @@ export default function AdminPosOrders() {
           </div>
         </div>
       </div>
+
+      {pendingPrintOrder ? (
+        <div className="position-fixed p-0 m-0 border-0 overflow-hidden" style={{ left: -99999, top: 0, width: 1, height: 1 }} aria-hidden>
+          <PosReceiptPrintDocument ref={printReceiptRef} order={pendingPrintOrder} />
+        </div>
+      ) : null}
+
+      <InvoiceEmailPreviewModal
+        show={emailPreviewOpen}
+        onHide={() => {
+          if (!emailSending) {
+            setEmailPreviewOpen(false);
+          }
+        }}
+        loading={emailPreviewLoading}
+        error={emailPreviewError || emailSendError}
+        html={emailPreviewHtml}
+        toEmail={emailTo}
+        subject={emailSubject}
+        message={emailMessage}
+        onChangeToEmail={setEmailTo}
+        onChangeSubject={setEmailSubject}
+        onChangeMessage={setEmailMessage}
+        onSend={sendEmail}
+        sending={emailSending}
+        sendDisabled={!String(emailTo ?? "").trim()}
+        sendButtonLabel="Send receipt"
+      />
     </div>
   );
 }

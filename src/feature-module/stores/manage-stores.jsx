@@ -3,13 +3,20 @@ import SearchFromApi from "../../components/data-table/search";
 import TableTopHead from "../../components/table-top-head";
 import CommonFooter from "../../components/footer/commonFooter";
 import { Link, useLocation } from "react-router-dom";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { downloadRowsExcel, downloadRowsPdf } from "../../tillflow/utils/listExport";
 import { useStores } from "../../stores/useStores";
 import {
-  addStore,
-  deleteStore,
-  updateStore
+  saveStores
 } from "../../stores/storesRegistry";
+import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { TillFlowApiError } from "../../tillflow/api/errors";
+import {
+  createStoreRequest,
+  deleteStoreRequest,
+  listStoresRequest,
+  updateStoreRequest
+} from "../../tillflow/api/stores";
 
 function hideBsModal(id) {
   const el = document.getElementById(id);
@@ -34,23 +41,73 @@ function formatWhen(iso) {
 export default function ManageStores() {
   const location = useLocation();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const auth = useOptionalAuth();
+  const token = auth?.token ?? null;
   const stores = useStores();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rows, setRows] = useState(10);
   const [selectedRows, setSelectedRows] = useState([]);
+  const [listLoading, setListLoading] = useState(() => Boolean(token));
+  const [listError, setListError] = useState("");
 
   const [addName, setAddName] = useState("");
   const [addCode, setAddCode] = useState("");
+  const [addLocation, setAddLocation] = useState("");
   const [addError, setAddError] = useState("");
+  const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [editRow, setEditRow] = useState(null);
   const [editName, setEditName] = useState("");
   const [editCode, setEditCode] = useState("");
+  const [editLocation, setEditLocation] = useState("");
   const [editError, setEditError] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const [deleteId, setDeleteId] = useState(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  const loadStoresFromApi = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    setListLoading(true);
+    setListError("");
+    try {
+      const data = await listStoresRequest(token);
+      const rows = Array.isArray(data?.stores) ? data.stores : [];
+      const normalized = rows.map((s) => ({
+        id: Number(s.id),
+        name: String(s.name ?? ""),
+        code: String(s.code ?? ""),
+        username: s.username ?? null,
+        phone: s.phone ?? null,
+        status: s.status ?? null,
+        email: s.email ?? null,
+        location: s.location ?? null,
+        createdAt: s.created_at ?? null,
+        updatedAt: s.updated_at ?? null
+      }));
+      saveStores(normalized);
+    } catch (e) {
+      if (e instanceof TillFlowApiError) {
+        setListError(e.message);
+      } else {
+        setListError("Could not load stores.");
+      }
+    } finally {
+      setListLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setListLoading(false);
+      return;
+    }
+    void loadStoresFromApi();
+  }, [token, loadStoresFromApi]);
 
   const displayRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -64,52 +121,147 @@ export default function ManageStores() {
     );
   }, [stores, searchQuery]);
 
+  const handleExportExcel = useCallback(async () => {
+    const records = displayRows.map((s) => ({
+      "Store name": String(s.name ?? ""),
+      Code: String(s.code ?? ""),
+      Location: String(s.location ?? ""),
+      Status: String(s.status ?? ""),
+      Phone: String(s.phone ?? ""),
+      Email: String(s.email ?? ""),
+      Updated: formatWhen(s.updatedAt)
+    }));
+    await downloadRowsExcel(records, "Stores", "stores");
+  }, [displayRows]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = displayRows.map((s) => [
+      String(s.name ?? ""),
+      String(s.code ?? ""),
+      String(s.location ?? ""),
+      String(s.status ?? ""),
+      String(s.phone ?? ""),
+      String(s.email ?? ""),
+      formatWhen(s.updatedAt)
+    ]);
+    await downloadRowsPdf(
+      "Stores",
+      ["Store name", "Code", "Location", "Status", "Phone", "Email", "Updated"],
+      body,
+      "stores"
+    );
+  }, [displayRows]);
+
   const openEdit = useCallback((row) => {
     setEditRow(row);
     setEditName(row.name);
     setEditCode(row.code ?? "");
+    setEditLocation(row.location ?? "");
     setEditError("");
   }, []);
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     setAddError("");
-    const res = addStore({ name: addName, code: addCode });
-    if (!res.ok) {
-      setAddError(res.error);
+    const name = String(addName || "").trim();
+    const code = String(addCode || "").trim();
+    const location = String(addLocation || "").trim();
+    if (!name) {
+      setAddError("Name is required.");
       return;
     }
-    setAddName("");
-    setAddCode("");
-    hideBsModal("add-store");
+    if (!token) {
+      setAddError("Sign in to add stores.");
+      return;
+    }
+    setAddSubmitting(true);
+    try {
+      await createStoreRequest(token, {
+        name,
+        store_name: name,
+        code: code || null,
+        location: location || null,
+        status: "Active"
+      });
+      await loadStoresFromApi();
+      setAddName("");
+      setAddCode("");
+      setAddLocation("");
+      hideBsModal("add-store");
+    } catch (e1) {
+      if (e1 instanceof TillFlowApiError) {
+        setAddError(e1.message);
+      } else {
+        setAddError("Could not create store.");
+      }
+    } finally {
+      setAddSubmitting(false);
+    }
   };
 
-  const handleEditSave = (e) => {
+  const handleEditSave = async (e) => {
     e.preventDefault();
     if (!editRow) {
       return;
     }
     setEditError("");
-    const res = updateStore(editRow.id, {
-      name: editName,
-      code: editCode
-    });
-    if (!res.ok) {
-      setEditError(res.error);
+    if (!token) {
+      setEditError("Sign in to edit stores.");
       return;
     }
-    setEditRow(null);
-    hideBsModal("edit-store");
+    const name = String(editName || "").trim();
+    const code = String(editCode || "").trim();
+    const location = String(editLocation || "").trim();
+    if (!name) {
+      setEditError("Name is required.");
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      await updateStoreRequest(token, editRow.id, {
+        name,
+        store_name: name,
+        code: code || null,
+        location: location || null
+      });
+      await loadStoresFromApi();
+      setEditRow(null);
+      hideBsModal("edit-store");
+    } catch (e2) {
+      if (e2 instanceof TillFlowApiError) {
+        setEditError(e2.message);
+      } else {
+        setEditError("Could not update store.");
+      }
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteId == null) {
       return;
     }
-    deleteStore(deleteId);
-    setSelectedRows((s) => s.filter((r) => r.id !== deleteId));
-    setDeleteId(null);
-    hideBsModal("delete-store");
+    if (!token) {
+      setListError("Sign in to delete stores.");
+      return;
+    }
+    setDeleteSubmitting(true);
+    try {
+      await deleteStoreRequest(token, deleteId);
+      await loadStoresFromApi();
+      setSelectedRows((s) => s.filter((r) => r.id !== deleteId));
+      setDeleteId(null);
+      hideBsModal("delete-store");
+    } catch (e3) {
+      if (e3 instanceof TillFlowApiError) {
+        setListError(e3.message);
+      } else {
+        setListError("Could not delete store.");
+      }
+    } finally {
+      setDeleteSubmitting(false);
+    }
   };
 
   const columns = useMemo(
@@ -127,6 +279,12 @@ export default function ManageStores() {
         body: (row) => (
           <span className="font-monospace small">{row.code ?? "—"}</span>
         )
+      },
+      {
+        header: "Location",
+        field: "location",
+        key: "location",
+        body: (row) => <span>{row.location ?? "—"}</span>
       },
       {
         header: "Updated",
@@ -177,13 +335,27 @@ export default function ManageStores() {
             <div className="add-item d-flex">
               <div className="page-title">
                 <h4>Stores</h4>
-                <h6>
-                  Inventory locations used for stock transfer. Stored in this
-                  browser (add a backend later to sync).
-                </h6>
+                <h6>Inventory locations used for stock transfer.</h6>
               </div>
             </div>
-            <TableTopHead />
+            <TableTopHead
+              onRefresh={() => void loadStoresFromApi()}
+              onExportPdf={
+                listLoading || displayRows.length === 0
+                  ? undefined
+                  : () => void handleExportPdf()
+              }
+              onExportExcel={
+                listLoading || displayRows.length === 0
+                  ? undefined
+                  : () => void handleExportExcel()
+              }
+            />
+            {listError ? (
+              <div className="alert alert-danger mt-3 mb-0" role="alert">
+                {listError}
+              </div>
+            ) : null}
             <div className="page-btn d-flex flex-wrap gap-2">
               <button
                 type="button"
@@ -194,6 +366,7 @@ export default function ManageStores() {
                   setAddError("");
                   setAddName("");
                   setAddCode("");
+                  setAddLocation("");
                 }}>
                 <i className="ti ti-circle-plus me-1" />
                 Add store
@@ -242,6 +415,7 @@ export default function ManageStores() {
                 selection={selectedRows}
                 onSelectionChange={(e) => setSelectedRows(e.value)}
                 dataKey="id"
+                loading={listLoading}
               />
             </div>
           </div>
@@ -279,6 +453,15 @@ export default function ManageStores() {
                   />
                 </div>
                 <div className="mb-0">
+                  <label className="form-label">Location</label>
+                  <input
+                    className="form-control"
+                    value={addLocation}
+                    onChange={(e) => setAddLocation(e.target.value)}
+                    placeholder="Location (optional)"
+                  />
+                </div>
+                <div className="mb-0 mt-3">
                   <label className="form-label">Code</label>
                   <input
                     className="form-control"
@@ -295,8 +478,8 @@ export default function ManageStores() {
                   data-bs-dismiss="modal">
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Save
+                <button type="submit" className="btn btn-primary" disabled={addSubmitting}>
+                  {addSubmitting ? "Saving..." : "Save"}
                 </button>
               </div>
             </form>
@@ -333,6 +516,15 @@ export default function ManageStores() {
                     onChange={(e) => setEditName(e.target.value)}
                   />
                 </div>
+                <div className="mb-3">
+                  <label className="form-label">Location</label>
+                  <input
+                    className="form-control"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    placeholder="Location (optional)"
+                  />
+                </div>
                 <div className="mb-0">
                   <label className="form-label">Code</label>
                   <input
@@ -350,8 +542,8 @@ export default function ManageStores() {
                   onClick={() => setEditRow(null)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Save changes
+                <button type="submit" className="btn btn-primary" disabled={editSubmitting}>
+                  {editSubmitting ? "Saving..." : "Save changes"}
                 </button>
               </div>
             </form>
@@ -382,8 +574,9 @@ export default function ManageStores() {
                 <button
                   type="button"
                   className="btn btn-danger"
-                  onClick={confirmDelete}>
-                  Delete
+                  onClick={() => void confirmDelete()}
+                  disabled={deleteSubmitting}>
+                  {deleteSubmitting ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>

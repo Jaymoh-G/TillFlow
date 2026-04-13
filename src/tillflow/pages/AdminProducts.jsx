@@ -2,10 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PrimeDataTable from "../../components/data-table";
 import { TillFlowApiError } from "../api/errors";
-import { deleteProductRequest, listProductsRequest, listTrashedProductsRequest, restoreProductRequest } from "../api/products";
+import {
+  deleteProductRequest,
+  listProductsRequest,
+  listTrashedProductsRequest,
+  restoreProductRequest,
+  updateProductRequest
+} from "../api/products";
+import { listStoresRequest } from "../api/stores";
+import { listCategoriesRequest } from "../api/categories";
+import { listBrandsRequest } from "../api/brands";
+import { listUnitsRequest } from "../api/units";
 import { useAuth } from "../auth/AuthContext";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { downloadItemsExcel, downloadItemsPdf } from "../utils/itemListExport";
+import TableTopHead from "../../components/table-top-head";
 
 function initials(name) {
   const parts = (name || "").trim().split(/\s+/);
@@ -46,6 +57,9 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [storeFilter, setStoreFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProducts, setSelectedProducts] = useState([]);
@@ -54,6 +68,24 @@ export default function AdminProducts() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [viewTrash, setViewTrash] = useState(false);
   const [restoreSubmittingId, setRestoreSubmittingId] = useState(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState("");
+  const [bulkSummary, setBulkSummary] = useState(null);
+  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+  const [bulkStoreId, setBulkStoreId] = useState("");
+  const [bulkCategoryId, setBulkCategoryId] = useState("");
+  const [bulkBrandId, setBulkBrandId] = useState("");
+  const [bulkUnitId, setBulkUnitId] = useState("");
+  const [bulkQty, setBulkQty] = useState("");
+  const [bulkBuyingPrice, setBulkBuyingPrice] = useState("");
+  const [bulkSellingPrice, setBulkSellingPrice] = useState("");
+  const [bulkPriceAdjustMode, setBulkPriceAdjustMode] = useState("none");
+  const [bulkPriceAdjustOp, setBulkPriceAdjustOp] = useState("increase");
+  const [bulkPriceAdjustValue, setBulkPriceAdjustValue] = useState("");
+  const [bulkStores, setBulkStores] = useState([]);
+  const [bulkCategories, setBulkCategories] = useState([]);
+  const [bulkBrands, setBulkBrands] = useState([]);
+  const [bulkUnits, setBulkUnits] = useState([]);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -83,22 +115,151 @@ export default function AdminProducts() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedProducts([]);
+    setBulkSummary(null);
+    setBulkError("");
   }, [viewTrash]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [storesData, categoriesData, brandsData, unitsData] = await Promise.all([
+          listStoresRequest(token),
+          listCategoriesRequest(token),
+          listBrandsRequest(token),
+          listUnitsRequest(token)
+        ]);
+        if (cancelled) {
+          return;
+        }
+        setBulkStores(Array.isArray(storesData?.stores) ? storesData.stores : []);
+        setBulkCategories(Array.isArray(categoriesData?.categories) ? categoriesData.categories : []);
+        setBulkBrands(Array.isArray(brandsData?.brands) ? brandsData.brands : []);
+        setBulkUnits(Array.isArray(unitsData?.units) ? unitsData.units : []);
+      } catch {
+        if (!cancelled) {
+          setBulkStores([]);
+          setBulkCategories([]);
+          setBulkBrands([]);
+          setBulkUnits([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const storeNameById = useMemo(() => {
+    const map = new Map();
+    bulkStores.forEach((s) => {
+      const id = String(s?.id ?? "").trim();
+      const name = String(s?.name ?? "").trim();
+      if (id && name) {
+        map.set(id, name);
+      }
+    });
+    return map;
+  }, [bulkStores]);
+
+  const normalizedProducts = useMemo(
+    () =>
+      products.map((p) => {
+        const fallbackStoreId = p?.store_id ?? p?.store?.id ?? null;
+        const explicitStoreName =
+          String(p?.store?.name ?? "").trim() ||
+          String(p?.store?.store_name ?? "").trim() ||
+          String(p?.store_name ?? "").trim();
+        const mappedStoreName = storeNameById.get(String(fallbackStoreId ?? "")) ?? "";
+        const resolvedStoreName = explicitStoreName || mappedStoreName;
+        if (!resolvedStoreName && !fallbackStoreId) {
+          return p;
+        }
+        return {
+          ...p,
+          store: {
+            ...(p?.store ?? {}),
+            id: p?.store?.id ?? fallbackStoreId,
+            name: resolvedStoreName || p?.store?.name || ""
+          }
+        };
+      }),
+    [products, storeNameById]
+  );
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) {
-      return products;
+    let next = normalizedProducts;
+    if (q) {
+      next = next.filter(
+        (p) =>
+          (p.name && p.name.toLowerCase().includes(q)) ||
+          (p.sku && String(p.sku).toLowerCase().includes(q))
+      );
     }
-    return products.filter(
-      (p) =>
-        (p.name && p.name.toLowerCase().includes(q)) || (p.sku && String(p.sku).toLowerCase().includes(q))
-    );
-  }, [products, searchQuery]);
+    if (storeFilter) {
+      next = next.filter((p) => String(p.store?.id ?? "") === storeFilter);
+    }
+    if (categoryFilter) {
+      next = next.filter((p) => String(p.category?.id ?? "") === categoryFilter);
+    }
+    if (brandFilter) {
+      next = next.filter((p) => String(p.brand?.id ?? "") === brandFilter);
+    }
+    return next;
+  }, [normalizedProducts, searchQuery, storeFilter, categoryFilter, brandFilter]);
+
+  const storeFilterOptions = useMemo(() => {
+    const seen = new Map();
+    normalizedProducts.forEach((p) => {
+      const id = String(p.store?.id ?? "").trim();
+      const name = String(p.store?.name ?? "").trim();
+      if (!id || !name || seen.has(id)) {
+        return;
+      }
+      seen.set(id, name);
+    });
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [normalizedProducts]);
+
+  const categoryFilterOptions = useMemo(() => {
+    const seen = new Map();
+    normalizedProducts.forEach((p) => {
+      const id = String(p.category?.id ?? "").trim();
+      const name = String(p.category?.name ?? "").trim();
+      if (!id || !name || seen.has(id)) {
+        return;
+      }
+      seen.set(id, name);
+    });
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [normalizedProducts]);
+
+  const brandFilterOptions = useMemo(() => {
+    const seen = new Map();
+    normalizedProducts.forEach((p) => {
+      const id = String(p.brand?.id ?? "").trim();
+      const name = String(p.brand?.name ?? "").trim();
+      if (!id || !name || seen.has(id)) {
+        return;
+      }
+      seen.set(id, name);
+    });
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [normalizedProducts]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, rows]);
+  }, [searchQuery, rows, storeFilter, categoryFilter, brandFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rows) || 1);
 
@@ -158,28 +319,153 @@ export default function AdminProducts() {
   );
 
   const handleExportExcel = useCallback(async () => {
-    if (!filtered.length) {
+    const rowsToExport = selectedProducts.length ? selectedProducts : filtered;
+    if (!rowsToExport.length) {
       window.alert("No items to export.");
       return;
     }
     try {
-      await downloadItemsExcel(filtered, viewTrash);
+      await downloadItemsExcel(rowsToExport, viewTrash);
     } catch {
       window.alert("Could not export Excel. Try again or check download settings.");
     }
-  }, [filtered, viewTrash]);
+  }, [filtered, selectedProducts, viewTrash]);
 
   const handleExportPdf = useCallback(async () => {
-    if (!filtered.length) {
+    const rowsToExport = selectedProducts.length ? selectedProducts : filtered;
+    if (!rowsToExport.length) {
       window.alert("No items to export.");
       return;
     }
     try {
-      await downloadItemsPdf(filtered, viewTrash);
+      await downloadItemsPdf(rowsToExport, viewTrash);
     } catch {
       window.alert("Could not export PDF. Try again or check download settings.");
     }
-  }, [filtered, viewTrash]);
+  }, [filtered, selectedProducts, viewTrash]);
+
+  const selectedIds = useMemo(
+    () => selectedProducts.map((p) => Number(p.id)).filter((id) => Number.isFinite(id)),
+    [selectedProducts]
+  );
+
+  const runBulkOperation = useCallback(
+    async (ids, worker, actionLabel) => {
+      if (!ids.length || !token) {
+        return;
+      }
+      setBulkSubmitting(true);
+      setBulkError("");
+      setBulkSummary(null);
+      let successCount = 0;
+      let failedCount = 0;
+      for (const id of ids) {
+        try {
+          await worker(id);
+          successCount += 1;
+        } catch {
+          failedCount += 1;
+        }
+      }
+      setBulkSummary({ actionLabel, successCount, failedCount });
+      setBulkSubmitting(false);
+      await load();
+      setSelectedProducts([]);
+    },
+    [token, load]
+  );
+
+  const bulkMoveToTrash = useCallback(async () => {
+    if (!selectedIds.length) {
+      return;
+    }
+    await runBulkOperation(selectedIds, (id) => deleteProductRequest(token, id), "Move to trash");
+  }, [selectedIds, runBulkOperation, token]);
+
+  const bulkRestore = useCallback(async () => {
+    if (!selectedIds.length) {
+      return;
+    }
+    await runBulkOperation(selectedIds, (id) => restoreProductRequest(token, id), "Restore");
+  }, [selectedIds, runBulkOperation, token]);
+
+  const bulkApplyUpdates = useCallback(async () => {
+    if (!selectedProducts.length || !token) {
+      return;
+    }
+    const hasDirectUpdate =
+      bulkStoreId ||
+      bulkCategoryId ||
+      bulkBrandId ||
+      bulkUnitId ||
+      bulkQty !== "" ||
+      bulkBuyingPrice !== "" ||
+      bulkSellingPrice !== "";
+    const hasPriceAdjust =
+      bulkPriceAdjustMode !== "none" && String(bulkPriceAdjustValue).trim() !== "";
+    if (!hasDirectUpdate && !hasPriceAdjust) {
+      setBulkError("Choose at least one field to update.");
+      return;
+    }
+    const parsedAdjust = Number(bulkPriceAdjustValue);
+    if (hasPriceAdjust && (!Number.isFinite(parsedAdjust) || parsedAdjust < 0)) {
+      setBulkError("Price adjustment value must be a valid positive number.");
+      return;
+    }
+    setBulkSubmitting(true);
+    setBulkError("");
+    setBulkSummary(null);
+    let successCount = 0;
+    let failedCount = 0;
+    for (const row of selectedProducts) {
+      const payload = {};
+      if (bulkStoreId) payload.store_id = Number(bulkStoreId);
+      if (bulkCategoryId) payload.category_id = Number(bulkCategoryId);
+      if (bulkBrandId) payload.brand_id = Number(bulkBrandId);
+      if (bulkUnitId) payload.unit_id = Number(bulkUnitId);
+      if (bulkQty !== "") payload.qty = Number(bulkQty);
+      if (bulkBuyingPrice !== "") payload.buying_price = Number(bulkBuyingPrice);
+      if (bulkSellingPrice !== "") payload.selling_price = Number(bulkSellingPrice);
+      if (hasPriceAdjust) {
+        const currentSelling = Number(row.selling_price ?? 0);
+        const delta =
+          bulkPriceAdjustMode === "percent" ? (currentSelling * parsedAdjust) / 100 : parsedAdjust;
+        const nextSelling = bulkPriceAdjustOp === "decrease" ? currentSelling - delta : currentSelling + delta;
+        payload.selling_price = Number(nextSelling.toFixed(2));
+      }
+      const sell = Number(payload.selling_price ?? row.selling_price ?? NaN);
+      const buy = Number(payload.buying_price ?? row.buying_price ?? NaN);
+      if (Number.isFinite(sell) && Number.isFinite(buy) && sell <= buy) {
+        failedCount += 1;
+        continue;
+      }
+      try {
+        await updateProductRequest(token, row.id, payload);
+        successCount += 1;
+      } catch {
+        failedCount += 1;
+      }
+    }
+    setBulkSummary({ actionLabel: "Bulk update", successCount, failedCount });
+    setBulkSubmitting(false);
+    setShowBulkUpdate(false);
+    await load();
+    setSelectedProducts([]);
+  }, [
+    selectedProducts,
+    token,
+    bulkStoreId,
+    bulkCategoryId,
+    bulkBrandId,
+    bulkUnitId,
+    bulkQty,
+    bulkBuyingPrice,
+    bulkSellingPrice,
+    bulkPriceAdjustMode,
+    bulkPriceAdjustOp,
+    bulkPriceAdjustValue,
+    load
+  ]);
 
   const columns = useMemo(
     () => [
@@ -193,12 +479,25 @@ export default function AdminProducts() {
         field: "name",
         body: (p) => (
           <div className="d-flex align-items-center">
-            <div className="avatar avatar-md me-2">{initials(p.name)}</div>
+            <div
+              className="me-2 d-inline-flex align-items-center justify-content-center border bg-light overflow-hidden"
+              style={{ width: 32, height: 32, borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+              {p.image_url || p.image || p.main_image_url ? (
+                <img
+                  src={p.image_url || p.image || p.main_image_url}
+                  alt={p.name || "Item image"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                initials(p.name)
+              )}
+            </div>
             <span>{p.name}</span>
           </div>
         )
       },
       { header: "Category", field: "category.name", body: (p) => p.category?.name ?? "—" },
+      { header: "Store", field: "store.name", body: (p) => p.store?.name ?? "—" },
       { header: "Brand", field: "brand.name", body: (p) => p.brand?.name ?? "—" },
       {
         header: "Selling",
@@ -223,11 +522,19 @@ export default function AdminProducts() {
         body: (p) => <span className="text-end d-block">{p.qty != null ? p.qty : "—"}</span>
       },
       {
-        header: viewTrash ? "Deleted" : "Created by",
-        field: viewTrash ? "deleted_at" : "created_at",
+        header: "Qty Alert",
+        field: "qty_alert",
+        className: "text-end",
+        headerClassName: "text-end",
+        sortField: "qty_alert",
+        body: (p) => <span className="text-end d-block">{p.qty_alert != null ? p.qty_alert : "—"}</span>
+      },
+      {
+        header: viewTrash ? "Deleted At" : "Updated At",
+        field: viewTrash ? "deleted_at" : "updated_at",
         body: (p) => (
           <span className="userimgname text-muted small">
-            {formatListDate(viewTrash ? p.deleted_at : p.created_at)}
+            {formatListDate(viewTrash ? p.deleted_at : p.updated_at)}
           </span>
         )
       },
@@ -281,31 +588,11 @@ export default function AdminProducts() {
             <h6>{viewTrash ? "Restore deleted items when needed" : "Manage your items"}</h6>
           </div>
         </div>
-        <ul className="table-top-head">
-          <li>
-            <button
-              type="button"
-              title="Export PDF"
-              disabled={loading}
-              onClick={() => void handleExportPdf()}>
-              <i className="feather icon-file-text" />
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              title="Export Excel"
-              disabled={loading}
-              onClick={() => void handleExportExcel()}>
-              <i className="feather icon-download" />
-            </button>
-          </li>
-          <li>
-            <button type="button" title="Refresh" onClick={() => void load()}>
-              <i className="feather icon-refresh-cw" />
-            </button>
-          </li>
-        </ul>
+        <TableTopHead
+          onRefresh={() => void load()}
+          onExportPdf={loading ? undefined : () => void handleExportPdf()}
+          onExportExcel={loading ? undefined : () => void handleExportExcel()}
+        />
         <div className="page-header-actions">
           <div className="page-btn">
             {viewTrash ? (
@@ -330,6 +617,150 @@ export default function AdminProducts() {
       </div>
 
       {listError ? <div className="tf-alert tf-alert--error mb-3">{listError}</div> : null}
+      {bulkSummary ? (
+        <div className="alert alert-info py-2">
+          {bulkSummary.actionLabel}: {bulkSummary.successCount} succeeded, {bulkSummary.failedCount} failed.
+        </div>
+      ) : null}
+      {bulkError ? <div className="alert alert-warning py-2">{bulkError}</div> : null}
+
+      {selectedIds.length > 0 ? (
+        <div className="card mb-3">
+          <div className="card-body d-flex flex-wrap align-items-center gap-2">
+            <span className="fw-medium me-2">{selectedIds.length} selected</span>
+            {viewTrash ? (
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm"
+                disabled={bulkSubmitting}
+                onClick={() => void bulkRestore()}>
+                Restore selected
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm"
+                  disabled={bulkSubmitting}
+                  onClick={() => void bulkMoveToTrash()}>
+                  Move selected to trash
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  disabled={bulkSubmitting}
+                  onClick={() => setShowBulkUpdate((v) => !v)}>
+                  {showBulkUpdate ? "Hide bulk update" : "Bulk update fields"}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              disabled={bulkSubmitting}
+              onClick={() => void handleExportExcel()}>
+              Export selected Excel
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              disabled={bulkSubmitting}
+              onClick={() => void handleExportPdf()}>
+              Export selected PDF
+            </button>
+          </div>
+          {!viewTrash && showBulkUpdate ? (
+            <div className="card-body border-top">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <label className="form-label small mb-1">Store</label>
+                  <select className="form-select form-select-sm" value={bulkStoreId} onChange={(e) => setBulkStoreId(e.target.value)}>
+                    <option value="">No change</option>
+                    {bulkStores.map((s) => (
+                      <option key={String(s.id)} value={String(s.id)}>
+                        {String(s.name ?? "")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small mb-1">Category</label>
+                  <select className="form-select form-select-sm" value={bulkCategoryId} onChange={(e) => setBulkCategoryId(e.target.value)}>
+                    <option value="">No change</option>
+                    {bulkCategories.map((c) => (
+                      <option key={String(c.id)} value={String(c.id)}>
+                        {String(c.name ?? "")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small mb-1">Brand</label>
+                  <select className="form-select form-select-sm" value={bulkBrandId} onChange={(e) => setBulkBrandId(e.target.value)}>
+                    <option value="">No change</option>
+                    {bulkBrands.map((b) => (
+                      <option key={String(b.id)} value={String(b.id)}>
+                        {String(b.name ?? "")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small mb-1">Unit</label>
+                  <select className="form-select form-select-sm" value={bulkUnitId} onChange={(e) => setBulkUnitId(e.target.value)}>
+                    <option value="">No change</option>
+                    {bulkUnits.map((u) => (
+                      <option key={String(u.id)} value={String(u.id)}>
+                        {String(u.name ?? u.short_name ?? "")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Qty</label>
+                  <input className="form-control form-control-sm" type="number" value={bulkQty} onChange={(e) => setBulkQty(e.target.value)} placeholder="No change" />
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Buying</label>
+                  <input className="form-control form-control-sm" type="number" value={bulkBuyingPrice} onChange={(e) => setBulkBuyingPrice(e.target.value)} placeholder="No change" />
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Selling</label>
+                  <input className="form-control form-control-sm" type="number" value={bulkSellingPrice} onChange={(e) => setBulkSellingPrice(e.target.value)} placeholder="No change" />
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Price adjust</label>
+                  <select className="form-select form-select-sm" value={bulkPriceAdjustMode} onChange={(e) => setBulkPriceAdjustMode(e.target.value)}>
+                    <option value="none">None</option>
+                    <option value="percent">Percent</option>
+                    <option value="fixed">Fixed</option>
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Direction</label>
+                  <select className="form-select form-select-sm" value={bulkPriceAdjustOp} onChange={(e) => setBulkPriceAdjustOp(e.target.value)}>
+                    <option value="increase">Increase</option>
+                    <option value="decrease">Decrease</option>
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small mb-1">Adjust value</label>
+                  <input className="form-control form-control-sm" type="number" value={bulkPriceAdjustValue} onChange={(e) => setBulkPriceAdjustValue(e.target.value)} placeholder="0" />
+                </div>
+                <div className="col-12">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={bulkSubmitting}
+                    onClick={() => void bulkApplyUpdates()}>
+                    {bulkSubmitting ? "Applying..." : "Apply bulk update"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="card table-list-card">
         <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
@@ -368,59 +799,48 @@ export default function AdminProducts() {
               </button>
             </div>
           </div>
-          <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-            <div className="dropdown me-2">
-              <button
-                type="button"
-                className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown"
-                aria-expanded="false">
-                Item
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end p-3">
-                <li>
-                  <span className="dropdown-item rounded-1 text-muted">Filter (placeholder)</span>
-                </li>
-              </ul>
+          <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap gap-1 row-gap-1">
+            <div style={{ minWidth: 220 }}>
+              <select
+                className="form-select form-select-sm"
+                value={storeFilter}
+                onChange={(e) => setStoreFilter(e.target.value)}
+                aria-label="Filter items by store">
+                <option value="">All stores</option>
+                {storeFilterOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="dropdown me-2">
-              <button
-                type="button"
-                className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown">
-                Created By
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end p-3">
-                <li>
-                  <span className="dropdown-item rounded-1 text-muted">Filter (placeholder)</span>
-                </li>
-              </ul>
+            <div style={{ minWidth: 220 }}>
+              <select
+                className="form-select form-select-sm"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                aria-label="Filter items by category">
+                <option value="">All categories</option>
+                {categoryFilterOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="dropdown me-2">
-              <button
-                type="button"
-                className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown">
-                Category
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end p-3">
-                <li>
-                  <span className="dropdown-item rounded-1 text-muted">Filter (placeholder)</span>
-                </li>
-              </ul>
-            </div>
-            <div className="dropdown me-2">
-              <button
-                type="button"
-                className="dropdown-toggle btn btn-white btn-md d-inline-flex align-items-center"
-                data-bs-toggle="dropdown">
-                Brand
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end p-3">
-                <li>
-                  <span className="dropdown-item rounded-1 text-muted">Filter (placeholder)</span>
-                </li>
-              </ul>
+            <div style={{ minWidth: 220 }}>
+              <select
+                className="form-select form-select-sm"
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                aria-label="Filter items by brand">
+                <option value="">All brands</option>
+                {brandFilterOptions.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="dropdown">
               <button

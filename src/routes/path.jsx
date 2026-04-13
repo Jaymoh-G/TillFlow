@@ -77,12 +77,6 @@ const ExpiredProduct = lazy(
   () => import("../feature-module/inventory/expiredproduct")
 );
 const LowStock = lazy(() => import("../feature-module/inventory/lowstock"));
-const CategoryList = lazy(
-  () => import("../feature-module/inventory/categorylist")
-);
-const SubCategories = lazy(
-  () => import("../feature-module/inventory/subcategories")
-);
 const EditProduct = lazy(
   () => import("../feature-module/inventory/editproduct")
 );
@@ -327,9 +321,6 @@ const NewDashboard = lazy(
 );
 const Pos2 = lazy(() => import("../feature-module/pos/pos2"));
 const Pos3 = lazy(() => import("../feature-module/pos/pos3"));
-const OnlineOrder = lazy(
-  () => import("../feature-module/sales/online-order/online-orders")
-);
 const Pos4 = lazy(() => import("../feature-module/pos/pos4"));
 const Pos5 = lazy(() => import("../feature-module/pos/pos5"));
 const PosOrder = lazy(
@@ -663,13 +654,6 @@ export const authRoutes = [
   route: Route
 },
 {
-  id: 60,
-  path: routes.categorylist,
-  name: "categorylist",
-  element: <CategoryList />,
-  route: Route
-},
-{
   id: 61,
   path: routes.expenselist,
   name: "expenselist",
@@ -691,13 +675,6 @@ export const authRoutes = [
   route: Route
 },
 
-{
-  id: 64,
-  path: routes.subcategories,
-  name: "subcategories",
-  element: <SubCategories />,
-  route: Route
-},
 {
   id: 65,
   path: routes.editproduct,
@@ -1243,13 +1220,6 @@ export const authRoutes = [
   path: routes.payrollList,
   name: "payroll-list",
   element: <PayrollList />,
-  route: Route
-},
-{
-  id: 120,
-  path: routes.onlineorder,
-  name: "online-order",
-  element: <OnlineOrder />,
   route: Route
 },
 {

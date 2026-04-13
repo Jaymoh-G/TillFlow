@@ -1,51 +1,49 @@
 
-import { Link } from "react-router-dom";
 import "bootstrap-daterangepicker/daterangepicker.css";
-import Chart from "react-apexcharts";
-import ReactApexChart from "react-apexcharts";
+import { default as ApexCharts, default as Chart, default as ReactApexChart } from "react-apexcharts";
 import { Doughnut } from "react-chartjs-2";
-import ApexCharts from "react-apexcharts";
+import { Link } from "react-router-dom";
 
 
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend } from
-"chart.js";
+    ArcElement,
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip
+} from "chart.js";
+import CommonDateRangePicker from "../../components/date-range-picker/common-date-range-picker";
 import { all_routes } from "../../routes/all_routes";
 import {
-  customer11,
-  customer12,
-  customer13,
-  customer14,
-  customer15,
-  customer16,
-  customer17,
-  customer18,
-  product1,
-  product10,
-  product11,
-  product12,
-  product13,
-  product14,
-  product15,
-  product16,
-  product3,
-  product4,
-  product5,
-  product6,
-  product7,
-  product8,
-  product9 } from
-"../../utils/imagepath";
-import CommonDateRangePicker from "../../components/date-range-picker/common-date-range-picker";
+    customer11,
+    customer12,
+    customer13,
+    customer14,
+    customer15,
+    customer16,
+    customer17,
+    customer18,
+    product1,
+    product10,
+    product11,
+    product12,
+    product13,
+    product14,
+    product15,
+    product16,
+    product3,
+    product4,
+    product5,
+    product6,
+    product7,
+    product8,
+    product9
+} from "../../utils/imagepath";
 
 import CommonFooter from "../../components/footer/commonFooter";
 
@@ -510,7 +508,7 @@ const NewDashboard = () => {
               className="link-orange text-decoration-underline fw-semibold"
               data-bs-toggle="modal"
               data-bs-target="#add-stock">
-              
+
               Add Stock
             </Link>
           </div>
@@ -519,7 +517,7 @@ const NewDashboard = () => {
             className="btn-close text-gray-9 fs-14"
             data-bs-dismiss="alert"
             aria-label="Close">
-            
+
             <i className="ti ti-x" />
           </button>
         </div>
@@ -623,7 +621,7 @@ const NewDashboard = () => {
                   <Link
                     to="profit-and-loss.html"
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -652,7 +650,7 @@ const NewDashboard = () => {
                   <Link
                     to={route.invoicereport}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -681,7 +679,7 @@ const NewDashboard = () => {
                   <Link
                     to={route.expenselist}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -710,7 +708,7 @@ const NewDashboard = () => {
                   <Link
                     to={route.salesreport}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -776,7 +774,7 @@ const NewDashboard = () => {
                         series={salesDayChart.series}
                         type="bar"
                         height={245} />
-                      
+
                     </div>
                   </div>
                 </div>
@@ -836,7 +834,7 @@ const NewDashboard = () => {
                       className="dropdown-toggle btn btn-sm"
                       data-bs-toggle="dropdown"
                       aria-expanded="false">
-                      
+
                       <i className="ti ti-calendar me-1" />
                       Today
                     </Link>
@@ -867,7 +865,7 @@ const NewDashboard = () => {
                         series={series}
                         type="radialBar"
                         height={130} />
-                      
+
                     </div>
                   </div>
                   <div className="col-sm-7">
@@ -916,7 +914,7 @@ const NewDashboard = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar me-1" />
                     Today
                   </Link>
@@ -1057,7 +1055,7 @@ const NewDashboard = () => {
                 <Link
                   to={route.lowstock}
                   className="fs-13 fw-bold text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -1167,7 +1165,7 @@ const NewDashboard = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar me-1" />
                     Weekly
                   </Link>
@@ -1328,7 +1326,7 @@ const NewDashboard = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar me-1" />
                     2025
                   </Link>
@@ -1380,7 +1378,7 @@ const NewDashboard = () => {
                     series={options.series}
                     type="bar"
                     height={290} />
-                  
+
                 </div>
               </div>
             </div>
@@ -1397,9 +1395,9 @@ const NewDashboard = () => {
                   <h5 className="card-title mb-0">Recent Transactions</h5>
                 </div>
                 <Link
-                  to={route.onlineorder}
+                  to={route.posorder}
                   className="fs-13 fw-medium text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -1410,7 +1408,7 @@ const NewDashboard = () => {
                       className="nav-link active"
                       to="#sale"
                       data-bs-toggle="tab">
-                      
+
                       Sale
                     </Link>
                   </li>
@@ -1419,7 +1417,7 @@ const NewDashboard = () => {
                       className="nav-link"
                       to="#purchase-transaction"
                       data-bs-toggle="tab">
-                      
+
                       Purchase
                     </Link>
                   </li>
@@ -1428,7 +1426,7 @@ const NewDashboard = () => {
                       className="nav-link"
                       to="#quotation"
                       data-bs-toggle="tab">
-                      
+
                       Quotation
                     </Link>
                   </li>
@@ -1437,7 +1435,7 @@ const NewDashboard = () => {
                       className="nav-link"
                       to="#expenses"
                       data-bs-toggle="tab">
-                      
+
                       Expenses
                     </Link>
                   </li>
@@ -1446,7 +1444,7 @@ const NewDashboard = () => {
                       className="nav-link"
                       to="#invoices"
                       data-bs-toggle="tab">
-                      
+
                       Invoices
                     </Link>
                   </li>
@@ -1473,7 +1471,7 @@ const NewDashboard = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1504,7 +1502,7 @@ const NewDashboard = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1535,7 +1533,7 @@ const NewDashboard = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1566,7 +1564,7 @@ const NewDashboard = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1597,7 +1595,7 @@ const NewDashboard = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1765,7 +1763,7 @@ const NewDashboard = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1794,7 +1792,7 @@ const NewDashboard = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1823,7 +1821,7 @@ const NewDashboard = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1852,7 +1850,7 @@ const NewDashboard = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -1881,7 +1879,7 @@ const NewDashboard = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2021,7 +2019,7 @@ const NewDashboard = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2050,7 +2048,7 @@ const NewDashboard = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2079,7 +2077,7 @@ const NewDashboard = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2108,7 +2106,7 @@ const NewDashboard = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2137,7 +2135,7 @@ const NewDashboard = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="ms-2">
                                   <h6 className="fw-medium">
@@ -2182,7 +2180,7 @@ const NewDashboard = () => {
                 <Link
                   to={route.customer}
                   className="fs-13 fw-medium text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -2317,7 +2315,7 @@ const NewDashboard = () => {
                     className="dropdown-toggle btn btn-sm btn-white d-flex align-items-center"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar me-1" />
                     Weekly
                   </Link>
@@ -2351,7 +2349,7 @@ const NewDashboard = () => {
                         height: "230px",
                         width: "200px"
                       }} />
-                    
+
                   </div>
                   <div>
                     <div className="category-item category-primary">
@@ -2420,7 +2418,7 @@ const NewDashboard = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar me-1" />
                     Weekly
                   </Link>
@@ -2450,7 +2448,7 @@ const NewDashboard = () => {
                     series={heat_chart.series}
                     type="heatmap"
                     height={370} />
-                  
+
                 </div>
               </div>
             </div>

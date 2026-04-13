@@ -1,4 +1,45 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import ExpensesModule from '../feature-module/finance-accounts/expenses-module';
+import Biller from '../feature-module/people/billers';
+import Customers from '../feature-module/people/customers';
+import StoreList from '../feature-module/people/store-list';
+import Suppliers from '../feature-module/people/suppliers';
+import PurchasesList from '../feature-module/purchases/purchase-list';
+import PurchaseOrderReport from '../feature-module/purchases/purchase-order-report';
+import PurchaseReturns from '../feature-module/purchases/purchase-returns';
+import Invoice from '../feature-module/sales/invoicelist';
+import QuotationList from '../feature-module/sales/quotationlist';
+import SalesReturn from '../feature-module/sales/salesreturn';
+import InvoiceSettings from '../feature-module/settings/appsetting/invoicesettings';
+import PrinterSettings from '../feature-module/settings/appsetting/printersettings';
+import Signature from '../feature-module/settings/appsetting/signature';
+import BankSettingGrid from '../feature-module/settings/financialsettings/banksettinggrid';
+import CurrencySettings from '../feature-module/settings/financialsettings/currencysettings';
+import PaymentGateway from '../feature-module/settings/financialsettings/paymentgateway';
+import TaxRates from '../feature-module/settings/financialsettings/taxrates';
+import ConnectedApps from '../feature-module/settings/generalsettings/connectedapps';
+import GeneralSettings from '../feature-module/settings/generalsettings/generalsettings';
+import Notification from '../feature-module/settings/generalsettings/notification';
+import SecuritySettings from '../feature-module/settings/generalsettings/securitysettings';
+import BanIpaddress from '../feature-module/settings/othersettings/ban-ipaddress';
+import StorageSettings from '../feature-module/settings/othersettings/storagesettings';
+import EmailSettings from '../feature-module/settings/systemsettings/emailsettings';
+import Emailtemplatesettings from '../feature-module/settings/systemsettings/emailtemplatesettings';
+import GdprSettings from '../feature-module/settings/systemsettings/gdprsettings';
+import OtpSettings from '../feature-module/settings/systemsettings/otpsettings';
+import SmsGateway from '../feature-module/settings/systemsettings/smsgateway';
+import Smstemplate from '../feature-module/settings/systemsettings/smstemplate';
+import Appearance from '../feature-module/settings/websitesettings/appearance';
+import CompanySettings from '../feature-module/settings/websitesettings/companysettings';
+import CustomFields from '../feature-module/settings/websitesettings/customfields';
+import PosSettings from '../feature-module/settings/websitesettings/possettings';
+import Preference from '../feature-module/settings/websitesettings/preference';
+import SocialAuthentication from '../feature-module/settings/websitesettings/socialauthentication';
+import SystemSettings from '../feature-module/settings/websitesettings/systemsettings';
+import ManageStock from '../feature-module/stock/manage-stock';
+import StockAdjustment from '../feature-module/stock/stock-adjustment';
+import StockTransfer from '../feature-module/stock/stock-transfer';
+import ManageStores from '../feature-module/stores/manage-stores';
 import { AuthProvider } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
 import AdminLayout from './layouts/AdminLayout';
@@ -6,71 +47,29 @@ import PosLayout from './layouts/PosLayout';
 import AdminAddItem from './pages/AdminAddItem';
 import AdminBrands from './pages/AdminBrands';
 import AdminCategories from './pages/AdminCategories';
+import AdminCreditNoteDetail from './pages/AdminCreditNoteDetail';
+import AdminCreditNotes from './pages/AdminCreditNotes';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
+import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
 import AdminExpiredItems from './pages/AdminExpiredItems';
+import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
+import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
+import AdminInvoicePayments from './pages/AdminInvoicePayments';
 import AdminLowStock from './pages/AdminLowStock';
+import AdminPosOrderDetail from './pages/AdminPosOrderDetail';
+import AdminPosOrders from './pages/AdminPosOrders';
 import AdminPrintBarcode from './pages/AdminPrintBarcode';
 import AdminProducts from './pages/AdminProducts';
 import AdminUnits from './pages/AdminUnits';
 import AdminVariantAttributes from './pages/AdminVariantAttributes';
 import AdminWarranties from './pages/AdminWarranties';
-import ManageStock from '../feature-module/stock/manage-stock';
-import StockAdjustment from '../feature-module/stock/stock-adjustment';
-import StockTransfer from '../feature-module/stock/stock-transfer';
-import ManageStores from '../feature-module/stores/manage-stores';
-import OnlineOrder from '../feature-module/sales/online-order/online-orders';
-import QuotationList from '../feature-module/sales/quotationlist';
-import Invoice from '../feature-module/sales/invoicelist';
-import AdminInvoicePayments from './pages/AdminInvoicePayments';
-import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
-import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
-import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
-import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
-import AdminCreditNotes from './pages/AdminCreditNotes';
-import AdminCreditNoteDetail from './pages/AdminCreditNoteDetail';
-import AdminPosOrders from './pages/AdminPosOrders';
-import AdminPosOrderDetail from './pages/AdminPosOrderDetail';
-import SalesReturn from '../feature-module/sales/salesreturn';
-import Customers from '../feature-module/people/customers';
-import Biller from '../feature-module/people/billers';
-import Suppliers from '../feature-module/people/suppliers';
-import StoreList from '../feature-module/people/store-list';
-import PurchasesList from '../feature-module/purchases/purchase-list';
-import PurchaseOrderReport from '../feature-module/purchases/purchase-order-report';
-import PurchaseReturns from '../feature-module/purchases/purchase-returns';
-import ExpensesModule from '../feature-module/finance-accounts/expenses-module';
-import GeneralSettings from '../feature-module/settings/generalsettings/generalsettings';
-import SecuritySettings from '../feature-module/settings/generalsettings/securitysettings';
-import Notification from '../feature-module/settings/generalsettings/notification';
-import ConnectedApps from '../feature-module/settings/generalsettings/connectedapps';
-import SystemSettings from '../feature-module/settings/websitesettings/systemsettings';
-import CompanySettings from '../feature-module/settings/websitesettings/companysettings';
-import Preference from '../feature-module/settings/websitesettings/preference';
-import Appearance from '../feature-module/settings/websitesettings/appearance';
-import SocialAuthentication from '../feature-module/settings/websitesettings/socialauthentication';
-import InvoiceSettings from '../feature-module/settings/appsetting/invoicesettings';
-import PrinterSettings from '../feature-module/settings/appsetting/printersettings';
-import PosSettings from '../feature-module/settings/websitesettings/possettings';
-import Signature from '../feature-module/settings/appsetting/signature';
-import CustomFields from '../feature-module/settings/websitesettings/customfields';
-import EmailSettings from '../feature-module/settings/systemsettings/emailsettings';
-import Emailtemplatesettings from '../feature-module/settings/systemsettings/emailtemplatesettings';
-import SmsGateway from '../feature-module/settings/systemsettings/smsgateway';
-import Smstemplate from '../feature-module/settings/systemsettings/smstemplate';
-import OtpSettings from '../feature-module/settings/systemsettings/otpsettings';
-import GdprSettings from '../feature-module/settings/systemsettings/gdprsettings';
-import PaymentGateway from '../feature-module/settings/financialsettings/paymentgateway';
-import BankSettingGrid from '../feature-module/settings/financialsettings/banksettinggrid';
-import TaxRates from '../feature-module/settings/financialsettings/taxrates';
-import CurrencySettings from '../feature-module/settings/financialsettings/currencysettings';
-import StorageSettings from '../feature-module/settings/othersettings/storagesettings';
-import BanIpaddress from '../feature-module/settings/othersettings/ban-ipaddress';
 import PosRegister from './pages/PosRegister';
 import TillFlowLanding from './pages/TillFlowLanding';
 import TillFlowLogin from './pages/TillFlowLogin';
-import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import TenantUiSettingsBridge from './tenantUiSettings/TenantUiSettingsBridge';
 import TenantUiSettingsSyncBanner from './tenantUiSettings/TenantUiSettingsSyncBanner';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import './tillflow.scss';
 
 function TillFlowRoot({ children }) {
@@ -102,9 +101,8 @@ export default function TillFlowApp() {
                 <Route path="stock-transfer" element={<StockTransfer />} />
                 <Route path="stores" element={<ManageStores />} />
                 <Route path="print-barcode" element={<AdminPrintBarcode />} />
-                <Route path="pos-orders/:posOrderId" element={<AdminPosOrderDetail />} />
-                <Route path="pos-orders" element={<AdminPosOrders />} />
-                <Route path="online-orders" element={<OnlineOrder />} />
+                <Route path="orders/:posOrderId" element={<AdminPosOrderDetail />} />
+                <Route path="orders" element={<AdminPosOrders />} />
                 <Route path="quotations/new" element={<QuotationList />} />
                 <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
                 <Route path="quotations/:quotationId" element={<QuotationList />} />

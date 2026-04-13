@@ -113,6 +113,7 @@ function apiCustomerToRow(c) {
     avatar: resolveCustomerAvatarUrl(c.avatar_url),
     email: c.email ?? "",
     company: c.company ?? "",
+    taxId: c.tax_id ?? "",
     phone: c.phone,
     location: c.location ?? "",
     status: c.status
@@ -209,6 +210,7 @@ const Customers = () => {
   const [addLastName, setAddLastName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addCompany, setAddCompany] = useState("");
+  const [addTaxId, setAddTaxId] = useState("");
   const [addPhone, setAddPhone] = useState("");
   const [addLocation, setAddLocation] = useState("");
   const [addStatusActive, setAddStatusActive] = useState(true);
@@ -224,6 +226,7 @@ const Customers = () => {
   const [editLastName, setEditLastName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editCompany, setEditCompany] = useState("");
+  const [editTaxId, setEditTaxId] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editStatusActive, setEditStatusActive] = useState(true);
@@ -327,6 +330,7 @@ const Customers = () => {
     setAddLastName("");
     setAddEmail("");
     setAddCompany("");
+    setAddTaxId("");
     setAddPhone("");
     setAddLocation("");
     setAddStatusActive(true);
@@ -373,6 +377,7 @@ const Customers = () => {
     setEditLastName(last);
     setEditEmail(row.email ?? "");
     setEditCompany(row.company ?? "");
+    setEditTaxId(row.taxId ?? "");
     setEditPhone(row.phone);
     setEditLocation(row.location ?? "");
     setEditStatusActive(row.status === "Active");
@@ -415,6 +420,7 @@ const Customers = () => {
     const ln = addLastName.trim();
     const em = addEmail.trim();
     const co = addCompany.trim();
+    const taxId = addTaxId.trim();
     const ph = addPhone.trim();
     const loc = addLocation.trim();
     if (!fn || !ln || !ph) {
@@ -449,6 +455,7 @@ const Customers = () => {
               name,
               email: em || null,
               company: co || null,
+              tax_id: taxId || null,
               phone: ph,
               location: loc || null,
               status
@@ -460,6 +467,7 @@ const Customers = () => {
             name,
             email: em || null,
             company: co || null,
+            tax_id: taxId || null,
             phone: ph,
             location: loc || null,
             status,
@@ -500,6 +508,7 @@ const Customers = () => {
           avatar: avatarValue,
           email: em,
           company: co,
+          taxId,
           phone: ph,
           location: loc,
           status
@@ -515,6 +524,7 @@ const Customers = () => {
     addLastName,
     addEmail,
     addCompany,
+    addTaxId,
     addPhone,
     addLocation,
     addStatusActive,
@@ -538,6 +548,7 @@ const Customers = () => {
     const ln = editLastName.trim();
     const em = editEmail.trim();
     const co = editCompany.trim();
+    const taxId = editTaxId.trim();
     const ph = editPhone.trim();
     const loc = editLocation.trim();
     if (!fn || !ln || !ph) {
@@ -580,6 +591,7 @@ const Customers = () => {
               name: customerName,
               email: em || null,
               company: co || null,
+              tax_id: taxId || null,
               phone: ph,
               location: loc || null,
               status
@@ -591,6 +603,7 @@ const Customers = () => {
             name: customerName,
             email: em || null,
             company: co || null,
+            tax_id: taxId || null,
             phone: ph,
             location: loc || null,
             status
@@ -624,6 +637,7 @@ const Customers = () => {
                 customer: customerName,
                 email: em,
                 company: co,
+                taxId,
                 phone: ph,
                 location: loc,
                 status,
@@ -652,6 +666,7 @@ const Customers = () => {
     editLastName,
     editEmail,
     editCompany,
+    editTaxId,
     editPhone,
     editLocation,
     editStatusActive,
@@ -711,6 +726,12 @@ const Customers = () => {
         field: "email",
         sortable: true,
         body: (row) => (row.email ? row.email : "—")
+      },
+      {
+        header: "Tax ID",
+        field: "taxId",
+        sortable: true,
+        body: (row) => (row.taxId ? row.taxId : "—")
       },
       {
         header: "Location",
@@ -976,6 +997,16 @@ const Customers = () => {
                     />
                   </div>
                   <div className="col-lg-12 mb-3">
+                    <label className="form-label">Tax ID</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={addTaxId}
+                      onChange={(e) => setAddTaxId(e.target.value)}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="col-lg-12 mb-3">
                     <label className="form-label">Location</label>
                     <input
                       type="text"
@@ -1128,6 +1159,16 @@ const Customers = () => {
                         />
                       </div>
                       <div className="col-lg-12 mb-3">
+                        <label className="form-label">Tax ID</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={editTaxId}
+                          onChange={(e) => setEditTaxId(e.target.value)}
+                          placeholder="Optional"
+                        />
+                      </div>
+                      <div className="col-lg-12 mb-3">
                         <label className="form-label">Location</label>
                         <input
                           type="text"
@@ -1208,6 +1249,8 @@ const Customers = () => {
                     <dd className="col-sm-8 mb-2">{viewRow.email || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Company</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.company || "—"}</dd>
+                    <dt className="col-sm-4 text-muted small">Tax ID</dt>
+                    <dd className="col-sm-8 mb-2">{viewRow.taxId || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Location</dt>
                     <dd className="col-sm-8 mb-2">{viewRow.location || "—"}</dd>
                     <dt className="col-sm-4 text-muted small">Status</dt>

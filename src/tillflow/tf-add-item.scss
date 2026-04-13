@@ -115,12 +115,22 @@
   }
 
   .single-pill-product .custom_radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--tf-border);
+    background: var(--tf-surface-input);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
     cursor: pointer;
     color: var(--tf-muted);
     font-size: 0.9rem;
+    transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
   }
 
   .single-pill-product .custom_radio.active {
+    border-color: var(--tf-accent);
+    background: var(--tf-accent-dim);
     color: var(--tf-accent);
   }
 
@@ -186,6 +196,100 @@
     color: var(--tf-muted);
   }
 
+  .image-upload {
+    width: 100%;
+    max-width: 460px;
+  }
+
+  .tf-main-image-upload-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .tf-main-image-upload-row .image-upload {
+    flex: 1 1 360px;
+    max-width: 460px;
+  }
+
+  .tf-main-image-preview-wrap {
+    flex: 0 0 190px;
+    margin-top: 0;
+  }
+
+  @media (max-width: 767.98px) {
+    .tf-main-image-upload-row {
+      flex-direction: column;
+    }
+
+    .tf-main-image-preview-wrap {
+      flex-basis: auto;
+    }
+  }
+
+  .image-upload .image-uploads {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    width: 100%;
+    background: var(--tf-surface-2);
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .image-upload .image-uploads .plus-down-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    border: 1px solid var(--tf-border);
+    background: var(--tf-surface);
+    color: var(--tf-accent);
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+
+  .image-upload .image-uploads:hover {
+    border-color: var(--tf-accent-border-strong);
+    background: var(--tf-surface-input);
+    box-shadow: 0 0 0 2px var(--tf-accent-dim);
+  }
+
+  .image-upload .image-uploads h4 {
+    color: var(--tf-text);
+    font-weight: 600;
+  }
+
+  .image-upload .image-uploads p {
+    color: var(--tf-muted);
+    margin-top: 0.2rem;
+  }
+
+  .image-upload .tf-main-image-upload-copy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    gap: 1rem;
+  }
+
+  .image-upload .tf-main-image-upload-copy h4,
+  .image-upload .tf-main-image-upload-copy p {
+    white-space: nowrap;
+  }
+
+  .image-upload img {
+    background: var(--tf-surface);
+    border-color: var(--tf-border) !important;
+    padding: 0.2rem;
+    border-radius: 10px;
+  }
+
   .text-primary {
     color: var(--tf-accent) !important;
   }
@@ -209,5 +313,17 @@
 
   .custom_radio input {
     margin: 0;
+  }
+
+  .single-pill-product .custom_radio .checkmark {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+  }
+
+  .single-pill-product .custom_radio.active .checkmark {
+    opacity: 1;
   }
 }

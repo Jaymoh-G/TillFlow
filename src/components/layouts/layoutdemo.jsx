@@ -1,34 +1,32 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import "bootstrap-daterangepicker/daterangepicker.css";
-import Chart from "react-apexcharts";
-import ReactApexChart from "react-apexcharts";
-import { Doughnut } from "react-chartjs-2";
-import ApexCharts from "react-apexcharts";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend } from
-"chart.js";
-import { all_routes } from "../../routes/all_routes";
-import {
-  resetAllMode,
-  setDataLayout,
-  setDataTheme,
-  setDataWidth,
-  setRtl } from
-"../../core/redux/themeSettingSlice";
-import { useDispatch } from "react-redux";
+    ArcElement,
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip
+} from "chart.js";
 import moment from "moment";
+import { useEffect, useState } from "react";
+import { default as ApexCharts, default as Chart, default as ReactApexChart } from "react-apexcharts";
+import { Doughnut } from "react-chartjs-2";
+import { useDispatch } from "react-redux";
+import { Link, useLocation } from "react-router-dom";
+import {
+    resetAllMode,
+    setDataLayout,
+    setDataTheme,
+    setDataWidth,
+    setRtl
+} from "../../core/redux/themeSettingSlice";
+import { all_routes } from "../../routes/all_routes";
+import { customer11, customer12, customer13, customer14, customer15, customer16, customer17, customer18, product1, product10, product11, product12, product13, product14, product15, product16, product3, product4, product5, product6, product7, product8, product9 } from "../../utils/imagepath";
 import CommonDateRangePicker from "../date-range-picker/common-date-range-picker";
-import { product1, product16, product3, product4, product5, product6, product7, product8, product9, product10, product11, product12, product13, product14, product15, customer16, customer17, customer18, customer15, customer13, customer11, customer12, customer14 } from "../../utils/imagepath";
 
 import CommonFooter from "../footer/commonFooter";
 // Register the necessary components for Chart.js
@@ -918,7 +916,7 @@ const LayoutDemo = () => {
             </span>
              <CommonDateRangePicker />
 
-            
+
           </div>
         </div>
         <div className="alert bg-orange-transparent alert-dismissible fade show mb-4">
@@ -938,7 +936,7 @@ const LayoutDemo = () => {
               className="link-orange text-decoration-underline fw-semibold"
               data-bs-toggle="modal"
               data-bs-target="#add-stock">
-              
+
               Add Stock
             </Link>
           </div>
@@ -947,7 +945,7 @@ const LayoutDemo = () => {
             className="btn-close text-gray-9 fs-14"
             data-bs-dismiss="alert"
             aria-label="Close">
-            
+
             <i className="ti ti-x" />
           </button>
         </div>
@@ -1051,7 +1049,7 @@ const LayoutDemo = () => {
                   <Link
                     to="profit-and-loss.html"
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -1080,7 +1078,7 @@ const LayoutDemo = () => {
                   <Link
                     to={route.invoicereport}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -1109,7 +1107,7 @@ const LayoutDemo = () => {
                   <Link
                     to={route.expenselist}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -1138,7 +1136,7 @@ const LayoutDemo = () => {
                   <Link
                     to={route.salesreport}
                     className="text-decoration-underline fs-13 fw-medium">
-                    
+
                     View All
                   </Link>
                 </div>
@@ -1164,7 +1162,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#sale-day"
                       data-bs-toggle="tab">
-                      
+
                       1D
                     </Link>
                   </li>
@@ -1173,7 +1171,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#sale-week"
                       data-bs-toggle="tab">
-                      
+
                       1W
                     </Link>
                   </li>
@@ -1182,7 +1180,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#sale-month"
                       data-bs-toggle="tab">
-                      
+
                       1M
                     </Link>
                   </li>
@@ -1191,7 +1189,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#quarter-year"
                       data-bs-toggle="tab">
-                      
+
                       3M
                     </Link>
                   </li>
@@ -1200,7 +1198,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#half-year"
                       data-bs-toggle="tab">
-                      
+
                       6M
                     </Link>
                   </li>
@@ -1209,7 +1207,7 @@ const LayoutDemo = () => {
                       className="nav-link active"
                       to="#year"
                       data-bs-toggle="tab">
-                      
+
                       1Y
                     </Link>
                   </li>
@@ -1240,7 +1238,7 @@ const LayoutDemo = () => {
                         series={salesDayChart.series}
                         type="bar"
                         height={245} />
-                      
+
                     </div>
                   </div>
                   <div className="tab-pane fade" id="sale-week">
@@ -1265,7 +1263,7 @@ const LayoutDemo = () => {
                       series={salesWeekChart.series}
                       type="bar"
                       height={245} />
-                    
+
                   </div>
                   <div className="tab-pane fade" id="sale-month">
                     <div className="d-flex align-items-center gap-2">
@@ -1289,7 +1287,7 @@ const LayoutDemo = () => {
                       series={salesMonthChart.series}
                       type="bar"
                       height={245} />
-                    
+
                   </div>
                   <div className="tab-pane fade" id="quarter-year">
                     <div className="d-flex align-items-center gap-2">
@@ -1314,7 +1312,7 @@ const LayoutDemo = () => {
                         series={salesQuaterChart.series}
                         type="bar"
                         height={245} />
-                      
+
                     </div>
                   </div>
                   <div className="tab-pane fade" id="half-year">
@@ -1340,7 +1338,7 @@ const LayoutDemo = () => {
                         series={salesHalfChart.series}
                         type="bar"
                         height={245} />
-                      
+
                     </div>
                   </div>
                   <div className="tab-pane show active" id="year">
@@ -1366,7 +1364,7 @@ const LayoutDemo = () => {
                         series={salesHalfChart.series}
                         type="bar"
                         height={245} />
-                      
+
                     </div>
                   </div>
                 </div>
@@ -1425,7 +1423,7 @@ const LayoutDemo = () => {
                       className="dropdown-toggle btn btn-sm"
                       data-bs-toggle="dropdown"
                       aria-expanded="false">
-                      
+
                       <i className="ti ti-calendar ms-2" />
                       Today
                     </Link>
@@ -1456,7 +1454,7 @@ const LayoutDemo = () => {
                         series={series}
                         type="radialBar"
                         height={130} />
-                      
+
                     </div>
                   </div>
                   <div className="col-sm-7">
@@ -1505,7 +1503,7 @@ const LayoutDemo = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar ms-2" />
                     Today
                   </Link>
@@ -1646,7 +1644,7 @@ const LayoutDemo = () => {
                 <Link
                   to={route.lowstock}
                   className="fs-13 fw-medium text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -1756,7 +1754,7 @@ const LayoutDemo = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar ms-2" />
                     Weekly
                   </Link>
@@ -1917,7 +1915,7 @@ const LayoutDemo = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar ms-2" />
                     2025
                   </Link>
@@ -1969,7 +1967,7 @@ const LayoutDemo = () => {
                     series={options.series}
                     type="bar"
                     height={290} />
-                  
+
                 </div>
               </div>
             </div>
@@ -1986,9 +1984,9 @@ const LayoutDemo = () => {
                   <h5 className="card-title mb-0">Recent Transactions</h5>
                 </div>
                 <Link
-                  to={route.onlineorder}
+                  to={route.posorder}
                   className="fs-13 fw-medium text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -1999,7 +1997,7 @@ const LayoutDemo = () => {
                       className="nav-link active"
                       to="#sale"
                       data-bs-toggle="tab">
-                      
+
                       Sale
                     </Link>
                   </li>
@@ -2008,7 +2006,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#purchase-transaction"
                       data-bs-toggle="tab">
-                      
+
                       Purchase
                     </Link>
                   </li>
@@ -2017,7 +2015,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#quotation"
                       data-bs-toggle="tab">
-                      
+
                       Quotation
                     </Link>
                   </li>
@@ -2026,7 +2024,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#expenses"
                       data-bs-toggle="tab">
-                      
+
                       Expenses
                     </Link>
                   </li>
@@ -2035,7 +2033,7 @@ const LayoutDemo = () => {
                       className="nav-link"
                       to="#invoices"
                       data-bs-toggle="tab">
-                      
+
                       Invoices
                     </Link>
                   </li>
@@ -2062,7 +2060,7 @@ const LayoutDemo = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2093,7 +2091,7 @@ const LayoutDemo = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2124,7 +2122,7 @@ const LayoutDemo = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2155,7 +2153,7 @@ const LayoutDemo = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2186,7 +2184,7 @@ const LayoutDemo = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2354,7 +2352,7 @@ const LayoutDemo = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2383,7 +2381,7 @@ const LayoutDemo = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2412,7 +2410,7 @@ const LayoutDemo = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2441,7 +2439,7 @@ const LayoutDemo = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2470,7 +2468,7 @@ const LayoutDemo = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2610,7 +2608,7 @@ const LayoutDemo = () => {
                                     src={customer16}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2639,7 +2637,7 @@ const LayoutDemo = () => {
                                     src={customer17}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2668,7 +2666,7 @@ const LayoutDemo = () => {
                                     src={customer18}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2697,7 +2695,7 @@ const LayoutDemo = () => {
                                     src={customer15}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2726,7 +2724,7 @@ const LayoutDemo = () => {
                                     src={customer13}
                                     className="img-fluid"
                                     alt="img" />
-                                  
+
                                 </Link>
                                 <div className="me-2">
                                   <h6 className="fw-medium">
@@ -2771,7 +2769,7 @@ const LayoutDemo = () => {
                 <Link
                   to={route.customer}
                   className="fs-13 fw-medium text-decoration-underline">
-                  
+
                   View All
                 </Link>
               </div>
@@ -2906,7 +2904,7 @@ const LayoutDemo = () => {
                     className="dropdown-toggle btn btn-sm btn-white d-flex align-items-center"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar ms-2" />
                     Weekly
                   </Link>
@@ -2940,7 +2938,7 @@ const LayoutDemo = () => {
                         height: "230px",
                         width: "200px"
                       }} />
-                    
+
                   </div>
                   <div>
                     <div className="category-item category-primary">
@@ -3009,7 +3007,7 @@ const LayoutDemo = () => {
                     className="dropdown-toggle btn btn-sm btn-white"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
-                    
+
                     <i className="ti ti-calendar ms-2" />
                     Weekly
                   </Link>
@@ -3039,7 +3037,7 @@ const LayoutDemo = () => {
                     series={heat_chart.series}
                     type="heatmap"
                     height={370} />
-                  
+
                 </div>
               </div>
             </div>

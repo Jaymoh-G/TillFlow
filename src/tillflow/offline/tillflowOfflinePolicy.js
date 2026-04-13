@@ -13,12 +13,10 @@
  */
 
 /** Opens the Sales sidebar section (includes Invoices nav target for when that screen exists). */
-export const TILLFLOW_ADMIN_SALES_NAV_PATH_RE =
-  /\/tillflow\/admin\/(pos-orders|online-orders|quotations|invoices|delivery-notes|invoice-payments|sales-returns)(\/|$)/;
+export const TILLFLOW_ADMIN_SALES_NAV_PATH_RE = /\/tillflow\/admin\/(orders|quotations|invoices|delivery-notes|invoice-payments|sales-returns)(\/|$)/;
 
 /** Admin routes that may be used without network today (excludes invoicing until built). */
-const ADMIN_OFFLINE_CAPABLE_RE =
-  /\/tillflow\/admin\/(pos-orders|online-orders|quotations|sales-returns|purchases|purchase-orders|purchase-returns)(\/|$)/;
+const ADMIN_OFFLINE_CAPABLE_RE = /\/tillflow\/admin\/(orders|quotations|sales-returns|purchases|purchase-orders|purchase-returns)(\/|$)/;
 
 /** @param {string} pathname */
 export function tillflowAdminPathAllowsOfflineUse(pathname) {

@@ -19,9 +19,11 @@ export default function InvoiceEmailPreviewModal({
   sending,
   sendDisabled,
   sendButtonLabel = "Send email",
-  showHtmlPreview = true
+  showHtmlPreview = false
 }) {
-  const canSend = !sendDisabled && !loading && !error && Boolean(html);
+  // When HTML preview is hidden, sending does not depend on client-side `html` (server builds the mail).
+  const canSend =
+    !sendDisabled && !loading && !error && (showHtmlPreview ? Boolean(html) : true);
 
   return (
     <Modal show={show} onHide={onHide} size="lg" centered scrollable backdrop={sending ? "static" : true}>
@@ -60,15 +62,16 @@ export default function InvoiceEmailPreviewModal({
               />
             </div>
             <div className="mb-3">
-              <label className="form-label mb-1">Message</label>
+              <label className="form-label mb-1">Message template</label>
               <textarea
                 className="form-control"
                 rows={5}
                 value={message ?? ""}
                 onChange={(e) => onChangeMessage?.(e.target.value)}
+                placeholder="Optional introduction shown above the main content…"
                 disabled={sending}
               />
-              <div className="form-text">This appears at the top of the email.</div>
+              <div className="form-text">Editable text at the top of the email before the main content.</div>
             </div>
             {showHtmlPreview && html ? (
               <div

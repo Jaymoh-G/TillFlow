@@ -5,6 +5,13 @@ function appendBillerFieldsToFormData(formData, fields) {
   formData.append('company', fields.company);
   formData.append('phone', fields.phone);
   formData.append('status', fields.status);
+  if (Array.isArray(fields.store_ids) && fields.store_ids.length > 0) {
+    fields.store_ids.forEach((id) => {
+      if (id != null && id !== '') {
+        formData.append('store_ids[]', String(id));
+      }
+    });
+  }
   if (fields.email != null && fields.email !== '') {
     formData.append('email', fields.email);
   }

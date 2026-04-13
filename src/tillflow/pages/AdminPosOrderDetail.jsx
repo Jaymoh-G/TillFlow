@@ -7,9 +7,9 @@ import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintD
 import {
   createHtmlDocumentPdfObjectUrl,
   downloadHtmlDocumentPdfFromElement,
-  openHtmlDocumentPdfInBrowser,
   waitForPrintRootImages
 } from "../../utils/htmlDocumentPdfExport";
+import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
 import { TillFlowApiError } from "../api/errors";
 import {
   listPosOrdersRequest,
@@ -19,7 +19,7 @@ import {
 } from "../api/posOrders";
 import { useAuth } from "../auth/AuthContext";
 
-const POS_ORDERS_LIST_PATH = "/tillflow/admin/pos-orders";
+const POS_ORDERS_LIST_PATH = "/tillflow/admin/orders";
 
 function formatKes(n) {
   const x = Number(n);
@@ -163,7 +163,7 @@ export default function AdminPosOrderDetail() {
         field: "order_no",
         body: (o) => (
           <NavLink
-            to={`/tillflow/admin/pos-orders/${o.id}`}
+            to={`/tillflow/admin/orders/${o.id}`}
             className={({ isActive }) => (isActive ? "fw-semibold text-primary" : "fw-medium")}>
             {o.order_no || `#${o.id}`}
           </NavLink>
@@ -227,10 +227,15 @@ export default function AdminPosOrderDetail() {
 
   const printReceipt = useCallback(async () => {
     if (!receiptRef.current) return;
-    await waitForPrintRootImages(receiptRef.current);
-    await openHtmlDocumentPdfInBrowser(receiptRef.current, {
-      filename: `${detailOrder?.order_no || "pos-receipt"}.pdf`
-    });
+    try {
+      await waitForPrintRootImages(receiptRef.current);
+      printPosReceiptThermal(
+        receiptRef.current,
+        detailOrder?.order_no ? `Receipt ${detailOrder.order_no}` : "Receipt"
+      );
+    } catch {
+      window.alert("Could not print receipt.");
+    }
   }, [detailOrder?.order_no]);
 
   const openEmailPreview = useCallback(async () => {
@@ -244,7 +249,9 @@ export default function AdminPosOrderDetail() {
       setEmailPreviewHtml(String(data?.html ?? ""));
       setEmailTo(String(detailOrder.customer_email ?? ""));
       setEmailSubject(String(data?.subject ?? `Receipt ${detailOrder.order_no ?? ""}`));
-      setEmailMessage("");
+      setEmailMessage(
+        String(data?.message_template ?? "Please find your POS receipt details below.")
+      );
     } catch (e) {
       setEmailPreviewHtml("");
       setEmailPreviewError(e instanceof TillFlowApiError ? e.message : "Failed to load email preview.");
@@ -285,7 +292,7 @@ export default function AdminPosOrderDetail() {
 
           <div className="add-item d-flex align-items-center justify-content-between w-100 gap-2 flex-wrap">
             <div className="page-title">
-              <h4 className="mb-4">POS orders</h4>
+              <h4 className="mb-4">Orders</h4>
 
 
           </div>
@@ -317,7 +324,7 @@ export default function AdminPosOrderDetail() {
                   <div className="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div>
                       <div className="small mb-0">
-                        <Link to={POS_ORDERS_LIST_PATH}>POS orders</Link>
+                        <Link to={POS_ORDERS_LIST_PATH}>Orders</Link>
                         {selectedSummary?.order_no ? <span className="text-muted"> / {selectedSummary.order_no}</span> : null}
                       </div>
                     </div>

@@ -1,14 +1,14 @@
-import { Link, useLocation } from "react-router-dom";
-import EditSalesRetuens from "../../core/modals/sales/editsalesretuens";
-import AddSalesReturns from "../../core/modals/sales/addsalesreturns";
-import CommonFooter from "../../components/footer/commonFooter";
-import TableTopHead from "../../components/table-top-head";
-import DeleteModal from "../../components/delete-modal";
-import SearchFromApi from "../../components/data-table/search";
-import CommonSelect from "../../components/select/common-select";
-import PrimeDataTable from "../../components/data-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import PrimeDataTable from "../../components/data-table";
+import SearchFromApi from "../../components/data-table/search";
+import DeleteModal from "../../components/delete-modal";
+import CommonFooter from "../../components/footer/commonFooter";
+import CommonSelect from "../../components/select/common-select";
+import TableTopHead from "../../components/table-top-head";
 import { salesReturnListData } from "../../core/json/salesReturnListData";
+import AddSalesReturns from "../../core/modals/sales/addsalesreturns";
+import EditSalesRetuens from "../../core/modals/sales/editsalesretuens";
 import { all_routes } from "../../routes/all_routes";
 
 const ALL = { label: "All", value: "" };
@@ -298,17 +298,6 @@ const SalesReturn = () => {
                 <i className="ti ti-file-invoice me-1" />
                 Invoices
               </Link>
-              {inTillflowShell ? (
-                <Link to="/tillflow/admin/online-orders" className="btn btn-outline-secondary">
-                  <i className="ti ti-shopping-cart me-1" />
-                  Online orders
-                </Link>
-              ) : (
-                <Link to={route.onlineorder} className="btn btn-outline-secondary">
-                  <i className="ti ti-shopping-cart me-1" />
-                  Online orders
-                </Link>
-              )}
             </div>
           </div>
           <div className="card table-list-card manage-stock">

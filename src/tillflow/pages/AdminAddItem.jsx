@@ -5,34 +5,46 @@ import { listCategoriesRequest } from '../api/categories';
 import { listUnitsRequest } from '../api/units';
 import { listVariantAttributesRequest } from '../api/variantAttributes';
 import { listWarrantiesRequest } from '../api/warranties';
+import { listStoresRequest } from '../api/stores';
+import { listTaxRatesRequest } from '../api/taxRates';
 import { TillFlowApiError } from '../api/errors';
-import { createProductRequest, getProductRequest, updateProductRequest, uploadProductVariantImageRequest } from '../api/products';
+import {
+  createProductRequest,
+  getProductRequest,
+  listProductsRequest,
+  updateProductRequest,
+  uploadProductMainImageRequest,
+  uploadProductVariantImageRequest
+} from '../api/products';
 import { useAuth } from '../auth/AuthContext';
-
-const storeOpts = [
-  { value: 'thomas', label: 'Thomas' },
-  { value: 'rasmussen', label: 'Rasmussen' },
-  { value: 'fredJohn', label: 'Fred John' },
-];
-
-const barcodeSymbolOpts = [
-  { value: 'code34', label: 'Code34' },
-  { value: 'code35', label: 'Code35' },
-  { value: 'code36', label: 'Code36' },
-];
-
-const taxTypeOpts = [
-  { value: 'exclusive', label: 'Exclusive' },
-  { value: 'salesTax', label: 'Sales Tax' },
-];
+import { buildTaxRateSelectOptions, DEFAULT_TAX_RATES } from '../settings/taxRatesCatalog';
 
 const discountTypeOpts = [
   { value: 'percentage', label: 'Percentage' },
   { value: 'cash', label: 'Cash' },
 ];
 
-function genCode() {
-  return `TF-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+function slugifyText(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
+}
+
+function buildSkuFromSeq(seq) {
+  const n = Number.isFinite(seq) && seq > 0 ? seq : 1;
+  return `SK-${String(n).padStart(5, '0')}`;
+}
+
+function parseSkuSeq(value) {
+  const m = /^SK-(\d+)$/i.exec(String(value ?? '').trim());
+  if (!m) {
+    return null;
+  }
+  const n = Number.parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 /** @param {unknown} raw */
@@ -61,14 +73,18 @@ function parseVariantPrice(s) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-function SelectField({ label, required, value, onChange, options }) {
+function SelectField({ label, required, value, onChange, options, disabled = false }) {
   return (
     <div className="mb-3">
       <label className="form-label">
         {label}
         {required ? <span className="text-danger ms-1">*</span> : null}
       </label>
-      <select className="form-select" value={value} onChange={(e) => onChange(e.target.value)}>
+      <select
+        className="form-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}>
         <option value="">Choose</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -90,7 +106,6 @@ export default function AdminAddItem() {
   const [itemName, setItemName] = useState('');
   const [slug, setSlug] = useState('');
   const [sku, setSku] = useState('');
-  const [barcodeSymbology, setBarcodeSymbology] = useState('');
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
   const [unit, setUnit] = useState('');
@@ -121,11 +136,16 @@ export default function AdminAddItem() {
   }, [warrantyEnabled]);
 
   const [formError, setFormError] = useState('');
+  const [validationPopup, setValidationPopup] = useState('');
   const [fieldErrors, setFieldErrors] = useState(null);
   const [saving, setSaving] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editLoadError, setEditLoadError] = useState('');
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const [storeOptions, setStoreOptions] = useState([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesLoadError, setStoresLoadError] = useState('');
+  const [nextSkuSeq, setNextSkuSeq] = useState(1);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesLoadError, setCategoriesLoadError] = useState('');
   const [brandOptions, setBrandOptions] = useState([]);
@@ -135,6 +155,11 @@ export default function AdminAddItem() {
   const [unitsLoading, setUnitsLoading] = useState(true);
   const [unitsLoadError, setUnitsLoadError] = useState('');
   const [warrantyOptions, setWarrantyOptions] = useState([]);
+  const [taxTypeOptions, setTaxTypeOptions] = useState(() =>
+    buildTaxRateSelectOptions(DEFAULT_TAX_RATES)
+  );
+  const [taxTypesLoading, setTaxTypesLoading] = useState(true);
+  const [taxTypesLoadError, setTaxTypesLoadError] = useState('');
   const [warrantiesLoading, setWarrantiesLoading] = useState(true);
   const [warrantiesLoadError, setWarrantiesLoadError] = useState('');
 
@@ -153,6 +178,125 @@ export default function AdminAddItem() {
   const [variantPickerMessage, setVariantPickerMessage] = useState('');
   /** @type {{ lineKey: string; attributeId: number; attributeName: string; value: string }[]} */
   const [addedVariantRows, setAddedVariantRows] = useState(() => []);
+  const [mainImageFile, setMainImageFile] = useState(null);
+  const [mainImagePreviewUrl, setMainImagePreviewUrl] = useState(null);
+  const mainImageInputRef = useRef(null);
+
+  useEffect(() => {
+    const generatedSlug = slugifyText(itemName);
+    setSlug(generatedSlug);
+  }, [itemName]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+    setSku(buildSkuFromSeq(nextSkuSeq));
+  }, [isEditMode, nextSkuSeq]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadNextSkuSeq() {
+      if (!token || isEditMode) {
+        return;
+      }
+      try {
+        const data = await listProductsRequest(token);
+        const rows = Array.isArray(data?.products) ? data.products : [];
+        let maxSeq = 0;
+        for (const p of rows) {
+          const seq = parseSkuSeq(p?.sku);
+          if (seq != null && seq > maxSeq) {
+            maxSeq = seq;
+          }
+        }
+        if (!cancelled) {
+          setNextSkuSeq(maxSeq + 1);
+        }
+      } catch {
+        if (!cancelled) {
+          setNextSkuSeq(1);
+        }
+      }
+    }
+    void loadNextSkuSeq();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, isEditMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStores() {
+      if (!token) {
+        setStoresLoading(false);
+        setStoreOptions([]);
+        return;
+      }
+      setStoresLoading(true);
+      setStoresLoadError('');
+      try {
+        const data = await listStoresRequest(token);
+        const list = data.stores ?? [];
+        if (!cancelled) {
+          setStoreOptions(list);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setStoreOptions([]);
+          if (e instanceof TillFlowApiError) {
+            setStoresLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+          } else {
+            setStoresLoadError('Could not load stores');
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setStoresLoading(false);
+        }
+      }
+    }
+    void loadStores();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTaxRates() {
+      if (!token) {
+        setTaxTypesLoading(false);
+        setTaxTypeOptions(buildTaxRateSelectOptions(DEFAULT_TAX_RATES));
+        return;
+      }
+      setTaxTypesLoading(true);
+      setTaxTypesLoadError('');
+      try {
+        const rows = await listTaxRatesRequest(token);
+        if (!cancelled) {
+          setTaxTypeOptions(buildTaxRateSelectOptions(rows));
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setTaxTypeOptions(buildTaxRateSelectOptions(DEFAULT_TAX_RATES));
+          if (e instanceof TillFlowApiError) {
+            setTaxTypesLoadError(e.message);
+          } else {
+            setTaxTypesLoadError('Could not load tax rates');
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setTaxTypesLoading(false);
+        }
+      }
+    }
+    void loadTaxRates();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,9 +487,6 @@ export default function AdminAddItem() {
     if (!isEditMode || !productId || !token) {
       return;
     }
-    if (variantAttributesLoading) {
-      return;
-    }
     let cancelled = false;
     (async () => {
       setEditLoading(true);
@@ -357,6 +498,7 @@ export default function AdminAddItem() {
           return;
         }
         setItemName(p.name ?? '');
+        setStore(p.store_id != null ? String(p.store_id) : '');
         setSku(p.sku ?? '');
         setBarcode(p.sku ?? '');
         setCategory(p.category_id != null ? String(p.category_id) : '');
@@ -366,6 +508,11 @@ export default function AdminAddItem() {
         setSellingPrice(p.selling_price != null ? String(p.selling_price) : '');
         setQuantity(p.qty != null ? String(p.qty) : '');
         setQuantityAlert(p.qty_alert != null ? String(p.qty_alert) : '');
+        setMainImageFile(null);
+        setMainImagePreviewUrl(p.image_url ?? p.image ?? null);
+        if (mainImageInputRef.current) {
+          mainImageInputRef.current.value = '';
+        }
         if (p.warranty_id) {
           setWarrantyEnabled(true);
           setWarranty(String(p.warranty_id));
@@ -433,7 +580,7 @@ export default function AdminAddItem() {
     return () => {
       cancelled = true;
     };
-  }, [isEditMode, productId, token, variantAttributesLoading]);
+  }, [isEditMode, productId, token]);
 
   const activeVariantAttributes = useMemo(
     () => variantAttributes.filter((a) => a.is_active !== false),
@@ -521,29 +668,58 @@ export default function AdminAddItem() {
 
   useEffect(() => {
     return () => {
+      if (mainImagePreviewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(mainImagePreviewUrl);
+      }
       for (const v of Object.values(variantLineFieldsRef.current)) {
         if (v?.imagePreviewUrl?.startsWith('blob:')) {
           URL.revokeObjectURL(v.imagePreviewUrl);
         }
       }
     };
-  }, []);
-
-  function handleGenerateSku() {
-    setSku(genCode());
-  }
+  }, [mainImagePreviewUrl]);
 
   function handleGenerateBarcode() {
-    setBarcode(genCode());
+    setBarcode(`BAR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
+    setValidationPopup('');
     setFieldErrors(null);
+    if (!store) {
+      const msg = "Store is required. Please select a store.";
+      setFormError(msg);
+      setValidationPopup(msg);
+      return;
+    }
     if (itemType === 'variable' && addedVariantRows.length === 0) {
       setFormError('Variable item needs at least one variant row. Add combinations with the variant attribute and value dropdowns.');
       return;
+    }
+    if (itemType === 'single') {
+      const buyCheck = parseVariantPrice(buyingPrice);
+      const sellCheck = parseVariantPrice(sellingPrice);
+      if (buyCheck != null && sellCheck != null && sellCheck <= buyCheck) {
+        const msg = 'Selling price should be higher than buying price.';
+        setFormError(msg);
+        setValidationPopup(msg);
+        return;
+      }
+    }
+    if (itemType === 'variable') {
+      for (const row of addedVariantRows) {
+        const f = variantLineFields[row.lineKey];
+        const rowBuy = parseVariantPrice(f?.buyingPrice ?? '');
+        const rowSell = parseVariantPrice(f?.sellingPrice ?? '');
+        if (rowBuy != null && rowSell != null && rowSell <= rowBuy) {
+          const msg = `Selling price should be higher than buying price for ${row.attributeName} ${row.value}.`;
+          setFormError(msg);
+          setValidationPopup(msg);
+          return;
+        }
+      }
     }
     setSaving(true);
     const apiSku = barcode.trim() || sku.trim() || null;
@@ -551,6 +727,7 @@ export default function AdminAddItem() {
       const body = {
         name: itemName,
         sku: apiSku,
+        store_id: store ? Number(store) : null,
         category_id: category ? Number(category) : null,
         brand_id: brand ? Number(brand) : null,
         unit_id: unit ? Number(unit) : null,
@@ -630,6 +807,13 @@ export default function AdminAddItem() {
           }
         }
       }
+      if (savedProduct?.id && mainImageFile) {
+        try {
+          await uploadProductMainImageRequest(token, savedProduct.id, mainImageFile);
+        } catch {
+          // Keep item save successful even when image endpoint is unavailable.
+        }
+      }
       navigate('/tillflow/admin/items', { replace: false });
     } catch (err) {
       if (err instanceof TillFlowApiError) {
@@ -647,6 +831,30 @@ export default function AdminAddItem() {
 
   return (
     <div className="tf-add-item">
+      {validationPopup ? (
+        <div
+          className="alert alert-danger shadow-sm"
+          role="alert"
+          style={{
+            position: 'fixed',
+            top: 16,
+            right: 16,
+            zIndex: 1055,
+            maxWidth: 420,
+            marginBottom: 0,
+          }}
+        >
+          <div className="d-flex align-items-start justify-content-between gap-3">
+            <span>{validationPopup}</span>
+            <button
+              type="button"
+              className="btn-close"
+              aria-label="Close"
+              onClick={() => setValidationPopup('')}
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="content-inner">
         <div className="page-header d-flex flex-wrap justify-content-between gap-3">
           <div className="add-item d-flex">
@@ -707,11 +915,6 @@ export default function AdminAddItem() {
                   <div className="accordion-body border-top">
                     <div className="row">
                       <div className="col-sm-6 col-12">
-                        <SelectField label="Store" required options={storeOpts} value={store} onChange={setStore} />
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-sm-6 col-12">
                         <div className="mb-3">
                           <label className="form-label">
                             Item Name
@@ -734,9 +937,8 @@ export default function AdminAddItem() {
                         <div className="mb-3">
                           <label className="form-label">
                             Slug
-                            <span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                          <input type="text" className="form-control" value={slug} readOnly />
                         </div>
                       </div>
                     </div>
@@ -745,22 +947,28 @@ export default function AdminAddItem() {
                         <div className="mb-3 list position-relative">
                           <label className="form-label">
                             SKU
-                            <span className="text-danger ms-1">*</span>
                           </label>
-                          <input type="text" className="form-control list" value={sku} onChange={(e) => setSku(e.target.value)} />
-                          <button type="button" className="btn btn-primaryadd" onClick={handleGenerateSku}>
-                            Generate
-                          </button>
+                          <input type="text" className="form-control list" value={sku} readOnly />
                         </div>
                       </div>
                       <div className="col-sm-6 col-12">
-                        <SelectField
-                          label="Barcode Symbology"
-                          required
-                          options={barcodeSymbolOpts}
-                          value={barcodeSymbology}
-                          onChange={setBarcodeSymbology}
-                        />
+                        <div className="mb-3 list position-relative">
+                          <label className="form-label">
+                            Barcode
+                            <span className="text-danger ms-1">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="form-control list"
+                            value={barcode}
+                            onChange={(e) => setBarcode(e.target.value)}
+                            placeholder="Barcode format is standardized system-wide (Code128)."
+                          />
+                          <button type="button" className="btn btn-primaryadd" onClick={handleGenerateBarcode}>
+                            Generate
+                          </button>
+                          {fieldErrors?.sku ? <div className="text-danger small mt-1">{fieldErrors.sku[0]}</div> : null}
+                        </div>
                       </div>
                     </div>
                     <div className="addservice-info">
@@ -793,6 +1001,32 @@ export default function AdminAddItem() {
                             </select>
                             {fieldErrors?.category_id ? (
                               <div className="text-danger small mt-1">{fieldErrors.category_id[0]}</div>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="col-sm-6 col-12">
+                          <div className="mb-3">
+                            <label className="form-label">
+                              Store
+                              <span className="text-danger ms-1">*</span>
+                            </label>
+                            {storesLoadError ? <div className="text-danger small mb-2">{storesLoadError}</div> : null}
+                            <select
+                              className="form-select mt-2"
+                              value={store}
+                              onChange={(e) => setStore(e.target.value)}
+                              disabled={storesLoading}
+                              required
+                            >
+                              <option value="">{storesLoading ? 'Loading…' : 'Choose'}</option>
+                              {storeOptions.map((s) => (
+                                <option key={String(s.id)} value={String(s.id)}>
+                                  {String(s.name ?? 'Unnamed store')}
+                                </option>
+                              ))}
+                            </select>
+                            {fieldErrors?.store_id ? (
+                              <div className="text-danger small mt-1">{fieldErrors.store_id[0]}</div>
                             ) : null}
                           </div>
                         </div>
@@ -864,21 +1098,6 @@ export default function AdminAddItem() {
                         </div>
                       </div>
                     </div>
-                    <div className="row">
-                      <div className="col-lg-6 col-sm-6 col-12">
-                        <div className="mb-3 list position-relative">
-                          <label className="form-label">
-                            Barcode
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control list" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
-                          <button type="button" className="btn btn-primaryadd" onClick={handleGenerateBarcode}>
-                            Generate
-                          </button>
-                          {fieldErrors?.sku ? <div className="text-danger small mt-1">{fieldErrors.sku[0]}</div> : null}
-                        </div>
-                      </div>
-                    </div>
                     <div className="col-lg-12 px-0">
                       <div className="mb-3">
                         <label className="form-label">Description</label>
@@ -920,7 +1139,8 @@ export default function AdminAddItem() {
                         <span className="text-danger ms-1">*</span>
                       </label>
                       <div className="single-pill-product mb-3 d-flex flex-wrap gap-3">
-                        <label className="custom_radio mb-0">
+                        <label
+                          className={`custom_radio mb-0${itemType === 'single' ? ' active' : ''}`}>
                           <input
                             type="radio"
                             name="itemType"
@@ -929,7 +1149,8 @@ export default function AdminAddItem() {
                           />
                           <span className="checkmark" /> Single Item
                         </label>
-                        <label className="custom_radio mb-0">
+                        <label
+                          className={`custom_radio mb-0${itemType === 'variable' ? ' active' : ''}`}>
                           <input
                             type="radio"
                             name="itemType"
@@ -985,12 +1206,20 @@ export default function AdminAddItem() {
                             </div>
                           </div>
                           <div className="col-lg-4 col-sm-6 col-12">
-                            <SelectField label="Tax Type" required options={taxTypeOpts} value={taxType} onChange={setTaxType} />
+                            {taxTypesLoadError ? (
+                              <div className="text-warning small mb-1">{taxTypesLoadError}</div>
+                            ) : null}
+                            <SelectField
+                              label="Tax Type"
+                              options={taxTypeOptions}
+                              value={taxType}
+                              onChange={setTaxType}
+                              disabled={taxTypesLoading}
+                            />
                           </div>
                           <div className="col-lg-4 col-sm-6 col-12">
                             <SelectField
                               label="Discount Type"
-                              required
                               options={discountTypeOpts}
                               value={discountType}
                               onChange={setDiscountType}
@@ -1000,7 +1229,6 @@ export default function AdminAddItem() {
                             <div className="mb-3">
                               <label className="form-label">
                                 Discount Value
-                                <span className="text-danger ms-1">*</span>
                               </label>
                               <input
                                 className="form-control"
@@ -1300,15 +1528,42 @@ export default function AdminAddItem() {
                 </h2>
                 <div id="SpacingThree" className="accordion-collapse collapse show" aria-labelledby="headingSpacingThree">
                   <div className="accordion-body border-top">
-                    <div className="mb-3">
+                    <div className="mb-3 tf-main-image-upload-row">
                       <div className="image-upload">
-                        <input type="file" disabled className="d-none" />
-                        <div className="image-uploads">
+                        <input
+                          ref={mainImageInputRef}
+                          type="file"
+                          className="d-none"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setMainImageFile(file);
+                            if (mainImagePreviewUrl?.startsWith('blob:')) {
+                              URL.revokeObjectURL(mainImagePreviewUrl);
+                            }
+                            setMainImagePreviewUrl(file ? URL.createObjectURL(file) : null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="image-uploads w-100 bg-transparent border-0 text-start"
+                          onClick={() => mainImageInputRef.current?.click()}>
                           <i className="feather icon-plus-circle plus-down-add me-0" />
-                          <h4 className="h6 mt-2 mb-0">Add Images</h4>
-                          <p className="small text-muted mb-0">Placeholder — upload wired later.</p>
-                        </div>
+                          <div className="tf-main-image-upload-copy">
+                            <h4 className="h6 mb-0">Add Main Product Image</h4>
+                          </div>
+                        </button>
                       </div>
+                      {mainImagePreviewUrl ? (
+                        <div className="tf-main-image-preview-wrap">
+                          <img
+                            src={mainImagePreviewUrl}
+                            alt="Main product preview"
+                            className="rounded border"
+                            style={{ maxWidth: 180, maxHeight: 180, objectFit: 'cover' }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>

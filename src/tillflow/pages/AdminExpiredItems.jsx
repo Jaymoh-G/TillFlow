@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PrimeDataTable from '../../components/data-table';
+import TableTopHead from '../../components/table-top-head';
 import { listExpiredItemsRequest } from '../api/expiredItems';
 import { TillFlowApiError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
@@ -158,23 +159,11 @@ export default function AdminExpiredItems() {
             <h6>Track past-due and soon-to-expire stock</h6>
           </div>
         </div>
-        <ul className="table-top-head">
-          <li>
-            <button type="button" title="Export PDF" onClick={() => void handleExportPdf()} disabled={loading || filtered.length === 0}>
-              <i className="feather icon-file-text" />
-            </button>
-          </li>
-          <li>
-            <button type="button" title="Export Excel" onClick={() => void handleExportExcel()} disabled={loading || filtered.length === 0}>
-              <i className="feather icon-download" />
-            </button>
-          </li>
-          <li>
-            <button type="button" title="Refresh" onClick={() => void load()}>
-              <i className="feather icon-refresh-cw" />
-            </button>
-          </li>
-        </ul>
+        <TableTopHead
+          onRefresh={() => void load()}
+          onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
+          onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+        />
         <div className="page-header-actions">
           <div className="page-btn import">
             <Link to="/tillflow/admin/items" className="btn btn-secondary color">

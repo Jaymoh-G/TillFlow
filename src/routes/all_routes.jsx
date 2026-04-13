@@ -99,8 +99,6 @@ export const all_routes = {
   wizard: "/form-wizard",
   expiredproduct: "/expired-products",
   lowstock: "/low-stocks",
-  categorylist: "/category-list",
-  subcategories: "/sub-categories",
   editproduct: "/edit-product",
   expenselist: "/expense-list",
   expensecategory: "/expense-category",
@@ -230,7 +228,6 @@ export const all_routes = {
   payrollList: "/employee-salary",
 
   //New Page
-  onlineorder: "/online-orders",
   customer: "/customer",
   pos: "/pos",
   posorder: "/pos-orders",

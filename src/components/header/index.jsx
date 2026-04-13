@@ -423,7 +423,7 @@ const Header = () => {
                     </Link>
                   </div>
                   <div className="col-md-2">
-                    <Link to={route.onlineorder} className="link-item">
+                    <Link to={route.posorder} className="link-item">
                       <span className="link-icon">
                         <i className="ti ti-shopping-cart" />
                       </span>

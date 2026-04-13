@@ -11,17 +11,10 @@ import {
   listStockAdjustmentsRequest
 } from "../../tillflow/api/stockAdjustments";
 import { listProductsRequest } from "../../tillflow/api/products";
+import { listStoresRequest } from "../../tillflow/api/stores";
 import { TillFlowApiError } from "../../tillflow/api/errors";
-
-const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
-
-function readTillflowToken() {
-  try {
-    return sessionStorage.getItem(TILLFLOW_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
+import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
 
 function hideBsModal(id) {
   const el = document.getElementById(id);
@@ -79,6 +72,7 @@ function mapDemoRows() {
         sku: "—",
         displayImage: d.product.image
       },
+      storeLabel: "—",
       isDemo: true
     };
   });
@@ -87,6 +81,7 @@ function mapDemoRows() {
 function mapApiRow(a) {
   const p = a.product ?? {};
   const logo = p.brand?.logo_url ?? null;
+  const imageUrl = p.image_url ?? null;
   return {
     id: a.id,
     type: a.type,
@@ -99,8 +94,9 @@ function mapApiRow(a) {
     product: {
       name: p.name ?? "—",
       sku: p.sku ?? "—",
-      displayImage: logo
+      displayImage: imageUrl || logo
     },
+    storeLabel: a.store?.store_name ?? "—",
     isDemo: false
   };
 }
@@ -108,13 +104,14 @@ function mapApiRow(a) {
 const StockAdjustment = () => {
   const location = useLocation();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
-  const [token] = useState(() => readTillflowToken());
+  const auth = useOptionalAuth();
+  const token = auth?.token ?? readTillflowStoredToken();
   const liveMode = Boolean(token);
 
   const [adjustments, setAdjustments] = useState([]);
   const [catalogProducts, setCatalogProducts] = useState([]);
   const demoRows = useMemo(() => mapDemoRows(), []);
-  const [loading, setLoading] = useState(Boolean(token));
+  const [loading, setLoading] = useState(() => Boolean(readTillflowStoredToken()));
   const [listError, setListError] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,6 +126,8 @@ const StockAdjustment = () => {
   const [addReference, setAddReference] = useState("");
   const [addNotes, setAddNotes] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [addStoreId, setAddStoreId] = useState(null);
 
   const [notesModalText, setNotesModalText] = useState("");
 
@@ -167,6 +166,19 @@ const StockAdjustment = () => {
     }
   }, [token]);
 
+  const loadStores = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    try {
+      const data = await listStoresRequest(token);
+      const rows = Array.isArray(data?.stores) ? data.stores : [];
+      setStores(rows);
+    } catch {
+      setStores([]);
+    }
+  }, [token]);
+
   useEffect(() => {
     void loadList();
   }, [loadList]);
@@ -174,8 +186,9 @@ const StockAdjustment = () => {
   useEffect(() => {
     if (token) {
       void loadProducts();
+      void loadStores();
     }
-  }, [token, loadProducts]);
+  }, [token, loadProducts, loadStores]);
 
   const liveRows = useMemo(
     () => adjustments.map(mapApiRow),
@@ -189,6 +202,15 @@ const StockAdjustment = () => {
         value: p.id
       })),
     [catalogProducts]
+  );
+
+  const storeSelectOptions = useMemo(
+    () =>
+      stores.map((s) => ({
+        label: s.name || `Store ${s.id}`,
+        value: s.id
+      })),
+    [stores]
   );
 
   const displayRows = useMemo(() => {
@@ -205,7 +227,8 @@ const StockAdjustment = () => {
           String(name).toLowerCase().includes(q) ||
           String(sku).toLowerCase().includes(q) ||
           String(ref).toLowerCase().includes(q) ||
-          String(notes).toLowerCase().includes(q)
+          String(notes).toLowerCase().includes(q) ||
+          String(r.storeLabel ?? "").toLowerCase().includes(q)
         );
       });
     }
@@ -230,6 +253,10 @@ const StockAdjustment = () => {
       setListError("Select a product");
       return;
     }
+    if (!addStoreId) {
+      setListError("Select a store");
+      return;
+    }
     const qty = parseInt(addQty, 10);
     if (!Number.isFinite(qty) || qty < 1) {
       setListError("Enter a quantity of at least 1");
@@ -240,6 +267,7 @@ const StockAdjustment = () => {
     try {
       await createStockAdjustmentRequest(token, {
         product_id: addProductId,
+        store_id: addStoreId,
         type: addType,
         quantity: qty,
         reference: addReference.trim() || null,
@@ -253,6 +281,7 @@ const StockAdjustment = () => {
       setAddNotes("");
       await loadList();
       await loadProducts();
+      await loadStores();
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setListError(err.message);
@@ -291,6 +320,12 @@ const StockAdjustment = () => {
       )
     },
     { header: "SKU", field: "sku", key: "sku", body: (r) => r.product?.sku ?? "—" },
+    {
+      header: "Store",
+      field: "storeLabel",
+      key: "storeLabel",
+      body: (r) => r.storeLabel ?? "—"
+    },
     {
       header: "Type",
       field: "type",
@@ -382,6 +417,9 @@ const StockAdjustment = () => {
                 onClick={() => {
                   if (liveMode && catalogProducts.length) {
                     setAddProductId((prev) => prev ?? catalogProducts[0].id);
+                  }
+                  if (liveMode && stores.length && addStoreId == null) {
+                    setAddStoreId(stores[0].id);
                   }
                 }}>
                 <i className="ti ti-circle-plus me-1" />
@@ -475,6 +513,19 @@ const StockAdjustment = () => {
                     </div>
                     <div className="mb-3">
                       <label className="form-label">
+                        Store <span className="text-danger ms-1">*</span>
+                      </label>
+                      <CommonSelect
+                        className="w-100"
+                        options={storeSelectOptions}
+                        value={addStoreId}
+                        onChange={(e) => setAddStoreId(e.value)}
+                        placeholder="Select store"
+                        filter={false}
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">
                         Type <span className="text-danger ms-1">*</span>
                       </label>
                       <CommonSelect
@@ -543,7 +594,12 @@ const StockAdjustment = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!liveMode || addSubmitting || catalogProducts.length === 0}>
+                  disabled={
+                    !liveMode ||
+                    addSubmitting ||
+                    catalogProducts.length === 0 ||
+                    stores.length === 0
+                  }>
                   {addSubmitting ? "Saving…" : "Record adjustment"}
                 </button>
               </div>

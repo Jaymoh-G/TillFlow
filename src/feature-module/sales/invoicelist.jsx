@@ -17,6 +17,7 @@ import DocumentFormActions from "../../components/DocumentFormActions";
 import { downloadInvoicesExcel, downloadInvoicesPdf } from "../../utils/invoiceExport";
 import { invoicereportdata } from "../../core/json/invoicereportdata";
 import { all_routes } from "../../routes/all_routes";
+import { listCategoriesRequest } from "../../tillflow/api/categories";
 import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import {
@@ -38,6 +39,10 @@ import {
   updateInvoiceRequest
 } from "../../tillflow/api/invoices";
 import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
+import {
+  buildCategoryFilterValue,
+  filterCatalogProducts
+} from "../../tillflow/utils/catalogCategoryFilter";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { pdf, stockImg01 } from "../../utils/imagepath";
 import {
@@ -229,6 +234,8 @@ const Invoice = () => {
   const listGenRef = useRef(0);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
+  const [catalogCategories, setCatalogCategories] = useState([]);
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("");
   const [catalogCustomers, setCatalogCustomers] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
@@ -259,20 +266,23 @@ const Invoice = () => {
     setCatalogLoading(true);
     setCatalogError("");
     try {
-      const [prodData, custData] = await Promise.all([
+      const [prodData, custData, categoryData] = await Promise.all([
         listSalesCatalogProductsRequest(token),
-        listCustomersRequest(token)
+        listCustomersRequest(token),
+        listCategoriesRequest(token)
       ]);
       if (gen !== catalogGenRef.current) {
         return;
       }
       setCatalogProducts(prodData.products ?? []);
+      setCatalogCategories(categoryData.categories ?? []);
       setCatalogCustomers(custData.customers ?? []);
     } catch (e) {
       if (gen !== catalogGenRef.current) {
         return;
       }
       setCatalogProducts([]);
+      setCatalogCategories([]);
       setCatalogCustomers([]);
       if (e instanceof TillFlowApiError) {
         setCatalogError(e.status === 403 ? `${e.message} (needs catalog access)` : e.message);
@@ -404,6 +414,7 @@ const Invoice = () => {
     setEditingInvoiceApiId(null);
     setCatalogQuickSearchText("");
     setCatalogQuickSuggestions([]);
+    setCatalogCategoryFilter("");
     setCatalogQuickAddKey((k) => k + 1);
   }, []);
 
@@ -571,23 +582,18 @@ const Invoice = () => {
 
   const catalogQuickComplete = useCallback(
     (e) => {
-      const raw = String(e.query ?? "").trim().toLowerCase();
       if (!catalogProducts.length) {
         setCatalogQuickSuggestions([]);
         return;
       }
-      const filtered = raw
-        ? catalogProducts
-            .filter((p) => {
-              const name = String(p.name ?? "").toLowerCase();
-              const sku = String(p.sku ?? "").toLowerCase();
-              return name.includes(raw) || sku.includes(raw);
-            })
-            .slice(0, 80)
-        : catalogProducts.slice(0, 80);
+      const filtered = filterCatalogProducts(catalogProducts, {
+        query: e.query,
+        categoryFilterValue: catalogCategoryFilter,
+        limit: 80
+      });
       setCatalogQuickSuggestions(filtered);
     },
-    [catalogProducts]
+    [catalogProducts, catalogCategoryFilter]
   );
 
   const catalogQuickOnChange = useCallback((e) => {
@@ -2591,6 +2597,19 @@ const Invoice = () => {
                                 )}
                               />
                             </div>
+                          </div>
+                          <div className="col-12 col-md-3">
+                            <select
+                              className="form-select quotation-catalog-category-select"
+                              value={catalogCategoryFilter}
+                              onChange={(e) => setCatalogCategoryFilter(e.target.value)}>
+                              <option value="">All categories</option>
+                              {catalogCategories.map((c) => (
+                                <option key={String(c.id)} value={buildCategoryFilterValue(c)}>
+                                  {String(c.name ?? "")}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           {inTillflowShell ? (
                             <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-center">

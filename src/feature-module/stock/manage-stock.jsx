@@ -9,17 +9,11 @@ import { stockImg02 } from "../../utils/imagepath";
 import CommonSelect from "../../components/select/common-select";
 import CommonFooter from "../../components/footer/commonFooter";
 import { listProductsRequest, updateProductRequest } from "../../tillflow/api/products";
+import { listStoresRequest } from "../../tillflow/api/stores";
+import { createStockAdjustmentRequest } from "../../tillflow/api/stockAdjustments";
 import { TillFlowApiError } from "../../tillflow/api/errors";
-
-const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
-
-function readTillflowToken() {
-  try {
-    return sessionStorage.getItem(TILLFLOW_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
+import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
 
 function hideBsModal(id) {
   const el = document.getElementById(id);
@@ -73,16 +67,26 @@ function mapDemoStockRows() {
 
 function mapCatalogProduct(p) {
   const logo = p.brand?.logo_url ?? null;
+  const imageUrl = p.image_url ?? null;
+  const storeStocks = Array.isArray(p.store_stocks) ? p.store_stocks : [];
+  const storeQty = {};
+  for (const row of storeStocks) {
+    const sid = row?.store_id;
+    if (sid != null) {
+      storeQty[sid] = Number(row.qty) || 0;
+    }
+  }
   return {
     id: p.id,
     name: p.name ?? "—",
-    displayImage: logo,
+    displayImage: imageUrl || logo,
     sku: p.sku ?? "—",
     categoryName: p.category?.name ?? "—",
     unitLabel: p.unit?.short_name ?? p.unit?.name ?? "—",
     qty: Number(p.qty) || 0,
     qty_alert: p.qty_alert != null ? Number(p.qty_alert) : null,
     updatedLabel: formatUpdatedLabel(p.updated_at),
+    storeQty,
     catalogProduct: p
   };
 }
@@ -90,12 +94,14 @@ function mapCatalogProduct(p) {
 const ManageStock = () => {
   const location = useLocation();
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
-  const [token] = useState(() => readTillflowToken());
+  const auth = useOptionalAuth();
+  const token = auth?.token ?? readTillflowStoredToken();
   const liveMode = Boolean(token);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
+  const [stores, setStores] = useState([]);
   const demoRows = useMemo(() => mapDemoStockRows(), []);
-  const [loading, setLoading] = useState(Boolean(token));
+  const [loading, setLoading] = useState(() => Boolean(readTillflowStoredToken()));
   const [listError, setListError] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,6 +112,7 @@ const ManageStock = () => {
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [addProductId, setAddProductId] = useState(null);
+  const [addStoreId, setAddStoreId] = useState(null);
   const [addQtyDelta, setAddQtyDelta] = useState("1");
   const [addQtyAlert, setAddQtyAlert] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
@@ -138,11 +145,24 @@ const ManageStock = () => {
     }
   }, [token]);
 
+  const loadStores = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    try {
+      const data = await listStoresRequest(token);
+      setStores(Array.isArray(data?.stores) ? data.stores : []);
+    } catch {
+      setStores([]);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (token) {
       void loadCatalog();
+      void loadStores();
     }
-  }, [token, loadCatalog]);
+  }, [token, loadCatalog, loadStores]);
 
   const liveRows = useMemo(
     () => catalogProducts.map(mapCatalogProduct),
@@ -172,6 +192,15 @@ const ManageStock = () => {
         value: p.id
       })),
     [catalogProducts]
+  );
+
+  const storeSelectOptions = useMemo(
+    () =>
+      stores.map((s) => ({
+        label: s.name || `Store ${s.id}`,
+        value: s.id
+      })),
+    [stores]
   );
 
   const displayRows = useMemo(() => {
@@ -218,18 +247,21 @@ const ManageStock = () => {
 
   const totalRecords = displayRows.length;
 
-  const openEditModal = (row) => {
-    if (!liveMode || !row?.catalogProduct) {
-      return;
-    }
-    setEditRow(row);
-    setEditQty(String(row.qty));
-    setEditQtyAlert(
-      row.qty_alert != null && !Number.isNaN(row.qty_alert)
-        ? String(row.qty_alert)
-        : ""
-    );
-  };
+  const openEditModal = useCallback(
+    (row) => {
+      if (!liveMode || !row?.catalogProduct) {
+        return;
+      }
+      setEditRow(row);
+      setEditQty(String(row.qty));
+      setEditQtyAlert(
+        row.qty_alert != null && !Number.isNaN(row.qty_alert)
+          ? String(row.qty_alert)
+          : ""
+      );
+    },
+    [liveMode]
+  );
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -241,28 +273,43 @@ const ManageStock = () => {
       setListError("Select a product");
       return;
     }
+    if (!addStoreId) {
+      setListError("Select a store");
+      return;
+    }
     const delta = parseInt(addQtyDelta, 10);
     if (!Number.isFinite(delta) || delta < 1) {
       setListError("Enter a quantity of at least 1");
       return;
     }
-    const nextQty = (Number(p.qty) || 0) + delta;
     setAddSubmitting(true);
     setListError("");
     try {
-      const body = { qty: nextQty };
+      await createStockAdjustmentRequest(token, {
+        product_id: p.id,
+        store_id: addStoreId,
+        type: "add",
+        quantity: delta,
+        reference: null,
+        notes: null
+      });
+      const body = {};
       if (addQtyAlert.trim() !== "") {
         const qa = parseInt(addQtyAlert, 10);
         if (Number.isFinite(qa) && qa >= 0) {
           body.qty_alert = qa;
         }
       }
-      await updateProductRequest(token, p.id, body);
+      if (Object.keys(body).length > 0) {
+        await updateProductRequest(token, p.id, body);
+      }
       hideBsModal("add-stock");
       setAddProductId(null);
+      setAddStoreId(null);
       setAddQtyDelta("1");
       setAddQtyAlert("");
       await loadCatalog();
+      await loadStores();
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setListError(err.message);
@@ -313,8 +360,8 @@ const ManageStock = () => {
     }
   };
 
-  const columns = [
-    {
+  const columns = useMemo(() => {
+    const productCol = {
       header: "Product",
       field: "name",
       key: "name",
@@ -330,53 +377,67 @@ const ManageStock = () => {
           <span className="text-body">{data.name}</span>
         </div>
       )
-    },
-    { header: "SKU", field: "sku", key: "sku" },
-    { header: "Category", field: "categoryName", key: "categoryName" },
-    { header: "Unit", field: "unitLabel", key: "unitLabel" },
-    { header: "Qty", field: "qty", key: "qty" },
-    {
-      header: "Reorder at",
-      field: "qty_alert",
-      key: "qty_alert",
-      body: (data) =>
-        data.qty_alert != null && !Number.isNaN(data.qty_alert)
-          ? data.qty_alert
-          : "—"
-    },
-    { header: "Updated", field: "updatedLabel", key: "updatedLabel" },
-    {
-      header: "",
-      field: "actions",
-      key: "actions",
-      sortable: false,
-      body: (row) => (
-        <div className="d-flex align-items-center edit-delete-action">
-          <button
-            type="button"
-            className="me-2 border rounded d-flex align-items-center p-2 bg-transparent"
-            data-bs-toggle={liveMode && row.catalogProduct ? "modal" : undefined}
-            data-bs-target={liveMode && row.catalogProduct ? "#edit-stock" : undefined}
-            onClick={() => {
-              if (liveMode && row.catalogProduct) {
-                openEditModal(row);
-              }
-            }}>
-            <i className="feather icon-edit" />
-          </button>
-          {!liveMode && (
+    };
+    const base = [
+      productCol,
+      { header: "SKU", field: "sku", key: "sku" },
+      { header: "Category", field: "categoryName", key: "categoryName" },
+      { header: "Unit", field: "unitLabel", key: "unitLabel" }
+    ];
+    const storeCols = liveMode
+      ? stores.map((s) => ({
+          header: s.name || `Store ${s.id}`,
+          field: `store_${s.id}`,
+          key: `store_${s.id}`,
+          body: (data) => (data.storeQty?.[s.id] != null ? data.storeQty[s.id] : 0)
+        }))
+      : [];
+    const qtyCols = liveMode
+      ? [{ header: "Total", field: "qty", key: "qty" }]
+      : [{ header: "Qty", field: "qty", key: "qty" }];
+    const tail = [
+      {
+        header: "Reorder at",
+        field: "qty_alert",
+        key: "qty_alert",
+        body: (data) =>
+          data.qty_alert != null && !Number.isNaN(data.qty_alert) ? data.qty_alert : "—"
+      },
+      { header: "Updated", field: "updatedLabel", key: "updatedLabel" },
+      {
+        header: "",
+        field: "actions",
+        key: "actions",
+        sortable: false,
+        body: (row) => (
+          <div className="d-flex align-items-center edit-delete-action">
             <button
               type="button"
-              className="p-2 border rounded d-flex align-items-center bg-transparent"
-              data-bs-toggle="modal"
-              data-bs-target="#delete-modal">
-              <i className="feather icon-trash-2" />
+              className="me-2 border rounded d-flex align-items-center p-2 bg-transparent"
+              data-bs-toggle={liveMode && row.catalogProduct ? "modal" : undefined}
+              data-bs-target={liveMode && row.catalogProduct ? "#edit-stock" : undefined}
+              onClick={() => {
+                if (liveMode && row.catalogProduct) {
+                  openEditModal(row);
+                }
+              }}>
+              <i className="feather icon-edit" />
             </button>
-          )}
-        </div>
-      )
-    }
-  ];
+            {!liveMode && (
+              <button
+                type="button"
+                className="p-2 border rounded d-flex align-items-center bg-transparent"
+                data-bs-toggle="modal"
+                data-bs-target="#delete-modal">
+                <i className="feather icon-trash-2" />
+              </button>
+            )}
+          </div>
+        )
+      }
+    ];
+    return [...base, ...storeCols, ...qtyCols, ...tail];
+  }, [liveMode, stores, openEditModal]);
 
   const handleSearch = (value) => {
     setSearchQuery(value ?? "");
@@ -418,6 +479,9 @@ const ManageStock = () => {
                   if (liveMode && catalogProducts.length) {
                     setAddProductId((prev) => prev ?? catalogProducts[0].id);
                   }
+                  if (liveMode && stores.length && addStoreId == null) {
+                    setAddStoreId(stores[0].id);
+                  }
                 }}>
                 <i className="ti ti-circle-plus me-1" />
                 Add Stock
@@ -438,7 +502,7 @@ const ManageStock = () => {
                       placeholder="Category"
                       filter
                     />
-                  </div>
+                </div>
                 )}
                 {liveMode && (
                   <div className="form-check ms-2">
@@ -452,7 +516,7 @@ const ManageStock = () => {
                     <label className="form-check-label" htmlFor="low-stock-only">
                       Low stock only
                     </label>
-                  </div>
+                </div>
                 )}
               </div>
             </div>
@@ -501,14 +565,14 @@ const ManageStock = () => {
             <form onSubmit={handleAddSubmit}>
               <div className="modal-body">
                 {liveMode ? (
-                  <div className="row">
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
+                <div className="row">
+                  <div className="col-lg-12">
+                    <div className="mb-3">
+                      <label className="form-label">
                           Product <span className="text-danger ms-1">*</span>
-                        </label>
-                        <CommonSelect
-                          className="w-100"
+                      </label>
+                      <CommonSelect
+                        className="w-100"
                           options={productSelectOptions}
                           value={addProductId}
                           onChange={(e) => setAddProductId(e.value)}
@@ -516,12 +580,27 @@ const ManageStock = () => {
                           filter
                         />
                       </div>
+                  </div>
+                  <div className="col-lg-12">
+                    <div className="mb-3">
+                      <label className="form-label">
+                        Store <span className="text-danger ms-1">*</span>
+                      </label>
+                      <CommonSelect
+                        className="w-100"
+                        options={storeSelectOptions}
+                        value={addStoreId}
+                        onChange={(e) => setAddStoreId(e.value)}
+                        placeholder="Select store"
+                        filter={false}
+                      />
                     </div>
-                    <div className="col-lg-12">
-                      <div className="mb-3">
-                        <label className="form-label">
+                  </div>
+                  <div className="col-lg-12">
+                    <div className="mb-3">
+                      <label className="form-label">
                           Quantity to add <span className="text-danger ms-1">*</span>
-                        </label>
+                      </label>
                         <input
                           type="number"
                           min={1}
@@ -529,9 +608,9 @@ const ManageStock = () => {
                           value={addQtyDelta}
                           onChange={(e) => setAddQtyDelta(e.target.value)}
                         />
-                      </div>
                     </div>
-                    <div className="col-lg-12">
+                  </div>
+                  <div className="col-lg-12">
                       <div className="mb-0">
                         <label className="form-label">Reorder alert (optional)</label>
                         <input
@@ -565,7 +644,12 @@ const ManageStock = () => {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={!liveMode || addSubmitting || catalogProducts.length === 0}>
+                  disabled={
+                    !liveMode ||
+                    addSubmitting ||
+                    catalogProducts.length === 0 ||
+                    stores.length === 0
+                  }>
                   {addSubmitting ? "Saving…" : "Add Stock"}
                 </button>
               </div>
@@ -591,9 +675,9 @@ const ManageStock = () => {
             <form onSubmit={handleEditSubmit}>
               <div className="modal-body">
                 {editRow?.catalogProduct ? (
-                  <div className="row">
-                    <div className="col-lg-12">
-                      <div className="mb-3">
+                <div className="row">
+                  <div className="col-lg-12">
+                    <div className="mb-3">
                         <label className="form-label">Product</label>
                         <input
                           type="text"
@@ -643,10 +727,10 @@ const ManageStock = () => {
                               </tr>
                             </tbody>
                           </table>
-                        </div>
-                      </div>
                     </div>
-                    <div className="col-lg-12">
+                    </div>
+                  </div>
+                  <div className="col-lg-12">
                       <label className="form-label">Reorder alert</label>
                       <input
                         type="number"
@@ -660,77 +744,77 @@ const ManageStock = () => {
                   </div>
                 ) : (
                   <div className="row">
-                    <div className="col-lg-12">
-                      <div className="search-form mb-3">
-                        <label className="form-label">
-                          Product<span className="text-danger ms-1">*</span>
-                        </label>
-                        <div className="position-relative">
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Select Product"
+                  <div className="col-lg-12">
+                    <div className="search-form mb-3">
+                      <label className="form-label">
+                        Product<span className="text-danger ms-1">*</span>
+                      </label>
+                      <div className="position-relative">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Select Product"
                             defaultValue="Nike Jordan"
                           />
                           <i className="feather icon-search feather-search" />
                         </div>
-                      </div>
                     </div>
-                    <div className="col-lg-12">
-                      <div className="modal-body-table">
-                        <div className="table-responsive">
+                  </div>
+                  <div className="col-lg-12">
+                    <div className="modal-body-table">
+                      <div className="table-responsive">
                           <table className="table datanew">
-                            <thead>
-                              <tr>
-                                <th>Product</th>
-                                <th>SKU</th>
-                                <th>Category</th>
-                                <th>Qty</th>
-                                <th className="no-sort" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td>
-                                  <div className="d-flex align-items-center">
+                          <thead>
+                            <tr>
+                              <th>Product</th>
+                              <th>SKU</th>
+                              <th>Category</th>
+                              <th>Qty</th>
+                              <th className="no-sort" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td>
+                                <div className="d-flex align-items-center">
                                     <Link to="#" className="avatar avatar-md me-2">
-                                      <img src={stockImg02} alt="product" />
-                                    </Link>
-                                    <Link to="#">Nike Jordan</Link>
-                                  </div>
-                                </td>
-                                <td>PT002</td>
-                                <td>Nike</td>
-                                <td>
-                                  <div className="product-quantity bg-gray-transparent border-0">
-                                    <span className="quantity-btn">
-                                      <i className="feather icon-minus-circle feather-search" />
-                                    </span>
-                                    <input
-                                      type="text"
-                                      className="quntity-input bg-transparent"
+                                    <img src={stockImg02} alt="product" />
+                                  </Link>
+                                  <Link to="#">Nike Jordan</Link>
+                                </div>
+                              </td>
+                              <td>PT002</td>
+                              <td>Nike</td>
+                              <td>
+                                <div className="product-quantity bg-gray-transparent border-0">
+                                  <span className="quantity-btn">
+                                    <i className="feather icon-minus-circle feather-search" />
+                                  </span>
+                                  <input
+                                    type="text"
+                                    className="quntity-input bg-transparent"
                                       defaultValue={2}
                                     />
-                                    <span className="quantity-btn">
-                                      +
-                                      <i className="feather icon-plus-circle plus-circle" />
-                                    </span>
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="d-flex align-items-center justify-content-between edit-delete-action">
+                                  <span className="quantity-btn">
+                                    +
+                                    <i className="feather icon-plus-circle plus-circle" />
+                                  </span>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="d-flex align-items-center justify-content-between edit-delete-action">
                                     <Link className="d-flex align-items-center border rounded p-2" to="#">
-                                      <i className="feather icon-trash-2" />
-                                    </Link>
-                                  </div>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
+                                    <i className="feather icon-trash-2" />
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
+                </div>
                 )}
               </div>
               <div className="modal-footer">

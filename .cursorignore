@@ -1,3 +1,7 @@
+﻿# Project layout (retailpos26/reactjs):
+# - Frontend (Vite/React): this directory (repo root).
+# - Backend (Laravel/API): ./backend  →  C:\wamp64\www\retailpos26\reactjs\backend
+#
 backend/vendor/
 backend/node_modules/
 backend/storage/
