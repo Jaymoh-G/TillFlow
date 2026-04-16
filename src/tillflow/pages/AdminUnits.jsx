@@ -71,7 +71,7 @@ export default function AdminUnits() {
     } catch (e) {
       setUnits([]);
       if (e instanceof TillFlowApiError) {
-        setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+        setListError(e.status === 403 ? `${e.message} (needs catalog masters permission)` : e.message);
       } else {
         setListError('Failed to load units');
       }

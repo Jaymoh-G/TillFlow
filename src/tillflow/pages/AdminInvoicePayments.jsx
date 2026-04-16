@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
 import Modal from "react-bootstrap/Modal";
 import CommonFooter from "../../components/footer/commonFooter";
+import TableTopHead from "../../components/table-top-head";
 import PrimeDataTable from "../../components/data-table";
 import { TillFlowApiError } from "../api/errors";
 import {
@@ -13,6 +14,7 @@ import {
   updateInvoicePaymentRequest
 } from "../api/invoicePayments";
 import { useAuth } from "../auth/AuthContext";
+import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 
 function formatKes(n) {
   const x = Number(n);
@@ -163,6 +165,39 @@ export default function AdminInvoicePayments() {
     return payments.filter((p) => String(p.customer_name ?? "").trim() === customerFilter);
   }, [payments, customerFilter]);
 
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((p) => ({
+      Receipt: String(p.receipt_ref ?? ""),
+      Paid: formatPaidAt(p.paid_at),
+      Invoice: String(p.invoice_ref ?? ""),
+      Customer: String(p.customer_name ?? ""),
+      Amount: formatKes(p.amount),
+      Method: paymentMethodLabel(p.payment_method),
+      "Txn ID": String(p.transaction_id ?? ""),
+      Notes: String(p.notes ?? "")
+    }));
+    await downloadRowsExcel(records, "Invoice payments", "invoice-payments");
+  }, [filtered]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((p) => [
+      String(p.receipt_ref ?? ""),
+      formatPaidAt(p.paid_at),
+      String(p.invoice_ref ?? ""),
+      String(p.customer_name ?? ""),
+      formatKes(p.amount),
+      paymentMethodLabel(p.payment_method),
+      String(p.transaction_id ?? ""),
+      String(p.notes ?? "")
+    ]);
+    await downloadRowsPdf(
+      "Invoice payments",
+      ["Receipt", "Paid", "Invoice", "Customer", "Amount", "Method", "Txn ID", "Notes"],
+      body,
+      "invoice-payments"
+    );
+  }, [filtered]);
+
   const deletePayment = useCallback(
     async (row) => {
       if (!token || !row?.invoice_id || !row?.id) {
@@ -271,10 +306,16 @@ export default function AdminInvoicePayments() {
               <h4>Invoice payments</h4>
               <h6 className="mb-0">Receipts recorded against invoices — search, filter by date, or edit.</h6>
             </div>
-            <div className="d-flex align-items-center gap-2">
-              <button type="button" className="btn btn-light border" title="Refresh" onClick={() => void load()}>
-                <i className="feather icon-refresh-cw" />
-              </button>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <TableTopHead
+                onRefresh={() => void load()}
+                onExportPdf={
+                  loading || filtered.length === 0 ? undefined : () => void handleExportPdf()
+                }
+                onExportExcel={
+                  loading || filtered.length === 0 ? undefined : () => void handleExportExcel()
+                }
+              />
               <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
                 Invoices

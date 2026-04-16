@@ -1,3 +1,4 @@
+import { resolveInvoiceLogoUrl } from "../../constants/defaultBrandLogo";
 import { getCompanySettingsSnapshot, resolveQuotationFooterFromSnapshot } from "../../utils/companySettingsStorage";
 import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
 import { formatInvoiceMoneyKes, formatIsoToDisplay } from "./invoiceViewHelpers";
@@ -65,7 +66,7 @@ export function buildCreditNoteViewDocumentData(noteRow) {
   const company = getCompanySettingsSnapshot();
   const invoiceSettings = getInvoiceSettingsSnapshot();
   const footer = resolveQuotationFooterFromSnapshot(company);
-  const logo = String(invoiceSettings.invoiceLogoDataUrl ?? "").trim();
+  const logo = resolveInvoiceLogoUrl(invoiceSettings.invoiceLogoDataUrl);
 
   const lineRows = (Array.isArray(noteRow?.items) ? noteRow.items : []).map((item, idx) => {
     const qty = Number(item.qty ?? item.quantity ?? 0);

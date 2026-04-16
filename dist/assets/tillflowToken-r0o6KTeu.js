@@ -1,0 +1,1 @@
+const t="tillflow_sanctum_token";function o(){try{if(typeof localStorage<"u"){const e=localStorage.getItem(t);if(e)return e}if(typeof sessionStorage<"u")return sessionStorage.getItem(t)}catch{return null}return null}export{o as r};

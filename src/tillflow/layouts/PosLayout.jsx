@@ -11,6 +11,7 @@ import {
   logoWhitePng,
   logOut
 } from "../../utils/imagepath";
+import { resolveMediaUrl } from "../utils/resolveMediaUrl";
 
 function formatClock(d) {
   return d.toLocaleTimeString("en-GB", { hour12: false });
@@ -32,6 +33,7 @@ export default function PosLayout() {
   const smallLogoSrc = companyLogos.icon || companyLogos.logo || logoSmallPng;
 
   const displayName = user?.name?.trim() || user?.email?.trim() || "User";
+  const profileAvatarSrc = resolveMediaUrl(user?.avatar_url) ?? avator1;
   const roleLabel =
     typeof user?.role === "string" && user.role.trim()
       ? user.role.trim()
@@ -84,6 +86,11 @@ export default function PosLayout() {
     window.dispatchEvent(new CustomEvent("tillflow:open-latest-receipt"));
   }, []);
 
+  const openAddCustomer = useCallback((e) => {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("tillflow:open-add-customer"));
+  }, []);
+
   return (
     <div className="main-wrapper pos-three tf-pos-shell">
       <div className="header pos-header">
@@ -99,7 +106,7 @@ export default function PosLayout() {
           </Link>
           <div className="d-none d-md-flex align-items-center ms-2">
             <span className="fw-semibold text-dark">
-              Welcome, {displayName} | {formatDateLabel(now)}
+              Logged in, {displayName} | {formatDateLabel(now)}
             </span>
           </div>
         </div>
@@ -114,16 +121,25 @@ export default function PosLayout() {
 
         <ul className="nav user-menu">
           <li className="nav-item time-nav">
-            <span className="bg-teal text-white d-inline-flex align-items-center">
-              <img src={clockIcon} alt="img" className="me-2" />
-              {formatClock(now)}
+            <span className="d-inline-flex align-items-center text-dark fw-semibold">
+              <img src={clockIcon} alt="" className="me-2" aria-hidden />
+              <time dateTime={now.toISOString()}>{formatClock(now)}</time>
             </span>
           </li>
           <li className="nav-item pos-nav">
             <Link to="/tillflow/admin" className="btn btn-purple btn-md d-inline-flex align-items-center">
-              <i className="ti ti-world me-1" />
+              <i className="ti ti-layout-dashboard me-1" aria-hidden />
               Dashboard
             </Link>
+          </li>
+          <li className="nav-item pos-nav">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-md d-inline-flex align-items-center"
+              onClick={openAddCustomer}>
+              <i className="ti ti-user-plus me-1" />
+              Add Customer
+            </button>
           </li>
 
           <li className="nav-item nav-item-box">
@@ -132,7 +148,12 @@ export default function PosLayout() {
             </Link>
           </li>
           <li className="nav-item nav-item-box">
-            <Link to="#" data-bs-toggle="modal" data-bs-target="#cash-register">
+            <Link
+              to="#"
+              title="Cash register summary"
+              aria-label="Cash register summary"
+              data-bs-toggle="modal"
+              data-bs-target="#cash-register">
               <i className="ti ti-cash" />
             </Link>
           </li>
@@ -142,7 +163,12 @@ export default function PosLayout() {
             </Link>
           </li>
           <li className="nav-item nav-item-box">
-            <Link to="#" data-bs-toggle="modal" data-bs-target="#today-sale">
+            <Link
+              to="#"
+              title="Today's sale summary"
+              aria-label="Today's sale summary"
+              data-bs-toggle="modal"
+              data-bs-target="#today-sale">
               <i className="ti ti-progress" />
             </Link>
           </li>
@@ -162,7 +188,7 @@ export default function PosLayout() {
               <div className="profilename">
                 <div className="profileset">
                   <span className="user-img">
-                    <img src={user?.avatar_url || avator1} alt="" />
+                    <img src={profileAvatarSrc} alt="" />
                     <span className="status online" />
                   </span>
                   <div className="profilesets">

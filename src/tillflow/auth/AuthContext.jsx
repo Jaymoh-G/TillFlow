@@ -115,6 +115,44 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const hasPermission = useCallback((slug) => {
+    const list = user?.permissions;
+    if (!Array.isArray(list)) {
+      return false;
+    }
+    if (list.includes(slug)) {
+      return true;
+    }
+    if (slug === 'users.manage' && list.includes('tenant.manage')) {
+      return true;
+    }
+    if (typeof slug === 'string' && slug.endsWith('.view')) {
+      const manage = `${slug.slice(0, -'.view'.length)}.manage`;
+      return list.includes(manage);
+    }
+    return false;
+  }, [user]);
+
+  const hasAnyPermission = useCallback(
+    (slugs) => {
+      if (!Array.isArray(slugs) || slugs.length === 0) {
+        return true;
+      }
+      return slugs.some((s) => hasPermission(s));
+    },
+    [hasPermission]
+  );
+
+  const hasEveryPermission = useCallback(
+    (slugs) => {
+      if (!Array.isArray(slugs) || slugs.length === 0) {
+        return true;
+      }
+      return slugs.every((s) => hasPermission(s));
+    },
+    [hasPermission]
+  );
+
   const value = useMemo(
     () => ({
       token,
@@ -123,9 +161,22 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refreshUser,
+      hasPermission,
+      hasAnyPermission,
+      hasEveryPermission,
       isAuthenticated: Boolean(token && user),
     }),
-    [token, user, bootstrapping, login, logout, refreshUser]
+    [
+      token,
+      user,
+      bootstrapping,
+      login,
+      logout,
+      refreshUser,
+      hasPermission,
+      hasAnyPermission,
+      hasEveryPermission,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

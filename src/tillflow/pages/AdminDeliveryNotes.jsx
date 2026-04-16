@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
 import CommonFooter from "../../components/footer/commonFooter";
+import TableTopHead from "../../components/table-top-head";
 import PrimeDataTable from "../../components/data-table";
 import { apiDeliveryNoteToRow, deliveryStatusBadgeClass } from "../../feature-module/sales/deliveryNoteViewHelpers";
 import { TillFlowApiError } from "../api/errors";
 import { listDeliveryNotesRequest } from "../api/deliveryNotes";
 import { useAuth } from "../auth/AuthContext";
+import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 
 export default function AdminDeliveryNotes() {
   const { token } = useAuth();
@@ -55,6 +57,36 @@ export default function AdminDeliveryNotes() {
   }, [load]);
 
   const statusOptions = useMemo(() => ["", "Draft", "Issued", "Cancelled"], []);
+
+  const handleExportExcel = useCallback(async () => {
+    const records = rows.map((row) => ({
+      "Delivery note": row.deliveryNoteNo,
+      Invoice: row.invoiceRef,
+      Customer: row.customerName,
+      "Issue date": row.issueDate,
+      Qty: row.totalQty,
+      Status: row.status
+    }));
+    await downloadRowsExcel(records, "Delivery notes", "delivery-notes");
+  }, [rows]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = rows.map((row) => [
+      String(row.deliveryNoteNo ?? ""),
+      String(row.invoiceRef ?? ""),
+      String(row.customerName ?? ""),
+      String(row.issueDate ?? ""),
+      String(row.totalQty ?? ""),
+      String(row.status ?? "")
+    ]);
+    await downloadRowsPdf(
+      "Delivery notes",
+      ["Delivery note", "Invoice", "Customer", "Issue date", "Qty", "Status"],
+      body,
+      "delivery-notes"
+    );
+  }, [rows]);
+
   const columns = useMemo(
     () => [
       {
@@ -153,10 +185,21 @@ export default function AdminDeliveryNotes() {
               <h4>Delivery notes</h4>
               <h6 className="mb-0">Documents generated from invoices to track dispatched quantities.</h6>
             </div>
-            <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
-              <i className="feather icon-arrow-left me-1" />
-              Invoices
-            </Link>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <TableTopHead
+                onRefresh={() => void load()}
+                onExportPdf={
+                  loading || rows.length === 0 ? undefined : () => void handleExportPdf()
+                }
+                onExportExcel={
+                  loading || rows.length === 0 ? undefined : () => void handleExportExcel()
+                }
+              />
+              <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+                <i className="feather icon-arrow-left me-1" />
+                Invoices
+              </Link>
+            </div>
           </div>
         </div>
 

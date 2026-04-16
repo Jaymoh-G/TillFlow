@@ -89,7 +89,7 @@ export default function AdminVariantAttributes() {
     } catch (e) {
       setAttributes([]);
       if (e instanceof TillFlowApiError) {
-        setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+        setListError(e.status === 403 ? `${e.message} (needs catalog masters permission)` : e.message);
       } else {
         setListError('Failed to load variant attributes');
       }

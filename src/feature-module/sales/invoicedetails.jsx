@@ -10,12 +10,13 @@ import {
   openHtmlDocumentPdfInBrowser,
   waitForPrintRootImages
 } from "../../utils/htmlDocumentPdfExport";
+import { resolveInvoiceLogoUrl } from "../../constants/defaultBrandLogo";
 import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
 import InvoicePrintDocument from "./InvoicePrintDocument";
 
 /** Demo payload — replace with API / route state when invoices are wired like quotations. */
 const invoiceSettings = getInvoiceSettingsSnapshot();
-const invoiceLogo = String(invoiceSettings.invoiceLogoDataUrl ?? "").trim();
+const invoiceLogo = resolveInvoiceLogoUrl(invoiceSettings.invoiceLogoDataUrl);
 const DEMO_INVOICE = {
   invoiceNo: "INV0001",
   issueDateDisplay: "Sep 24, 2024",

@@ -1,3 +1,4 @@
+import { resolveInvoiceLogoUrl } from "../../constants/defaultBrandLogo";
 import { paymentMethodLabel } from "../../tillflow/api/invoicePayments";
 import { getCompanySettingsSnapshot, resolveQuotationFooterFromSnapshot } from "../../utils/companySettingsStorage";
 import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
@@ -39,7 +40,7 @@ export function formatInvoiceMoneyKes(n) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(x);
-  return `Ksh${num}`;
+  return `Ksh ${num}`;
 }
 
 export function formatIsoToDisplay(iso) {
@@ -140,7 +141,7 @@ export function buildReceiptViewData(payment, invoiceRow) {
   const company = getCompanySettingsSnapshot();
   const footer = resolveQuotationFooterFromSnapshot(company);
   const invoiceSettings = getInvoiceSettingsSnapshot();
-  const logo = String(invoiceSettings.invoiceLogoDataUrl ?? "").trim();
+  const logo = resolveInvoiceLogoUrl(invoiceSettings.invoiceLogoDataUrl);
 
   const totalNum =
     invoiceRow != null
@@ -369,7 +370,7 @@ export function buildInvoiceViewDocumentData(row) {
   const company = getCompanySettingsSnapshot();
   const invoiceSettings = getInvoiceSettingsSnapshot();
   const footer = resolveQuotationFooterFromSnapshot(company);
-  const invoiceLogo = String(invoiceSettings.invoiceLogoDataUrl ?? "").trim();
+  const invoiceLogo = resolveInvoiceLogoUrl(invoiceSettings.invoiceLogoDataUrl);
   const issueDate = row?.issueAtIso || "";
   const dueDate = row?.dueAtIso || "";
   const items = Array.isArray(row?.items) ? row.items : [];

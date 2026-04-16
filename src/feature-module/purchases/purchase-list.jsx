@@ -290,7 +290,7 @@ const PurchasesList = () => {
       if (e instanceof TillFlowApiError) {
         setCatalogError(
           e.status === 403
-            ? `${e.message} (needs catalog.manage to load products)`
+            ? `${e.message} (needs catalog items permission to load products)`
             : e.message
         );
       } else {
@@ -519,7 +519,7 @@ const PurchasesList = () => {
       if (e instanceof TillFlowApiError) {
         setPurchasesError(
           e.status === 403
-            ? `${e.message} (needs catalog.manage to list purchases)`
+            ? `${e.message} (needs purchases permission)`
             : e.message
         );
       } else {

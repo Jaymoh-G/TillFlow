@@ -20,6 +20,7 @@ import {
 } from "../../tillflow/api/stockTransfers";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
+import { downloadRowsExcel, downloadRowsPdf } from "../../tillflow/utils/listExport";
 import { downloadImg } from "../../utils/imagepath";
 
 const DEMO_PRODUCTS = [
@@ -440,6 +441,37 @@ const StockTransfer = () => {
 
   const totalRecords = displayRows.length;
 
+  const handleExportExcel = useCallback(async () => {
+    const records = displayRows.map((row) => ({
+      "From store": storeLabel(stores, row.fromStoreId),
+      "To store": storeLabel(stores, row.toStoreId),
+      "No. of products": row.noOfProducts,
+      "Qty transferred": row.quantityTransferred,
+      Ref: String(row.refNumber ?? ""),
+      Date: String(row.date ?? ""),
+      Notes: String(row.notes ?? "")
+    }));
+    await downloadRowsExcel(records, "Stock transfers", "stock-transfers");
+  }, [displayRows, stores]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = displayRows.map((row) => [
+      storeLabel(stores, row.fromStoreId),
+      storeLabel(stores, row.toStoreId),
+      String(row.noOfProducts ?? ""),
+      String(row.quantityTransferred ?? ""),
+      String(row.refNumber ?? ""),
+      String(row.date ?? ""),
+      String(row.notes ?? "")
+    ]);
+    await downloadRowsPdf(
+      "Stock transfers",
+      ["From store", "To store", "No. of products", "Qty transferred", "Ref", "Date", "Notes"],
+      body,
+      "stock-transfers"
+    );
+  }, [displayRows, stores]);
+
   const resetAddForm = useCallback(() => {
     setAddFrom(null);
     setAddTo(null);
@@ -822,10 +854,10 @@ const StockTransfer = () => {
           <div className="page-header">
             <div className="add-item d-flex">
               <div className="page-title">
-                <h4>Stock transfer</h4>
+                <h4>Transfer Stock</h4>
                 <h6>
                   {inTillflowShell
-                    ? "Plan moves between inventory stores. Products on each transfer line are loaded from your Items catalog (same list as Manage stock)."
+                    ? "Plan moves between inventory stores. Products on each transfer line are loaded from your Items catalog (same list as Add Stock)."
                     : "Move stock between inventory stores — maintain stores under Stock link"}
                 </h6>
               </div>
@@ -849,6 +881,16 @@ const StockTransfer = () => {
                 setCurrentPage(1);
                 void loadCatalog();
               }}
+              onExportPdf={
+                transfersLoading || displayRows.length === 0
+                  ? undefined
+                  : () => void handleExportPdf()
+              }
+              onExportExcel={
+                transfersLoading || displayRows.length === 0
+                  ? undefined
+                  : () => void handleExportExcel()
+              }
             />
             <div className="page-btn d-flex flex-wrap gap-2">
               <button
@@ -872,10 +914,10 @@ const StockTransfer = () => {
               </Link>
               {inTillflowShell ? (
                 <Link
-                  to="/tillflow/admin/manage-stocks"
+                  to="/tillflow/admin/stock-adjustment"
                   className="btn btn-outline-secondary">
-                  <i className="feather icon-layers me-1" />
-                  Manage stock
+                  <i className="feather icon-trending-up me-1" />
+                  Adjust Stock
                 </Link>
               ) : null}
             </div>

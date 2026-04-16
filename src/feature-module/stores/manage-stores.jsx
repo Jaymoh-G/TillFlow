@@ -86,6 +86,10 @@ export default function ManageStores() {
         status: s.status ?? null,
         email: s.email ?? null,
         location: s.location ?? null,
+        totalQty:
+          s.total_qty != null && s.total_qty !== ""
+            ? Number(s.total_qty)
+            : 0,
         createdAt: s.created_at ?? null,
         updatedAt: s.updated_at ?? null
       }));
@@ -125,6 +129,7 @@ export default function ManageStores() {
     const records = displayRows.map((s) => ({
       "Store name": String(s.name ?? ""),
       Code: String(s.code ?? ""),
+      "Total Qty": s.totalQty != null ? String(s.totalQty) : "0",
       Location: String(s.location ?? ""),
       Status: String(s.status ?? ""),
       Phone: String(s.phone ?? ""),
@@ -138,6 +143,7 @@ export default function ManageStores() {
     const body = displayRows.map((s) => [
       String(s.name ?? ""),
       String(s.code ?? ""),
+      s.totalQty != null ? String(s.totalQty) : "0",
       String(s.location ?? ""),
       String(s.status ?? ""),
       String(s.phone ?? ""),
@@ -146,7 +152,16 @@ export default function ManageStores() {
     ]);
     await downloadRowsPdf(
       "Stores",
-      ["Store name", "Code", "Location", "Status", "Phone", "Email", "Updated"],
+      [
+        "Store name",
+        "Code",
+        "Total Qty",
+        "Location",
+        "Status",
+        "Phone",
+        "Email",
+        "Updated"
+      ],
       body,
       "stores"
     );
@@ -281,6 +296,19 @@ export default function ManageStores() {
         )
       },
       {
+        header: "Total Qty",
+        field: "totalQty",
+        key: "totalQty",
+        className: "text-end",
+        headerClassName: "text-end",
+        sortField: "totalQty",
+        body: (row) => (
+          <span className="text-end d-block">
+            {row.totalQty != null ? Number(row.totalQty).toLocaleString() : "—"}
+          </span>
+        )
+      },
+      {
         header: "Location",
         field: "location",
         key: "location",
@@ -379,14 +407,14 @@ export default function ManageStores() {
                 }
                 className="btn btn-outline-secondary">
                 <i className="feather icon-corner-up-right me-1" />
-                Stock transfer
+                Transfer Stock
               </Link>
               {inTillflowShell ? (
                 <Link
-                  to="/tillflow/admin/manage-stocks"
+                  to="/tillflow/admin/stock-adjustment"
                   className="btn btn-outline-secondary">
-                  <i className="feather icon-layers me-1" />
-                  Manage stock
+                  <i className="feather icon-trending-up me-1" />
+                  Adjust Stock
                 </Link>
               ) : null}
             </div>

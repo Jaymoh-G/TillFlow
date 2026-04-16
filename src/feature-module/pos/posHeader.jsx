@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Tooltip } from 'antd';
 import { Settings, User } from 'react-feather';
+import { DEFAULT_BRAND_LOGO_URL } from '../../constants/defaultBrandLogo';
 import { all_routes } from '../../routes/all_routes';
 
 const PosHeader = () => {
@@ -17,13 +18,13 @@ const PosHeader = () => {
         {/* Logo */}
         <div className="header-left active">
           <Link to={all_routes.newdashboard} className="logo logo-normal">
-            <img src="src/assets/img/logo.png" alt="Img" />
+            <img src={DEFAULT_BRAND_LOGO_URL} alt="Img" />
           </Link>
           <Link to={all_routes.newdashboard} className="logo logo-white">
-            <img src="src/assets/img/logo-white.png" alt="Img" />
+            <img src={DEFAULT_BRAND_LOGO_URL} alt="Img" />
           </Link>
           <Link to={all_routes.newdashboard} className="logo-small">
-            <img src="src/assets/img/logo-small.png" alt="Img" />
+            <img src={DEFAULT_BRAND_LOGO_URL} alt="Img" />
           </Link>
         </div>
         {/* /Logo */}

@@ -82,7 +82,7 @@ export default function AdminWarranties() {
       setWarranties(data.warranties ?? []);
     } catch (e) {
       setWarranties([]);
-      if (e instanceof TillFlowApiError) setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+      if (e instanceof TillFlowApiError) setListError(e.status === 403 ? `${e.message} (needs catalog masters permission)` : e.message);
       else setListError('Failed to load warranties');
     } finally {
       setLoading(false);

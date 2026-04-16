@@ -73,6 +73,25 @@ function parseVariantPrice(s) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/**
+ * Create/update endpoints may return `{ product }` or the product object at the top of `data`.
+ * @param {unknown} data
+ * @returns {object | null}
+ */
+function extractProductFromApiData(data) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  const d = /** @type {Record<string, unknown>} */ (data);
+  if (d.product && typeof d.product === 'object') {
+    return /** @type {object} */ (d.product);
+  }
+  if (d.id != null) {
+    return /** @type {object} */ (d);
+  }
+  return null;
+}
+
 function SelectField({ label, required, value, onChange, options, disabled = false }) {
   return (
     <div className="mb-3">
@@ -245,7 +264,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setStoreOptions([]);
           if (e instanceof TillFlowApiError) {
-            setStoresLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setStoresLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setStoresLoadError('Could not load stores');
           }
@@ -318,7 +337,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setCategoryOptions([]);
           if (e instanceof TillFlowApiError) {
-            setCategoriesLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setCategoriesLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setCategoriesLoadError('Could not load categories');
           }
@@ -355,7 +374,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setBrandOptions([]);
           if (e instanceof TillFlowApiError) {
-            setBrandsLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setBrandsLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setBrandsLoadError('Could not load brands');
           }
@@ -392,7 +411,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setUnitOptions([]);
           if (e instanceof TillFlowApiError) {
-            setUnitsLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setUnitsLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setUnitsLoadError('Could not load units');
           }
@@ -429,7 +448,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setWarrantyOptions([]);
           if (e instanceof TillFlowApiError) {
-            setWarrantiesLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setWarrantiesLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setWarrantiesLoadError('Could not load warranties');
           }
@@ -466,7 +485,7 @@ export default function AdminAddItem() {
         if (!cancelled) {
           setVariantAttributes([]);
           if (e instanceof TillFlowApiError) {
-            setVariantAttributesLoadError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+            setVariantAttributesLoadError(e.status === 403 ? `${e.message} (needs catalog permission)` : e.message);
           } else {
             setVariantAttributesLoadError('Could not load variant attributes');
           }
@@ -688,6 +707,12 @@ export default function AdminAddItem() {
     setFormError('');
     setValidationPopup('');
     setFieldErrors(null);
+    if (!String(itemName).trim()) {
+      const msg = 'Item name is required.';
+      setFormError(msg);
+      setValidationPopup(msg);
+      return;
+    }
     if (!store) {
       const msg = "Store is required. Please select a store.";
       setFormError(msg);
@@ -724,8 +749,10 @@ export default function AdminAddItem() {
     setSaving(true);
     const apiSku = barcode.trim() || sku.trim() || null;
     try {
+      const nameTrimmed = String(itemName).trim();
+      const slugForApi = String(slug ?? '').trim() || slugifyText(nameTrimmed);
       const body = {
-        name: itemName,
+        name: nameTrimmed,
         sku: apiSku,
         store_id: store ? Number(store) : null,
         category_id: category ? Number(category) : null,
@@ -733,6 +760,9 @@ export default function AdminAddItem() {
         unit_id: unit ? Number(unit) : null,
         warranty_id: warrantyEnabled && warranty ? Number(warranty) : null,
       };
+      if (slugForApi) {
+        body.slug = slugForApi;
+      }
       const bp = parseVariantPrice(buyingPrice);
       const sp = parseVariantPrice(sellingPrice);
       if (bp != null) {
@@ -787,10 +817,17 @@ export default function AdminAddItem() {
       let savedProduct;
       if (isEditMode) {
         const data = await updateProductRequest(token, productId, body);
-        savedProduct = data.product;
+        savedProduct = extractProductFromApiData(data);
       } else {
         const data = await createProductRequest(token, body);
-        savedProduct = data.product;
+        savedProduct = extractProductFromApiData(data);
+      }
+
+      if (!savedProduct?.id) {
+        setFormError(
+          'Could not confirm the item was saved — the API response did not include a product id. Check the network tab for POST /products, or Laravel logs.'
+        );
+        return;
       }
 
       if (itemType === 'variable' && savedProduct?.variants?.length) {
@@ -1172,7 +1209,10 @@ export default function AdminAddItem() {
                                 <span className="text-danger ms-1">*</span>
                               </label>
                               <input
-                                type="text"
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
                                 className="form-control"
                                 value={quantity}
                                 onChange={(e) => setQuantity(e.target.value)}
@@ -1183,11 +1223,13 @@ export default function AdminAddItem() {
                             <div className="mb-3">
                               <label className="form-label">Buying price</label>
                               <input
-                                type="text"
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
                                 className="form-control"
                                 value={buyingPrice}
                                 onChange={(e) => setBuyingPrice(e.target.value)}
-                                inputMode="decimal"
                                 placeholder="Cost"
                               />
                             </div>
@@ -1196,11 +1238,13 @@ export default function AdminAddItem() {
                             <div className="mb-3">
                               <label className="form-label">Selling price</label>
                               <input
-                                type="text"
+                                type="number"
+                                min={0}
+                                step="any"
+                                inputMode="decimal"
                                 className="form-control"
                                 value={sellingPrice}
                                 onChange={(e) => setSellingPrice(e.target.value)}
-                                inputMode="decimal"
                                 placeholder="Retail"
                               />
                             </div>
@@ -1245,7 +1289,10 @@ export default function AdminAddItem() {
                                 <span className="text-danger ms-1">*</span>
                               </label>
                               <input
-                                type="text"
+                                type="number"
+                                min={0}
+                                step={1}
+                                inputMode="numeric"
                                 className="form-control"
                                 value={quantityAlert}
                                 onChange={(e) => setQuantityAlert(e.target.value)}
@@ -1440,9 +1487,11 @@ export default function AdminAddItem() {
                                         </td>
                                         <td>
                                           <input
-                                            type="text"
-                                            className="form-control form-control-sm"
+                                            type="number"
+                                            min={0}
+                                            step={1}
                                             inputMode="numeric"
+                                            className="form-control form-control-sm"
                                             value={fields.qty}
                                             onChange={(e) =>
                                               setVariantLineFields((prev) => {
@@ -1455,9 +1504,11 @@ export default function AdminAddItem() {
                                         </td>
                                         <td>
                                           <input
-                                            type="text"
-                                            className="form-control form-control-sm"
+                                            type="number"
+                                            min={0}
+                                            step="any"
                                             inputMode="decimal"
+                                            className="form-control form-control-sm"
                                             value={fields.buyingPrice}
                                             onChange={(e) =>
                                               setVariantLineFields((prev) => {
@@ -1470,9 +1521,11 @@ export default function AdminAddItem() {
                                         </td>
                                         <td>
                                           <input
-                                            type="text"
-                                            className="form-control form-control-sm"
+                                            type="number"
+                                            min={0}
+                                            step="any"
                                             inputMode="decimal"
+                                            className="form-control form-control-sm"
                                             value={fields.sellingPrice}
                                             onChange={(e) =>
                                               setVariantLineFields((prev) => {

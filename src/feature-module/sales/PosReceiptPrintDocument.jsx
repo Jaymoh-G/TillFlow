@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { resolveInvoiceLogoUrl } from "../../constants/defaultBrandLogo";
 import { getCompanySettingsSnapshot } from "../../utils/companySettingsStorage";
 import { getInvoiceSettingsSnapshot } from "../../utils/appSettingsStorage";
 import { barcodeImg3 } from "../../utils/imagepath";
@@ -52,7 +53,7 @@ export default forwardRef(function PosReceiptPrintDocument({ order }, ref) {
   return (
     <div ref={ref} className="tf-pos-receipt bg-white quotation-view-print-root">
       <div className="icon-head text-center">
-        {logoSrc ? <img src={logoSrc} width={110} height={34} alt="Receipt Logo" /> : null}
+        <img src={logoSrc} width={110} height={34} alt="Receipt Logo" />
       </div>
       <div className="text-center info">
         <h6>{company.companyName || "Your business"}</h6>

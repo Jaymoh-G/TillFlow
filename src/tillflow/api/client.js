@@ -1,6 +1,13 @@
 import { TILLFLOW_API_BASE_URL } from '../config';
 import { TillFlowApiError } from './errors';
 
+function messageForFailedRequest(status, fallback) {
+  if (status === 403) {
+    return 'You do not have permission for this action.';
+  }
+  return fallback;
+}
+
 /**
  * @param {string} path Path under API v1, e.g. `/health`.
  * @param {object} [options]
@@ -45,7 +52,7 @@ export async function tillflowFetch(path, options = {}) {
   // database-driven even while endpoints are being migrated.
   if (isEnvelope) {
     if (!json.success || res.ok === false) {
-      const message = json.message || 'Request failed';
+      const message = messageForFailedRequest(res.status, json.message || 'Request failed');
       throw new TillFlowApiError(message, res.status, json.data ?? null);
     }
     return json.data;
@@ -53,7 +60,7 @@ export async function tillflowFetch(path, options = {}) {
 
   if (res.ok === false) {
     throw new TillFlowApiError(
-      (json && json.message) || res.statusText || 'Request failed',
+      messageForFailedRequest(res.status, (json && json.message) || res.statusText || 'Request failed'),
       res.status,
       json
     );
@@ -108,7 +115,7 @@ export async function tillflowUpload(path, options = {}) {
 
   if (isEnvelope) {
     if (!json.success || res.ok === false) {
-      const message = json.message || 'Request failed';
+      const message = messageForFailedRequest(res.status, json.message || 'Request failed');
       throw new TillFlowApiError(message, res.status, json.data ?? null);
     }
     return json.data;
@@ -116,7 +123,7 @@ export async function tillflowUpload(path, options = {}) {
 
   if (res.ok === false) {
     throw new TillFlowApiError(
-      (json && json.message) || res.statusText || 'Request failed',
+      messageForFailedRequest(res.status, (json && json.message) || res.statusText || 'Request failed'),
       res.status,
       json
     );

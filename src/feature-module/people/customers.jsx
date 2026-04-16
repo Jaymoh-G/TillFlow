@@ -171,7 +171,7 @@ const Customers = () => {
       setCustomers([]);
       if (e instanceof TillFlowApiError) {
         setListError(
-          e.status === 403 ? `${e.message} (needs sales.manage)` : e.message
+          e.status === 403 ? `${e.message} (needs customers permission)` : e.message
         );
       } else {
         setListError("Failed to load customers.");

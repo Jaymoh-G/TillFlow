@@ -149,9 +149,6 @@ const Pos4 = () => {
                         placeholder="Search Product" />
                       
                     </div>
-                    <Link to="#" className="btn btn-sm btn-primary">
-                      View All Categories
-                    </Link>
                   </div>
                 </div>
                 <Slider

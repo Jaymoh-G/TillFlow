@@ -98,7 +98,7 @@ export default function AdminBrands() {
     } catch (e) {
       setBrands([]);
       if (e instanceof TillFlowApiError) {
-        setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+        setListError(e.status === 403 ? `${e.message} (needs catalog masters permission)` : e.message);
       } else {
         setListError('Failed to load brands');
       }

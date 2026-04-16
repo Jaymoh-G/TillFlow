@@ -404,18 +404,18 @@ const TwoColumnSidebar = () => {
                       <span>Stock</span>
                     </li>
                     <li>
-                      <Link to={route.managestock}>
-                        <span>Manage Stock</span>
+                      <Link to={route.managestores}>
+                        <span>Stores</span>
                       </Link>
                     </li>
                     <li>
                       <Link to={route.stockadjustment}>
-                        <span>Stock Adjustment</span>
+                        <span>Adjust Stock</span>
                       </Link>
                     </li>
                     <li>
                       <Link to={route.stocktransfer}>
-                        <span>Stock Transfer</span>
+                        <span>Transfer Stock</span>
                       </Link>
                     </li>
                   </ul>
@@ -591,11 +591,6 @@ const TwoColumnSidebar = () => {
                     <li>
                       <Link to={route.suppliers}>
                         <span>Suppliers</span>
-                      </Link>
-                    </li>
-                    <li>
-                      <Link to={route.storelist}>
-                        <span>Store managers</span>
                       </Link>
                     </li>
                     <li>

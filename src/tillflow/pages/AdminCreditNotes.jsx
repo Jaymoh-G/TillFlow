@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
 import PrimeDataTable from "../../components/data-table";
+import TableTopHead from "../../components/table-top-head";
 import CommonFooter from "../../components/footer/commonFooter";
 import { apiCreditNoteToRow, creditStatusBadgeClass } from "../../feature-module/sales/creditNoteViewHelpers";
 import { TillFlowApiError } from "../api/errors";
 import { listCreditNotesRequest } from "../api/creditNotes";
 import { useAuth } from "../auth/AuthContext";
+import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 
 export default function AdminCreditNotes() {
   const { token } = useAuth();
@@ -51,6 +53,37 @@ export default function AdminCreditNotes() {
   }, [load]);
 
   const statusOptions = useMemo(() => ["", "Draft", "Issued", "Cancelled"], []);
+
+  const handleExportExcel = useCallback(async () => {
+    const records = rows.map((row) => ({
+      "Credit note": row.creditNoteNo,
+      Invoice: row.invoiceRef,
+      Customer: row.customerName,
+      "Issue date": row.issueDate,
+      Qty: row.totalQty,
+      Amount: row.totalAmountDisplay,
+      Status: row.status
+    }));
+    await downloadRowsExcel(records, "Credit notes", "credit-notes");
+  }, [rows]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = rows.map((row) => [
+      String(row.creditNoteNo ?? ""),
+      String(row.invoiceRef ?? ""),
+      String(row.customerName ?? ""),
+      String(row.issueDate ?? ""),
+      String(row.totalQty ?? ""),
+      String(row.totalAmountDisplay ?? ""),
+      String(row.status ?? "")
+    ]);
+    await downloadRowsPdf(
+      "Credit notes",
+      ["Credit note", "Invoice", "Customer", "Issue date", "Qty", "Amount", "Status"],
+      body,
+      "credit-notes"
+    );
+  }, [rows]);
 
   const columns = useMemo(
     () => [
@@ -158,10 +191,21 @@ export default function AdminCreditNotes() {
               <h4>Credit notes</h4>
               <h6 className="mb-0">Documents generated from invoices to record credited quantities and amounts.</h6>
             </div>
-            <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
-              <i className="feather icon-arrow-left me-1" />
-              Invoices
-            </Link>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <TableTopHead
+                onRefresh={() => void load()}
+                onExportPdf={
+                  loading || rows.length === 0 ? undefined : () => void handleExportPdf()
+                }
+                onExportExcel={
+                  loading || rows.length === 0 ? undefined : () => void handleExportExcel()
+                }
+              />
+              <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+                <i className="feather icon-arrow-left me-1" />
+                Invoices
+              </Link>
+            </div>
           </div>
         </div>
 

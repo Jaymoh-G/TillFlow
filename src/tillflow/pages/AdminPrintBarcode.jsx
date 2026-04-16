@@ -44,7 +44,7 @@ export default function AdminPrintBarcode() {
     } catch (e) {
       setProducts([]);
       if (e instanceof TillFlowApiError) {
-        setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+        setListError(e.status === 403 ? `${e.message} (needs catalog items permission)` : e.message);
       } else {
         setListError('Failed to load products');
       }

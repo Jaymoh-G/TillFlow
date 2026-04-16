@@ -2,7 +2,6 @@
 import { lazy } from "react";
 import { Navigate, Route } from "react-router-dom";
 import { Units } from "../feature-module/inventory/units";
-import StoreList from "../feature-module/people/store-list";
 import Warehouse from "../feature-module/people/warehouse";
 import { all_routes } from "./all_routes";
 
@@ -135,7 +134,6 @@ const BankSetting = lazy(
 );
 const Customers = lazy(() => import("../feature-module/people/customers"));
 const Suppliers = lazy(() => import("../feature-module/people/suppliers"));
-const Managestock = lazy(() => import("../feature-module/stock/manage-stock"));
 const StockAdjustment = lazy(
   () => import("../feature-module/stock/stock-adjustment")
 );
@@ -851,17 +849,10 @@ export const authRoutes = [
   route: Route
 },
 {
-  id: 86,
-  path: routes.storelist,
-  name: "storelist",
-  element: <StoreList />,
-  route: Route
-},
-{
   id: 87,
   path: routes.managestock,
   name: "managestock",
-  element: <Managestock />,
+  element: <Navigate to={routes.stockadjustment} replace />,
   route: Route
 },
 {

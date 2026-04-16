@@ -7,6 +7,18 @@ export function loginRequest(payload) {
   });
 }
 
+/** @param {{ email: string }} body */
+export function forgotPasswordRequest(body) {
+  return tillflowFetch('/auth/forgot-password', { method: 'POST', body });
+}
+
+/**
+ * @param {{ email: string, token: string, password: string, password_confirmation: string }} body
+ */
+export function resetPasswordRequest(body) {
+  return tillflowFetch('/auth/reset-password', { method: 'POST', body });
+}
+
 export function meRequest(token) {
   return tillflowFetch('/auth/me', { token });
 }

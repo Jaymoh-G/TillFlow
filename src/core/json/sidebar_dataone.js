@@ -346,13 +346,6 @@ export const SidebarData1 = [
         subRoutes: [],
       },
       {
-        tittle: 'Manage Stock',
-        hasSubRoute: false,
-        showSubRoute: false,
-        route: '/manage-stocks',
-        subRoutes: [],
-      },
-      {
         tittle: 'Category',
         hasSubRoute: false,
         showSubRoute: false,
@@ -411,40 +404,42 @@ export const SidebarData1 = [
     ],
   },
   {
+    tittle: 'Stock',
+    hasSubRoute: true,
+    icon: 'stack-3',
+    showSubRoute: false,
+    activeRoute: 'stock',
+    subRoutes: [
+      {
+        tittle: 'Stores',
+        hasSubRoute: false,
+        showSubRoute: false,
+        route: '/manage-stores',
+        subRoutes: [],
+      },
+      {
+        tittle: 'Adjust Stock',
+        hasSubRoute: false,
+        showSubRoute: false,
+        route: '/stock-adjustment',
+        subRoutes: [],
+      },
+      {
+        tittle: 'Transfer Stock',
+        hasSubRoute: false,
+        showSubRoute: false,
+        route: '/stock-transfer',
+        subRoutes: [],
+      },
+    ],
+  },
+  {
     tittle: 'Sales & Purchase',
     hasSubRoute: true,
     icon: 'layout-grid',
     showSubRoute: false,
     activeRoute: 'users',
     subRoutes: [
-      {
-        tittle: 'Stock',
-        hasSubRoute: true,
-        showSubRoute: false,
-        subRoutes: [
-          {
-            tittle: 'Manage Stock',
-            hasSubRoute: false,
-            showSubRoute: false,
-            route: '/manage-stocks',
-            subRoutes: [],
-          },
-          {
-            tittle: 'Stock Adjustment',
-            hasSubRoute: false,
-            showSubRoute: false,
-            route: '/stock-adjustment',
-            subRoutes: [],
-          },
-          {
-            tittle: 'Stock Transfer',
-            hasSubRoute: false,
-            showSubRoute: false,
-            route: '/stock-transfer',
-            subRoutes: [],
-          },
-        ],
-      },
       {
         tittle: 'Sales',
         hasSubRoute: true,
@@ -2109,13 +2104,6 @@ export const SidebarData1 = [
             hasSubRoute: false,
             showSubRoute: false,
             route: '/suppliers',
-            subRoutes: [],
-          },
-          {
-            tittle: 'Store managers',
-            hasSubRoute: false,
-            showSubRoute: false,
-            route: '/store-list',
             subRoutes: [],
           },
           {

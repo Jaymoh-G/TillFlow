@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Modal from "react-bootstrap/Modal";
-import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
 import PosModals from "../../core/modals/pos-modal/posModalstjsx";
-import { card, cashIcon, deposit, points } from "../../utils/imagepath";
-import { TillFlowApiError } from "../api/errors";
-import { listSalesCatalogProductsRequest } from "../api/products";
-import { createCustomerRequest, listCustomersRequest } from "../api/customers";
-import { createPosOrderRequest, listPosOrdersRequest, showPosOrderRequest } from "../api/posOrders";
-import { listStoresRequest } from "../api/stores";
-import { useAuth } from "../auth/AuthContext";
+import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
 import {
-  waitForPrintRootImages
+    waitForPrintRootImages
 } from "../../utils/htmlDocumentPdfExport";
+import { card, cashIcon, deposit, points } from "../../utils/imagepath";
+import { createCustomerRequest, listCustomersRequest } from "../api/customers";
+import { TillFlowApiError } from "../api/errors";
+import { createPosOrderRequest, listPosOrdersRequest, showPosOrderRequest } from "../api/posOrders";
+import { listSalesCatalogProductsRequest } from "../api/products";
+import { listSalesStoresRequest } from "../api/stores";
+import { useAuth } from "../auth/AuthContext";
 import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
+import { resolveMediaUrl } from "../utils/resolveMediaUrl";
+
+function productImageUrl(p) {
+  return resolveMediaUrl(p?.image_url ?? p?.image ?? p?.thumbnail_url ?? p?.thumb_url);
+}
 
 function formatKes(n) {
   const x = Number(n);
@@ -25,6 +29,17 @@ function formatKes(n) {
     maximumFractionDigits: 2
   }).format(x);
   return `Ksh${num}`;
+}
+
+function formatAmountPlain(n) {
+  const x = Number(n);
+  if (Number.isNaN(x)) {
+    return "—";
+  }
+  return new Intl.NumberFormat("en-KE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(x);
 }
 
 function parseMoneyish(raw) {
@@ -63,7 +78,11 @@ function qtyAtStore(p, storeId) {
     const n = Number(p?.qty);
     return Number.isFinite(n) ? n : null;
   }
-  const rows = Array.isArray(p?.store_stocks) ? p.store_stocks : [];
+  const rows = Array.isArray(p?.product_quantities)
+    ? p.product_quantities
+    : Array.isArray(p?.store_stocks)
+      ? p.store_stocks
+      : [];
   if (!rows.length) {
     const n = Number(p?.qty);
     return Number.isFinite(n) ? n : null;
@@ -128,7 +147,11 @@ function applySaleDeductionToProducts(products, soldItems, storeId) {
     const current = qtyAtStore(p, storeId);
     if (current == null) return p;
     const next = Math.max(0, round2(current - sold));
-    const rows = Array.isArray(p.store_stocks) ? p.store_stocks.map((r) => ({ ...r })) : [];
+    const rows = Array.isArray(p.product_quantities)
+      ? p.product_quantities.map((r) => ({ ...r }))
+      : Array.isArray(p.store_stocks)
+        ? p.store_stocks.map((r) => ({ ...r }))
+        : [];
     const idx = rows.findIndex((r) => Number(r.store_id) === Number(storeId));
     if (idx >= 0) {
       rows[idx] = { ...rows[idx], qty: next };
@@ -149,6 +172,19 @@ function normalizeCustomerLabel(c) {
   return name || phone || "Customer";
 }
 
+async function fetchPosCatalogData(token) {
+  const [prodData, custData, storeData] = await Promise.all([
+    listSalesCatalogProductsRequest(token),
+    listCustomersRequest(token),
+    listSalesStoresRequest(token)
+  ]);
+  return {
+    products: Array.isArray(prodData?.products) ? prodData.products : [],
+    customers: Array.isArray(custData?.customers) ? custData.customers : [],
+    stores: Array.isArray(storeData?.stores) ? storeData.stores : []
+  };
+}
+
 export default function PosRegister() {
   const { token, user } = useAuth();
   const receiptRootRef = useRef(null);
@@ -157,6 +193,7 @@ export default function PosRegister() {
   const lastReceiptKey = "tillflow_pos_last_receipt_v1";
 
   const [loading, setLoading] = useState(true);
+  const [catalogRefreshing, setCatalogRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -175,6 +212,8 @@ export default function PosRegister() {
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
 
   const [cart, setCart] = useState(() => /** @type {Array<{key:string, product_id:number|null, sku:string|null, product_name:string, unit_price:number, quantity:number, tax_percent:number}>} */ ([]));
+  const cartScrollRef = useRef(null);
+  const prevCartVolumeRef = useRef({ lines: 0, units: 0 });
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -189,7 +228,6 @@ export default function PosRegister() {
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [discountDraft, setDiscountDraft] = useState("");
   const [emptyHoldNoticeOpen, setEmptyHoldNoticeOpen] = useState(false);
-  const [lastOrderNo, setLastOrderNo] = useState("");
   const [lastOrder, setLastOrder] = useState(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
@@ -257,9 +295,7 @@ export default function PosRegister() {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === "object") {
-        const orderNo = String(parsed?.order_no ?? "").trim();
         setLastOrder(parsed);
-        setLastOrderNo(orderNo);
       }
     } catch {
       /* ignore invalid local receipt snapshot */
@@ -288,15 +324,11 @@ export default function PosRegister() {
       setLoading(true);
       setLoadError("");
       try {
-        const [prodData, custData, storeData] = await Promise.all([
-          listSalesCatalogProductsRequest(token),
-          listCustomersRequest(token),
-          listStoresRequest(token)
-        ]);
+        const data = await fetchPosCatalogData(token);
         if (cancelled) return;
-        setProducts(Array.isArray(prodData?.products) ? prodData.products : []);
-        setCustomers(Array.isArray(custData?.customers) ? custData.customers : []);
-        setStores(Array.isArray(storeData?.stores) ? storeData.stores : []);
+        setProducts(data.products);
+        setCustomers(data.customers);
+        setStores(data.stores);
       } catch (e) {
         if (cancelled) return;
         if (e instanceof TillFlowApiError) {
@@ -312,6 +344,37 @@ export default function PosRegister() {
       cancelled = true;
     };
   }, [token]);
+
+  const refreshCatalog = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+    setCatalogRefreshing(true);
+    setLoadError("");
+    try {
+      const data = await fetchPosCatalogData(token);
+      setProducts(data.products);
+      setCustomers(data.customers);
+      setStores(data.stores);
+    } catch (e) {
+      if (e instanceof TillFlowApiError) {
+        setLoadError(e.message);
+      } else {
+        setLoadError("Could not refresh catalog.");
+      }
+    } finally {
+      setCatalogRefreshing(false);
+    }
+  }, [token]);
+
+  const displayStores = useMemo(() => {
+    const raw = user?.allowed_store_ids;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return stores;
+    }
+    const allowed = new Set(raw.map((x) => Number(x)));
+    return stores.filter((s) => allowed.has(Number(s.id)));
+  }, [stores, user]);
 
   useEffect(() => {
     if (!displayStores.length) {
@@ -363,15 +426,6 @@ export default function PosRegister() {
     return customers.find((c) => String(c.id) === id) ?? null;
   }, [customers, selectedCustomerId]);
 
-  const displayStores = useMemo(() => {
-    const raw = user?.allowed_store_ids;
-    if (!Array.isArray(raw) || raw.length === 0) {
-      return stores;
-    }
-    const allowed = new Set(raw.map((x) => Number(x)));
-    return stores.filter((s) => allowed.has(Number(s.id)));
-  }, [stores, user]);
-
   const totals = useMemo(() => {
     let subtotal = 0;
     let tax = 0;
@@ -391,6 +445,26 @@ export default function PosRegister() {
     const change = round2(Math.max(0, tend - total));
     return { subtotal, tax, discount: disc, total, tendered: tend, change };
   }, [cart, tendered, discountAmount]);
+
+  const hasTaxLine = totals.tax > 0;
+  const hasDiscLine = totals.discount > 0;
+  const showAmtLine = hasTaxLine || hasDiscLine;
+
+  useLayoutEffect(() => {
+    const lines = cart.length;
+    const units = cart.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0);
+    const prev = prevCartVolumeRef.current;
+    const grew = lines > prev.lines || units > prev.units;
+    prevCartVolumeRef.current = { lines, units };
+    if (!grew || lines === 0) {
+      return;
+    }
+    const el = cartScrollRef.current;
+    if (!el) {
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
+  }, [cart]);
 
   const addToCart = useCallback((p) => {
     const sid = selectedStoreId;
@@ -717,8 +791,6 @@ export default function PosRegister() {
       } catch {
         setProducts((prev) => applySaleDeductionToProducts(prev, body.items, selectedStoreId));
       }
-      const orderNo = String(data?.pos_order?.order_no ?? "").trim();
-      setLastOrderNo(orderNo);
       setLastOrder(data?.pos_order ?? null);
       try {
         if (data?.pos_order) {
@@ -743,7 +815,6 @@ export default function PosRegister() {
         setProducts((prev) => applySaleDeductionToProducts(prev, body.items, selectedStoreId));
         setCheckoutOpen(false);
         clearCart();
-        setLastOrderNo("");
         window.alert("Offline: sale queued for sync.");
         return;
       }
@@ -826,9 +897,7 @@ export default function PosRegister() {
         window.alert("No recent receipt found yet.");
         return;
       }
-      const orderNo = String(order?.order_no ?? "").trim();
       setLastOrder(order);
-      setLastOrderNo(orderNo);
       try {
         localStorage.setItem(lastReceiptKey, JSON.stringify(order));
       } catch {
@@ -853,6 +922,16 @@ export default function PosRegister() {
       window.removeEventListener("tillflow:open-latest-receipt", onOpenLatestReceipt);
     };
   }, [lastOrder, openLatestReceiptFromApi]);
+
+  useEffect(() => {
+    const onOpenAddCustomer = () => {
+      openAddCustomerModal();
+    };
+    window.addEventListener("tillflow:open-add-customer", onOpenAddCustomer);
+    return () => {
+      window.removeEventListener("tillflow:open-add-customer", onOpenAddCustomer);
+    };
+  }, [openAddCustomerModal]);
 
   const closeReceipt = useCallback(() => {
     setReceiptOpen(false);
@@ -893,8 +972,19 @@ export default function PosRegister() {
                     onChange={(e) => setSearchQ(e.target.value)}
                   />
                 </div>
-                <button type="button" className="btn btn-sm btn-primary" onClick={() => setActiveCategory("All")}>
-                  View All Categories
+                <button
+                  type="button"
+                  className={`btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center ${catalogRefreshing ? "gap-1" : "px-2 py-1"}`}
+                  disabled={!token || catalogRefreshing}
+                  title="Reload products and customers from the server (e.g. after adding items in admin)"
+                  aria-busy={catalogRefreshing}
+                  aria-label={catalogRefreshing ? "Refreshing catalog" : "Refresh catalog"}
+                  onClick={() => void refreshCatalog()}>
+                  <i
+                    className={`ti ti-refresh ${catalogRefreshing ? "tf-pos-refresh-spin" : ""}`}
+                    aria-hidden
+                  />
+                  {catalogRefreshing ? <span className="small">Refreshing…</span> : null}
                 </button>
               </div>
               <div className="tabs owl-carousel pos-category3 d-flex gap-2 flex-nowrap overflow-auto ms-auto justify-content-end">
@@ -922,18 +1012,40 @@ export default function PosRegister() {
                       const sku = normalizeSku(p);
                       const qtyAvail = normalizeQtyAvailable(p, selectedStoreId);
                       const disabled = qtyAvail != null && qtyAvail <= 0;
+                      const imgUrl = productImageUrl(p);
                       return (
-                        <div key={p.id ?? `${name}-${sku ?? ""}`} className="col-sm-6 col-md-4 col-xl-3">
-                          <div className={`product-info card default-cover ${disabled ? "disabled opacity-50" : ""}`}>
-                            <button type="button" className="btn w-100 text-start p-2 border-0 bg-transparent" disabled={disabled} onClick={() => addToCart(p)}>
-                              <div className="product-content">
-                                <h6 className="fs-14 fw-bold mb-1 text-truncate">{name}</h6>
-                                <p className="text-muted small mb-1">{sku ? `SKU: ${sku}` : "—"}</p>
-                                <div className="d-flex align-items-center justify-content-between">
-                                  <h6 className="text-teal fs-14 fw-bold mb-0">{formatKes(price)}</h6>
-                                  <p className={qtyAvail != null && qtyAvail <= 0 ? "text-danger mb-0" : "text-pink mb-0"}>
-                                    {qtyAvail == null ? "" : `${qtyAvail} Pcs`}
-                                  </p>
+                        <div key={p.id ?? `${name}-${sku ?? ""}`} className="col-sm-6 col-md-4 col-xl-3 min-w-0">
+                          <div className={`product-info card tf-pos-product-card ${disabled ? "disabled opacity-50" : ""}`}>
+                            <button
+                              type="button"
+                              className="btn w-100 text-start p-0 border-0 bg-transparent d-flex align-items-center tf-pos-product-card__btn"
+                              disabled={disabled}
+                              onClick={() => addToCart(p)}>
+                              {imgUrl ? (
+                                <div className="tf-pos-product-thumb flex-shrink-0">
+                                  <img
+                                    src={imgUrl}
+                                    alt=""
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      const wrap = e.currentTarget.closest(".tf-pos-product-thumb");
+                                      if (wrap) {
+                                        wrap.style.display = "none";
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              ) : null}
+                              <div className="product-content tf-pos-product-card__text flex-grow-1 min-w-0">
+                                <div className="tf-pos-product-card__title">{name}</div>
+                                <div className="tf-pos-product-card__meta">
+                                  <span className="tf-pos-product-card__price">{formatKes(price)}</span>
+                                  {qtyAvail == null ? null : (
+                                    <span
+                                      className={`tf-pos-product-card__qty ${qtyAvail <= 0 ? "text-danger" : "text-pink"}`}>
+                                      {qtyAvail} Pcs
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </button>
@@ -951,15 +1063,8 @@ export default function PosRegister() {
         <div className="col-md-12 col-lg-5 col-xl-4 ps-0 theiaStickySidebar d-flex flex-column" style={{ minHeight: 0 }}>
           <aside className="product-order-list d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
             <div className="customer-info">
-              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                <div className="d-flex align-items-center">
-                  <h4 className="mb-0">New Order</h4>
-                  <span className="badge badge-purple badge-xs fs-10 fw-medium ms-2">{lastOrderNo || "#NEW"}</span>
-                </div>
-                <button type="button" className="btn btn-sm btn-outline-primary shadow-primary" onClick={openAddCustomerModal}>
-                  Add Customer
-                </button>
-                {holdCount ? (
+              {holdCount ? (
+                <div className="d-flex align-items-center justify-content-end flex-wrap gap-2 mb-2">
                   <button
                     type="button"
                     className="btn btn-sm btn-danger"
@@ -969,63 +1074,106 @@ export default function PosRegister() {
                     }}>
                     Resume Hold ({holdCount})
                   </button>
-                ) : null}
+                </div>
+              ) : null}
+              <div className="row g-2">
+                <div className="col-12 col-sm-6">
+                  <select
+                    className="form-select"
+                    aria-label="Customer"
+                    value={selectedCustomerId}
+                    onChange={(e) => setSelectedCustomerId(e.target.value)}>
+                    <option value="">Customer</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {normalizeCustomerLabel(c)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-12 col-sm-6">
+                  <select
+                    className="form-select"
+                    aria-label="Store"
+                    value={selectedStoreId === "" ? "" : String(selectedStoreId)}
+                    onChange={(e) => setSelectedStoreId(e.target.value === "" ? "" : Number(e.target.value))}>
+                    <option value="" disabled={displayStores.length > 0}>
+                      {displayStores.length ? "Store" : "No stores"}
+                    </option>
+                    {displayStores.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.name || `Store ${s.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <select className="form-select" value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)}>
-                <option value="">Walk-in customer</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {normalizeCustomerLabel(c)}
-                  </option>
-                ))}
-              </select>
-              <label className="form-label small text-muted mt-2 mb-1">Store (inventory)</label>
-              <select
-                className="form-select"
-                value={selectedStoreId === "" ? "" : String(selectedStoreId)}
-                onChange={(e) => setSelectedStoreId(e.target.value === "" ? "" : Number(e.target.value))}>
-                <option value="" disabled={displayStores.length > 0}>
-                  {displayStores.length ? "Select store" : "No stores"}
-                </option>
-                {displayStores.map((s) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {s.name || `Store ${s.id}`}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            <div className="product-added block-section flex-grow-1" style={{ minHeight: 0 }}>
-              <div className="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div className="product-added block-section flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+              <div className="d-flex align-items-center justify-content-between gap-3 mb-2 flex-shrink-0">
                 <h5 className="d-flex align-items-center mb-0">Order Details</h5>
-                <div className="badge bg-light text-gray-9 fs-12 fw-semibold py-2 border rounded">
+                <div className="badge bg-light text-gray-9 fs-12 fw-semibold py-1 border rounded">
                   Items : <span className="text-teal">{cart.length}</span>
                 </div>
               </div>
-              <div className="product-wrap" style={{ maxHeight: "100%", overflow: "auto" }}>
-                {!cart.length ? <div className="empty-cart"><p className="fw-bold mb-0">No Products Selected</p></div> : null}
-                {!!cart.length ? (
-                  <div className="product-list border-0 p-0">
-                    <div className="table-responsive">
-                      <table className="table table-borderless">
+              <div className="product-wrap tf-pos-cart-table-panel d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+                <div className="product-list border-0 p-0 tf-pos-cart-table-clip flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+                  <div
+                    ref={cartScrollRef}
+                    className="tf-pos-order-table-scroll flex-grow-1"
+                    style={{ minHeight: 0 }}>
+                    {!cart.length ? (
+                      <div className="empty-cart tf-pos-empty-cart d-flex align-items-center justify-content-center py-5">
+                        <p className="fw-bold mb-0">No Products Selected</p>
+                      </div>
+                    ) : (
+                      <div className="tf-pos-order-table-measure">
+                      <table className="table table-borderless tf-pos-order-table mb-0">
                         <thead>
                           <tr>
                             <th className="bg-transparent fw-bold">Product</th>
-                            <th className="bg-transparent fw-bold">QTY</th>
-                            <th className="bg-transparent fw-bold">Price</th>
-                            <th className="bg-transparent fw-bold text-end" />
+                            <th className="bg-transparent fw-bold text-end">Price</th>
+                            <th className="bg-transparent fw-bold text-end">QTY</th>
+                            <th className="bg-transparent fw-bold text-end tf-pos-order-actions-col" aria-label="Remove" />
                           </tr>
                         </thead>
                         <tbody>
-                          {cart.map((l) => (
+                          {cart.map((l) => {
+                            const lineProduct =
+                              l.product_id != null
+                                ? products.find((x) => x?.id != null && Number(x.id) === Number(l.product_id))
+                                : null;
+                            const lineImg = lineProduct ? productImageUrl(lineProduct) : null;
+                            return (
                             <tr key={l.key}>
-                              <td>
-                                <div className="d-flex align-items-center mb-1">
-                                  <h6 className="fs-16 fw-medium mb-0">{l.product_name}</h6>
+                              <td className="align-top tf-pos-order-product-cell">
+                                <div className="d-flex align-items-start tf-pos-order-line-row">
+                                  {lineImg ? (
+                                    <div className="tf-pos-cart-line-thumb flex-shrink-0">
+                                      <img
+                                        src={lineImg}
+                                        alt=""
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          const wrap = e.currentTarget.closest(".tf-pos-cart-line-thumb");
+                                          if (wrap) {
+                                            wrap.style.display = "none";
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  ) : null}
+                                  <div className="min-w-0 flex-grow-1">
+                                    <div className="tf-pos-order-product-name">{l.product_name}</div>
+                                    <div className="tf-pos-order-line-total">{formatKes(round2(l.quantity * l.unit_price))}</div>
+                                  </div>
                                 </div>
-                                Price : {formatKes(l.unit_price)}
                               </td>
-                              <td>
+                              <td className="text-end align-middle tf-pos-order-unit-col">
+                                {formatKes(l.unit_price)}
+                              </td>
+                              <td className="tf-pos-qty-cell align-middle text-end">
                                 <div className="qty-item m-0">
                                   <button
                                     type="button"
@@ -1041,6 +1189,10 @@ export default function PosRegister() {
                                     className="form-control form-control-sm tf-pos-qty-input"
                                     value={String(l.quantity)}
                                     onChange={(e) => setLineQty(l.key, Number(e.target.value))}
+                                    size={Math.max(3, String(l.quantity).length + 1)}
+                                    style={{
+                                      width: `${Math.max(5, String(l.quantity).length + 3)}ch`
+                                    }}
                                   />
                                   <button
                                     type="button"
@@ -1051,19 +1203,20 @@ export default function PosRegister() {
                                   </button>
                                 </div>
                               </td>
-                              <td className="fw-bold">{formatKes(round2(l.quantity * l.unit_price))}</td>
-                              <td className="text-end">
+                              <td className="text-end align-middle tf-pos-order-delete-cell">
                                 <button type="button" className="btn-icon delete-icon border-0 bg-transparent" onClick={() => removeLine(l.key)}>
                                   <i className="ti ti-trash" />
                                 </button>
                               </td>
                             </tr>
-                          ))}
+                          );
+                          })}
                         </tbody>
                       </table>
-                    </div>
+                      </div>
+                    )}
                   </div>
-                ) : null}
+                </div>
               </div>
             </div>
 
@@ -1073,51 +1226,54 @@ export default function PosRegister() {
                   <table className="table table-borderless">
                     <tbody>
                       <tr>
-                        <td className="text-nowrap">Amounts</td>
-                        <td className="text-end text-nowrap">
-                          Subtotal: {formatKes(totals.subtotal)} | Tax: {formatKes(totals.tax)} |{" "}
-                          <span className="text-danger">Discount: -{formatKes(totals.discount)}</span>
+                        <td colSpan={2} className="text-end text-nowrap tf-pos-order-totals-line">
+                          {showAmtLine ? <>Amt: {formatAmountPlain(totals.subtotal)}</> : null}
+                          {showAmtLine && hasTaxLine ? " | " : null}
+                          {hasTaxLine ? <>Tax: {formatAmountPlain(totals.tax)}</> : null}
+                          {hasTaxLine && hasDiscLine ? " | " : null}
+                          {!hasTaxLine && showAmtLine && hasDiscLine ? " | " : null}
+                          {hasDiscLine ? (
+                            <span className="text-danger">Disc: -{formatAmountPlain(totals.discount)}</span>
+                          ) : null}
+                          {showAmtLine || hasTaxLine || hasDiscLine ? " | " : null}
+                          Total: <span className="fw-bold">{formatKes(totals.total)}</span>
                         </td>
-                      </tr>
-                      <tr>
-                        <td>Grand Total</td>
-                        <td className="text-end">{formatKes(totals.total)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
-              <div className="row gx-2 row-cols-4">
+              <div className="row gx-1 row-cols-4 tf-pos-order-actions">
                 <div className="col">
-                  <button type="button" className="btn btn-teal d-flex align-items-center justify-content-center w-100 mb-2 border-0" onClick={openDiscountModal}>
-                    <i className="ti ti-percentage me-2" />
-                    Discount
+                  <button type="button" className="btn btn-sm btn-teal d-flex align-items-center justify-content-center w-100 mb-0 border-0 py-1 px-2" onClick={openDiscountModal}>
+                    <i className="ti ti-percentage me-1 fs-14" />
+                    Disc
                   </button>
                 </div>
                 <div className="col">
                   <button
                     type="button"
-                    className="btn btn-orange d-flex align-items-center justify-content-center w-100 mb-2 border-0"
+                    className="btn btn-sm btn-orange d-flex align-items-center justify-content-center w-100 mb-0 border-0 py-1 px-2"
                     onClick={openHoldModal}>
-                    <i className="ti ti-player-pause me-2" />
+                    <i className="ti ti-player-pause me-1 fs-14" />
                     Hold
                   </button>
                 </div>
                 <div className="col">
-                  <button type="button" className="btn btn-info d-flex align-items-center justify-content-center w-100 mb-2 border-0" onClick={clearCart}>
-                    <i className="ti ti-trash me-2" />
+                  <button type="button" className="btn btn-sm btn-info d-flex align-items-center justify-content-center w-100 mb-0 border-0 py-1 px-2" onClick={clearCart}>
+                    <i className="ti ti-trash me-1 fs-14" />
                     Clear
                   </button>
                 </div>
                 <div className="col">
                   {queueCount ? (
-                    <button type="button" className="btn btn-danger d-flex align-items-center justify-content-center w-100 mb-2 border-0" disabled={syncBusy || !isOnline} onClick={() => void syncQueued()}>
-                      <i className="ti ti-refresh-dot me-2" />
+                    <button type="button" className="btn btn-sm btn-danger d-flex align-items-center justify-content-center w-100 mb-0 border-0 py-1 px-2" disabled={syncBusy || !isOnline} onClick={() => void syncQueued()}>
+                      <i className="ti ti-refresh-dot me-1 fs-14" />
                       {syncBusy ? "Syncing..." : "Sync"}
                     </button>
                   ) : (
-                    <button type="button" className="btn btn-danger d-flex align-items-center justify-content-center w-100 mb-2 border-0" disabled>
-                      <i className="ti ti-refresh-dot me-2" />
+                    <button type="button" className="btn btn-sm btn-danger d-flex align-items-center justify-content-center w-100 mb-0 border-0 py-1 px-2" disabled>
+                      <i className="ti ti-refresh-dot me-1 fs-14" />
                       Sync
                     </button>
                   )}
@@ -1126,15 +1282,14 @@ export default function PosRegister() {
             </div>
 
             <div className="block-section payment-method">
-              <h5 className="mb-2">Select Payment</h5>
-              <div className="row align-items-center justify-content-center methods g-2 mb-3">
+              <div className="row align-items-center justify-content-center methods g-1 mb-1 tf-pos-payment-methods">
                 <div className="col-sm-6 col-md-4 col-xl d-flex">
                   <button
                     type="button"
                     className={`payment-item flex-fill border-0 ${payMethod === "cash" ? "active" : ""}`}
                     onClick={() => choosePaymentAndOpenCheckout("cash")}>
                     <img src={cashIcon} alt="Cash" />
-                    <p className="fw-medium">Cash</p>
+                    <p className="fw-medium mb-0">Cash</p>
                   </button>
                 </div>
                 <div className="col-sm-6 col-md-4 col-xl d-flex">
@@ -1143,7 +1298,7 @@ export default function PosRegister() {
                     className={`payment-item flex-fill border-0 ${payMethod === "mpesa" ? "active" : ""}`}
                     onClick={() => choosePaymentAndOpenCheckout("mpesa")}>
                     <img src={points} alt="M-Pesa" />
-                    <p className="fw-medium">M-Pesa</p>
+                    <p className="fw-medium mb-0">M-Pesa</p>
                   </button>
                 </div>
                 <div className="col-sm-6 col-md-4 col-xl d-flex">
@@ -1152,7 +1307,7 @@ export default function PosRegister() {
                     className={`payment-item flex-fill border-0 ${payMethod === "card" ? "active" : ""}`}
                     onClick={() => choosePaymentAndOpenCheckout("card")}>
                     <img src={card} alt="Card" />
-                    <p className="fw-medium">Card</p>
+                    <p className="fw-medium mb-0">Card</p>
                   </button>
                 </div>
                 <div className="col-sm-6 col-md-4 col-xl d-flex">
@@ -1160,14 +1315,18 @@ export default function PosRegister() {
                     type="button"
                     className={`payment-item flex-fill border-0 ${payMethod === "bank_transfer" ? "active" : ""}`}
                     onClick={() => choosePaymentAndOpenCheckout("bank_transfer")}>
-                    <img src={deposit} alt="Bank Transfer" />
-                    <p className="fw-medium">Bank Transfer</p>
+                    <img src={deposit} alt="Bank" />
+                    <p className="fw-medium mb-0">Bank</p>
                   </button>
                 </div>
               </div>
-              <div className="btn-block m-0">
-                <button type="button" className="btn btn-teal w-100 border-0" disabled={!cart.length} onClick={openCheckout}>
-                  Pay : {formatKes(totals.total)}
+              <div className="btn-block m-0 tf-pos-pay-wrap">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-teal w-100 border-0 tf-pos-pay-btn py-2"
+                  disabled={!cart.length}
+                  onClick={openCheckout}>
+                  Pay : <span className="fw-bold">{formatKes(totals.total)}</span>
                 </button>
               </div>
             </div>
@@ -1175,7 +1334,7 @@ export default function PosRegister() {
           </aside>
         </div>
       </div>
-      <PosModals />
+      <PosModals liveCashRegister={token ? { token, storeId: selectedStoreId } : null} />
       <Modal show={checkoutOpen} onHide={closeCheckout} centered backdrop={checkoutBusy ? "static" : true}>
         <Modal.Header closeButton={!checkoutBusy}>
           <Modal.Title>Checkout</Modal.Title>
@@ -1188,7 +1347,7 @@ export default function PosRegister() {
               <option value="cash">Cash</option>
               <option value="mpesa">M-Pesa</option>
               <option value="card">Card</option>
-              <option value="bank_transfer">Bank transfer</option>
+              <option value="bank_transfer">Bank</option>
               <option value="cheque">Cheque</option>
               <option value="other">Other</option>
             </select>
@@ -1221,7 +1380,7 @@ export default function PosRegister() {
           <div className="mt-3 p-2 border rounded bg-light-subtle">
             <div className="d-flex justify-content-between small">
               <span className="text-muted">Total</span>
-              <span className="fw-semibold">{formatKes(totals.total)}</span>
+              <span className="fw-bold">{formatKes(totals.total)}</span>
             </div>
             <div className="d-flex justify-content-between small">
               <span className="text-muted">Tendered</span>

@@ -178,7 +178,7 @@ const Suppliers = () => {
       setSuppliers([]);
       if (e instanceof TillFlowApiError) {
         setListError(
-          e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message
+          e.status === 403 ? `${e.message} (needs suppliers permission)` : e.message
         );
       } else {
         setListError("Failed to load suppliers.");

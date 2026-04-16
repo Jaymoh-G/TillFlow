@@ -174,6 +174,9 @@
   min-height: 100vh;
   min-height: 100dvh;
   align-items: stretch;
+  align-content: stretch;
+  width: 100%;
+  background: var(--tf-bg);
 }
 
 @media (max-width: 768px) {
@@ -192,6 +195,58 @@
   gap: 1.5rem;
   min-height: 0;
   align-self: stretch;
+  box-sizing: border-box;
+}
+
+@media (min-width: 769px) {
+  .tf-admin__sidebar {
+    padding: 0.75rem 0.85rem;
+    gap: 0.65rem;
+    justify-content: flex-start;
+    min-height: 100%;
+  }
+
+  /* More room for the scrollable nav list */
+  .tf-admin__sidebar .tf-brand__logo {
+    max-height: 2rem;
+  }
+
+  .tf-admin__sidebar .tf-brand--link {
+    gap: 0.25rem;
+  }
+
+  .tf-nav {
+    gap: 0.12rem;
+  }
+
+  .tf-nav .tf-nav-group {
+    gap: 0.15rem;
+  }
+
+  .tf-nav .tf-nav-group__body {
+    gap: 0.12rem;
+  }
+
+  .tf-nav a {
+    padding: 0.42rem 0.65rem;
+    font-size: 0.875rem;
+  }
+
+  .tf-nav-group__hdr {
+    margin: 0.5rem 0 0.08rem;
+    padding: 0.32rem 0.65rem;
+    font-size: 0.84rem;
+  }
+
+  /* First section under Dashboard: keep top margin tight */
+  .tf-nav > .tf-nav-group:first-of-type > .tf-nav-group__hdr {
+    margin-top: 0.18rem;
+  }
+
+  .tf-nav-group__label {
+    padding: 0.45rem 0.65rem 0.1rem;
+    margin-top: 0.15rem;
+  }
 }
 
 @media (max-width: 768px) {
@@ -318,6 +373,10 @@
   margin-right: -0.25rem;
 }
 
+.tf-admin__sidebar .tf-nav {
+  background: var(--tf-surface);
+}
+
 @media (max-width: 768px) {
   .tf-nav {
     flex: 0 1 auto;
@@ -422,7 +481,8 @@
   margin-top: auto;
 }
 
-.tf-admin__site-footer .footer {
+.tf-admin__site-footer .footer,
+.tf-admin__site-footer .footer.bg-white {
   background: var(--tf-surface-2) !important;
   color: var(--tf-muted) !important;
   border-color: var(--tf-border) !important;
@@ -433,9 +493,9 @@
 }
 
 .tillflow-root--light .tf-admin__site-footer .footer {
-  background: #fff !important;
-  color: inherit !important;
-  border-color: #dee2e6 !important;
+  background: var(--tf-surface-2) !important;
+  color: var(--tf-text) !important;
+  border-color: var(--tf-border) !important;
 }
 
 .tf-offline-wait {
@@ -552,6 +612,17 @@
   padding: 0 !important;
 }
 
+/* Retail dashboard embed: strip DreamsPOS `.content` padding + reduce double-padding with tf-admin__body */
+.tf-admin .tf-admin__body:has(> .page-wrapper.modern-dashboard-page) {
+  padding: 0.75rem 1rem;
+}
+
+.tf-admin .tf-admin__body > .page-wrapper.modern-dashboard-page > .content {
+  padding: 0 !important;
+  min-height: 0;
+  background: transparent;
+}
+
 /*
  * Settings embed: `.tf-admin__body` already pads the main column; DreamsPOS `.page-wrapper .content`
  * adds another 24px on all sides — that reads as a wide empty band between the TillFlow nav and the settings UI.
@@ -560,41 +631,6 @@
   padding: 0 !important;
   min-height: 0;
   background: transparent;
-}
-
-/* DreamsPOS pages embedded here use .page-wrapper with margin for the main-app sidebar; reset inside TillFlow. */
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  padding: 0 !important;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page > .content {
-  padding: 0 !important;
-  min-height: auto;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .page-header {
-  margin-bottom: 1rem;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .card {
-  border-radius: var(--tf-radius-md);
-  border-color: var(--tf-border);
-  box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .table-responsive {
-  width: 100%;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.manage-stock-page .p-datatable {
-  width: 100%;
 }
 
 /* Purchase list / order / returns — same embed treatment as stock pages */
@@ -1708,40 +1744,6 @@
   width: 100%;
 }
 
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  padding: 0 !important;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page > .content {
-  padding: 0 !important;
-  min-height: auto;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page .page-header {
-  margin-bottom: 1rem;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page .card {
-  border-radius: var(--tf-radius-md);
-  border-color: var(--tf-border);
-  box-shadow: none;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page .table-responsive {
-  width: 100%;
-}
-
-.tf-admin .tf-admin__body .page-wrapper.store-managers-page .p-datatable {
-  width: 100%;
-}
-
 .tf-page-title {
   font-family: 'Poppins', 'Nunito', sans-serif;
   font-size: 1.35rem;
@@ -1874,6 +1876,231 @@
   padding: 0 !important;
 }
 
+/* Thicker orange scrollbars inside POS shell (product grid, order list, categories, etc.) */
+.tf-pos-shell {
+  scrollbar-width: auto;
+  scrollbar-color: #fe9f43 rgba(254, 159, 67, 0.18);
+}
+
+.tillflow-root--light .tf-pos-shell {
+  scrollbar-color: #fe9f43 rgba(254, 159, 67, 0.15);
+}
+
+.tf-pos-shell *::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.tf-pos-shell *::-webkit-scrollbar-track {
+  background: rgba(254, 159, 67, 0.14);
+  border-radius: 10px;
+}
+
+.tf-pos-shell *::-webkit-scrollbar-thumb {
+  background: #fe9f43;
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.tf-pos-shell *::-webkit-scrollbar-thumb:hover {
+  background: #ea8e36;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.tillflow-root--light .tf-pos-shell *::-webkit-scrollbar-track {
+  background: rgba(254, 159, 67, 0.12);
+}
+
+.tillflow-root--light .tf-pos-shell *::-webkit-scrollbar-thumb {
+  background: #fe9f43;
+}
+
+.tillflow-root--light .tf-pos-shell *::-webkit-scrollbar-thumb:hover {
+  background: #ea8e36;
+}
+
+/* POS top bar: welcome/logo left; clock + Dashboard + actions grouped and right-aligned */
+.tf-pos-shell > .header.pos-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tf-pos-shell > .header.pos-header .header-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  float: none;
+}
+
+@media (min-width: 992px) {
+  .tf-pos-shell > .header.pos-header .nav.user-menu {
+    margin-left: auto;
+    float: none;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+  }
+}
+
+/* Order list: vertical scroll + horizontal when table is wider than column (flex min-width: 0 chain) */
+.tf-pos-shell .tf-pos-register .pos-wrapper > [class*="col-"] {
+  min-width: 0;
+}
+
+/*
+ * Cart table: one scroll container (.tf-pos-order-table-scroll) inside a flex-bounded panel so
+ * horizontal + vertical scrollbars stay on the visible order-details area (not below all rows).
+ * Do not use contain:paint — it can clip native scrollbars.
+ */
+.tf-pos-shell .tf-pos-register .product-order-list .product-wrap.tf-pos-cart-table-panel {
+  position: relative;
+  z-index: 0;
+  min-width: 0;
+  height: auto !important;
+  max-height: none !important;
+  /* Let the inner .tf-pos-order-table-scroll own both axes; hidden here can clip scrollbars in some flex layouts */
+  overflow: visible;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .product-wrap .product-list.tf-pos-cart-table-clip {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .tf-pos-order-table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  /* Must be narrower than intrinsic table width for overflow-x to appear */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Shrink-wraps table so width can exceed the scroll viewport (Bootstrap .table { width:100% } fights max-content alone) */
+.tf-pos-shell .tf-pos-register .product-order-list .tf-pos-order-table-scroll .tf-pos-order-table-measure {
+  display: inline-block;
+  min-width: 100%;
+  vertical-align: top;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .tf-pos-order-table-scroll .tf-pos-order-table {
+  width: max-content !important;
+  min-width: 100%;
+  max-width: none !important;
+  table-layout: auto !important;
+  margin-bottom: 0 !important;
+  --bs-table-bg: transparent;
+}
+
+/* Order details: zero cell gutters (overrides Bootstrap .table padding) */
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table > :not(caption) > * > * {
+  padding: 0 !important;
+  margin: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table thead th:first-child {
+  max-width: min(100%, 16.5rem);
+  width: 38%;
+  white-space: normal;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table td.tf-pos-order-product-cell {
+  min-width: 0;
+  max-width: min(100%, 16.5rem);
+  vertical-align: middle;
+  padding: 0 !important;
+  margin: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table .tf-pos-order-line-row {
+  gap: 0;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table .tf-pos-order-product-name {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table .tf-pos-order-line-total {
+  font-size: 0.875rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--tf-text, #111827);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  margin: 0;
+  padding: 0;
+}
+
+/* Product | unit price | QTY | delete — Price & QTY columns size to content */
+.tf-pos-shell .tf-pos-register .tf-pos-order-table thead th:nth-child(2) {
+  font-weight: 500;
+  color: var(--tf-muted, #6b7280);
+  white-space: nowrap;
+  width: auto;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table thead th:nth-child(3) {
+  white-space: nowrap;
+  width: auto;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table thead th:nth-child(4) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table td.tf-pos-order-unit-col {
+  white-space: nowrap;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--tf-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+  width: auto;
+  max-width: none;
+  padding: 0 !important;
+  margin: 0;
+  vertical-align: middle;
+  line-height: 1.15;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-order-table td.tf-pos-order-delete-cell {
+  padding: 0 !important;
+  margin: 0;
+  vertical-align: middle;
+  width: 1%;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .tf-pos-empty-cart {
+  min-height: 120px;
+}
+
 .tf-pos-shell .tf-pos-register .pos-wrapper {
   --bs-gutter-x: 0.9rem;
   --bs-gutter-y: 0.9rem;
@@ -1933,8 +2160,110 @@
 }
 
 .tf-pos-shell .tf-pos-register .pos-products .product-info.card {
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 8px;
+  padding: 0;
+}
+
+.tf-pos-shell .tf-pos-register .pos-products .product-info.card.tf-pos-product-card {
+  background: #fff;
+  border: 1px solid var(--tf-border, #e6eaed);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__btn {
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 5px 7px;
+  gap: 2px;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__text {
+  overflow: hidden;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__price {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0d9488;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-card__qty {
+  flex: 0 0 auto;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-thumb {
+  width: 58px;
+  height: 58px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-cart-line-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f3f4f6;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.tf-pos-shell .tf-pos-register .tf-pos-cart-line-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .tf-pos-shell .tf-pos-register .product-info .product-content .fs-14 {
@@ -1943,28 +2272,139 @@
 
 .tf-pos-shell .tf-pos-register .product-order-list {
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: visible;
+  min-width: 0;
 }
 
 .tf-pos-shell .tf-pos-register .product-order-list .customer-info {
-  padding: 16px;
+  padding: 16px 16px 8px;
 }
 
 .tf-pos-shell .tf-pos-register .product-order-list .product-added.block-section {
-  padding: 14px 16px;
+  position: relative;
+  z-index: 0;
+  padding: 6px 16px 8px;
+  min-width: 0;
+}
+
+/* Overrides _pos-design.scss — order table: zero padding, larger labels */
+.pos-three aside.product-order-list .product-added .product-wrap .product-list table thead th,
+.tf-pos-shell .tf-pos-register .product-order-list .product-added .table.tf-pos-order-table thead th {
+  padding: 0 !important;
+  vertical-align: bottom;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.pos-three aside.product-order-list .product-added .product-wrap .product-list table tbody td,
+.tf-pos-shell .tf-pos-register .product-order-list .product-added .table.tf-pos-order-table tbody td {
+  padding: 0 !important;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .product-added .table.tf-pos-order-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .product-added .table.tf-pos-order-table tbody tr:last-child td {
+  vertical-align: middle;
 }
 
 .tf-pos-shell .tf-pos-register .product-order-list .order-method {
-  padding: 12px 16px;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  padding: 8px 16px 2px;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .tf-pos-order-actions {
+  margin-bottom: 0;
+  --bs-gutter-y: 0;
+}
+
+/* Theme (.pos-three) uses margin-bottom: 20px on .order-total — pull totals + actions closer */
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .order-total {
+  margin-bottom: 0.35rem;
+  min-width: 0;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .order-total .table-responsive {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  min-width: 0;
+  scrollbar-gutter: stable;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .order-total .table {
+  width: max-content;
+  min-width: 100%;
+  margin-bottom: 0;
+  table-layout: auto;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .order-total table td.tf-pos-order-totals-line {
+  font-size: 0.8125rem;
+  padding-top: 0.35rem;
+  padding-bottom: 0.2rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .order-method .order-total table tr:last-child td.tf-pos-order-totals-line {
+  padding: 0.4rem 0.65rem 0.25rem;
 }
 
 .tf-pos-shell .tf-pos-register .product-order-list .payment-method {
-  padding: 12px 16px 14px;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  padding: 6px 16px 12px;
 }
 
-.tf-pos-shell .tf-pos-register .product-order-list .payment-method h5 {
-  font-size: 15px;
+/* Compact payment method tiles: icon + label in a row (TillFlow POS sidebar) */
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method .tf-pos-payment-methods .payment-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method .tf-pos-payment-methods .payment-item img {
+  display: block;
+  margin: 0;
+  flex-shrink: 0;
+  max-width: 26px;
+  max-height: 26px;
+  width: auto;
+  height: auto;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method .tf-pos-payment-methods .payment-item p {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.tf-pos-shell .tf-pos-register .product-order-list .payment-method .tf-pos-pay-wrap .tf-pos-pay-btn {
+  font-size: 0.875rem;
   font-weight: 600;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 .tf-pos-shell .tf-pos-register .product-order-list .card-footer {
@@ -2014,6 +2454,24 @@
   }
 }
 
+/* QTY column: keep stacking low so totals/payment (z-index 1) stay above any bleed from absolute +/- */
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  width: auto;
+  white-space: nowrap;
+  padding: 0 !important;
+  margin: 0;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item,
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .dec,
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .inc,
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .tf-pos-qty-input {
+  z-index: 0;
+}
+
 /* POS qty input: hide native number spinners to avoid overlap with +/- icons */
 .tf-pos-shell .tf-pos-register .tf-pos-qty-input[type="number"] {
   -moz-appearance: textfield;
@@ -2023,6 +2481,70 @@
 .tf-pos-shell .tf-pos-register .tf-pos-qty-input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Order details: compact +/- qty controls */
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 !important;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .tf-pos-qty-input {
+  width: auto;
+  min-width: 4ch;
+  max-width: 16ch;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0 0.82rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.1;
+  box-sizing: content-box;
+  field-sizing: content;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .dec,
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .inc {
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  padding: 0 !important;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .dec {
+  left: 0;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .inc {
+  right: 0;
+}
+
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .dec i,
+.tf-pos-shell .tf-pos-register .table.tf-pos-order-table td.tf-pos-qty-cell .qty-item .inc i {
+  font-size: 0.9rem;
+  line-height: 1;
+  font-weight: 700;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes tf-pos-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tf-pos-shell .tf-pos-refresh-spin {
+  display: inline-block;
+  animation: tf-pos-refresh-spin 0.75s linear infinite;
 }
 
 .tf-pos-shell .tf-pos-register .qty-item .dec,
@@ -2152,6 +2674,87 @@
   gap: 0.75rem;
 }
 
+/* DreamsPOS header “Add New” uses .link-item + .dropdown-xl (global SCSS); keep panel above TillFlow chrome */
+.tf-admin__add-new-dd.dropdown {
+  position: relative;
+  z-index: 1040;
+}
+
+/* Add New: #155EEF — override DreamsPOS / Bootstrap .btn-primary (often orange) */
+$tf-add-new-blue: #155eef;
+
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn.btn,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd .tf-admin__add-new-btn.btn-primary {
+  background-color: $tf-add-new-blue !important;
+  border-color: $tf-add-new-blue !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn:hover,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn:focus-visible,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn:active,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn.btn-primary:hover,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn.btn-primary:focus-visible,
+.tillflow-root .tf-admin__topbar .tf-admin__add-new-dd a.tf-admin__add-new-btn.btn-primary:active {
+  background-color: #1248d4 !important;
+  border-color: #1248d4 !important;
+  color: #fff !important;
+}
+
+.tf-admin__add-new-dd .dropdown-menu .link-item {
+  color: $tf-add-new-blue;
+}
+
+.tf-admin__add-new-dd .dropdown-menu .link-item p {
+  color: $tf-add-new-blue !important;
+}
+
+/* Icon glyph before hover: match blue labels */
+.tf-admin__add-new-dd .dropdown-menu .link-item .link-icon {
+  color: $tf-add-new-blue !important;
+}
+
+.tf-admin__add-new-dd .dropdown-menu .link-item:hover {
+  background: rgba(21, 94, 239, 0.12);
+  border-color: rgba(21, 94, 239, 0.28);
+  color: #000;
+}
+
+.tf-admin__add-new-dd .dropdown-menu .link-item:hover .link-icon {
+  background: $tf-add-new-blue;
+  border-color: $tf-add-new-blue;
+  color: #fff !important;
+}
+
+.tf-admin__add-new-dd .dropdown-menu .link-item:hover p {
+  color: #000 !important;
+}
+
+/* POS: solid orange, white label (TillFlow secondary) */
+.tf-admin__topbar-pos {
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff !important;
+  background: var(--tf-secondary) !important;
+  border: 1px solid var(--tf-secondary) !important;
+}
+
+.tf-admin__topbar-pos:visited {
+  color: #fff !important;
+}
+
+.tf-admin__topbar-pos:hover,
+.tf-admin__topbar-pos:focus-visible {
+  color: #fff !important;
+  background: var(--tf-btn-secondary-hover-bg) !important;
+  border-color: var(--tf-btn-secondary-hover-bg) !important;
+}
+
+.tf-admin__topbar-pos .tf-btn__icon {
+  color: inherit;
+}
+
 .tf-admin__user {
   font-size: 0.85rem;
   color: var(--tf-muted);
@@ -2236,6 +2839,23 @@ a.tf-admin__user-link:hover {
   background: rgba(240, 100, 100, 0.12);
   border: 1px solid rgba(240, 100, 100, 0.35);
   color: #f5a3a3;
+}
+
+.tf-alert--success {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+.tf-invite-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .tf-form {
@@ -2465,6 +3085,8 @@ a.tf-admin__user-link:hover {
 .tf-nav-group--settings .tf-nav-group__hdr {
   font-size: 0.78rem;
   font-weight: 500;
+  /* Nested accordions: do not use main-section 0.85rem top margin (too airy when stacked) */
+  margin: 0.3rem 0 0.06rem;
 }
 
 .tf-nav-group__hdr:hover {
@@ -2506,12 +3128,13 @@ a.tf-admin__user-link:hover {
   border-left: 2px solid var(--tf-accent-dim);
 }
 
-.tf-nav-settings-nested .tf-nav-group--settings:first-child .tf-nav-group__hdr {
-  margin-top: 0.2rem;
+/* First nested accordion after optional lead link block (e.g. “All reports”) */
+.tf-nav-settings-nested > .tf-nav-group__body + .tf-nav-group--settings .tf-nav-group__hdr {
+  margin-top: 0.22rem;
 }
 
 .tf-nav-group--settings + .tf-nav-group--settings .tf-nav-group__hdr {
-  margin-top: 0.45rem;
+  margin-top: 0.32rem;
 }
 
 .tf-nav-group--settings .tf-nav-group__body {
@@ -2526,13 +3149,6 @@ a.tf-admin__user-link:hover {
   color: var(--tf-muted);
   opacity: 0.45;
   cursor: default;
-}
-
-.tf-sidebar-footer-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
 }
 
 /* DreamsPOS-style delete dialog (react-bootstrap Modal, portaled under .tillflow-root) */
@@ -3265,4 +3881,614 @@ body.modal-open .p-autocomplete-panel {
   padding-top: 0.125rem;
   padding-bottom: 0.125rem;
   line-height: 1.15;
+}
+
+/* Themed report pages (invoice, POS sales, … — shared layout components) */
+.tf-standard-report {
+  margin-bottom: 2rem;
+}
+
+/* TillFlow reports module (shared shell) */
+.tf-report {
+  margin-bottom: 2rem;
+}
+
+.tf-report__filters {
+  margin-bottom: 1rem;
+}
+
+.tf-report__filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+}
+
+.tf-report__lab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--tf-muted);
+}
+
+.tf-report__presets {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.tf-report__actions {
+  margin-top: 1rem;
+}
+
+.tf-report-hub-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 52rem;
+}
+
+.tf-report-hub-list li {
+  margin-bottom: 0.5rem;
+}
+
+.tf-report-hub-list__link {
+  font-weight: 600;
+}
+
+/* Reports hub — widget grid ( /tillflow/admin/reports ) */
+.tf-report-hub__header {
+  margin-bottom: 1.5rem;
+}
+
+.tf-report-hub__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.tf-report-hub__section-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--tf-muted);
+}
+
+.tf-report-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.75rem;
+}
+
+.tf-report-hub-card {
+  text-decoration: none;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.75rem;
+  height: 100%;
+  min-height: 0;
+  padding: 1rem 1.15rem;
+}
+
+.tf-report-hub-card:hover .tf-report-hub-card__icon {
+  background: var(--tf-accent-hover-bg);
+}
+
+.tf-report-hub-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--tf-radius-md);
+  background: var(--tf-accent-dim);
+  color: var(--tf-accent-bright);
+}
+
+.tf-report-hub-card__icon .feather {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.tf-report-hub-card__text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.tf-report-hub-card .tf-card__title {
+  font-size: 0.98rem;
+  margin: 0 0 0.2rem;
+  line-height: 1.25;
+}
+
+.tf-report-hub-card .tf-card__desc {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.tf-report__zgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.tf-input.tf-input--narrow {
+  max-width: 6rem;
+}
+
+/* TillFlow admin — Roles & permissions (nested groups, no wide matrix) */
+.tf-admin-roles__section {
+  margin-bottom: 2rem;
+}
+
+.tf-admin-roles__section-title {
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.tf-admin-roles__section-title--inline {
+  margin-bottom: 0;
+}
+
+.tf-admin-roles__users-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.tf-admin-roles__users-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tf-user-roles-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+@media (min-width: 1200px) {
+  .tf-user-roles-columns {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tf-user-role-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tf-user-role-column__head {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-user-role-column__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tf-user-role-column__slug {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.tf-user-role-column__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tf-user-role-column__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--tf-radius-sm);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--tf-border);
+}
+
+.tf-user-role-column__item--bare {
+  background: transparent;
+  border: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.tf-user-role-column__item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.tf-user-role-column__name {
+  font-size: 0.88rem;
+  display: block;
+}
+
+.tf-user-role-column__email {
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+.tf-user-role-column__you {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--tf-muted);
+}
+
+.tf-user-role-column__remove {
+  flex-shrink: 0;
+  line-height: 1;
+  padding: 0.15rem 0.45rem;
+  min-width: 1.75rem;
+  font-size: 1.1rem;
+  border-radius: var(--tf-radius-sm);
+}
+
+.tf-user-role-column__add-label {
+  margin-top: 0.65rem;
+  display: block;
+}
+
+.tf-user-role-column__add-select {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.tf-user-role-column__empty-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+
+.tf-user-role-unassigned .tf-user-role-column__title {
+  margin-bottom: 0.5rem;
+}
+
+.tf-admin-roles__subsection-title {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Single column: cashier → manager → owner → admin (less nested scroll than a 4-up grid) */
+.tf-role-permission-matrix {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.tf-role-matrix-slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tf-role-matrix-slot__head {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-role-matrix-slot__missing {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.tf-role-matrix-slot__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: min(85vh, 60rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.35rem;
+}
+
+/* Stacked matrix: one panel per role — scroll the page, not a short inner column */
+.tf-role-permission-matrix .tf-role-matrix-slot__scroll {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.tf-role-permission-matrix .tf-perm-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+}
+
+.tf-role-permission-matrix .tf-perm-row__label {
+  min-width: min(14rem, 45%);
+  flex: 1 1 auto;
+  max-width: 100%;
+  line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.tf-role-permission-matrix .tf-perm-row__checks {
+  flex: 0 1 auto;
+  width: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.tf-admin-roles__role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tf-role-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-role-card__name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.tf-role-card__slug {
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+
+.tf-role-card__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.tf-perm-group {
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-sm);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Do not clip <details> bodies — overflow:hidden hid expanded permission rows */
+.tf-admin-roles .tf-perm-group {
+  overflow: visible;
+}
+
+.tf-perm-group__summary {
+  cursor: pointer;
+  padding: 0.5rem 0.65rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.tf-perm-group__summary::-webkit-details-marker {
+  display: none;
+}
+
+.tf-perm-group__summary::before {
+  content: '';
+  display: inline-block;
+  width: 0.35rem;
+  height: 0.35rem;
+  margin-right: 0.4rem;
+  border-right: 2px solid var(--tf-muted);
+  border-bottom: 2px solid var(--tf-muted);
+  transform: rotate(-45deg);
+  vertical-align: 0.1rem;
+  transition: transform 0.15s ease;
+}
+
+.tf-perm-group[open] > .tf-perm-group__summary::before {
+  transform: rotate(45deg);
+}
+
+.tf-perm-group__body {
+  padding: 0 0.65rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Row 1: fluid columns — stretch row height; smaller min = more tiles per row, less dead space */
+.tf-admin-roles .tf-perm-first-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: 0.4rem 0.55rem;
+  align-items: stretch;
+  margin-bottom: 0.4rem;
+}
+
+.tf-admin-roles .tf-perm-first-row .tf-perm-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Single-column inner layout for small Tenant/Users/Reports cards; Catalog keeps full inner grid */
+.tf-admin-roles .tf-perm-first-row .tf-perm-group:not([data-group-id="catalog"]) .tf-perm-group__body {
+  grid-template-columns: 1fr !important;
+}
+
+/* Remaining top-level groups: fluid multi-column grid */
+.tf-admin-roles .tf-perm-groups-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: 0.4rem 0.55rem;
+  align-items: stretch;
+}
+
+.tf-admin-roles .tf-perm-groups-grid .tf-perm-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Inner permission tiles: smaller min tracks + tight gap */
+.tf-admin-roles .tf-perm-group__body {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  grid-auto-flow: row;
+  gap: 0.35rem 0.45rem;
+  align-items: stretch;
+}
+
+.tf-admin-roles .tf-perm-group__body .tf-perm-row {
+  border-top: none;
+  margin: 0;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid var(--tf-border);
+  border-radius: var(--tf-radius-sm);
+  background: color-mix(in srgb, var(--tf-border) 14%, transparent);
+  /* Avoid huge gap between label and checkboxes when the tile is stretched wide */
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+}
+
+.tf-admin-roles .tf-perm-group__body .tf-perm-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tf-admin-roles .tf-perm-group__body .tf-perm-row__checks {
+  flex: 0 0 auto;
+}
+
+.tf-admin-roles .tf-perm-group__body .tf-perm-row:first-child {
+  padding-top: 0.45rem;
+}
+
+.tf-perm-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--tf-border);
+}
+
+.tf-perm-group__body .tf-perm-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.tf-perm-row__label {
+  font-size: 0.85rem;
+  color: var(--tf-text, inherit);
+  min-width: 7rem;
+  /* Do not flex-grow: 1 — it stretches the label box and leaves a wide empty band before the checkboxes */
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.tf-perm-row__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+
+.tf-perm-row__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--tf-muted);
+  margin: 0;
+  cursor: pointer;
+}
+
+.tf-perm-row__check input {
+  margin: 0;
+}
+
+.tf-user-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tf-user-role-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.tf-user-role-card__info {
+  flex: 0 1 12rem;
+  min-width: 10rem;
+}
+
+.tf-user-role-card__roles {
+  flex: 1 1 16rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.tf-user-role-card__role-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tf-user-role-card__role-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.tf-user-role-card__role-label input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.tf-user-role-card__save {
+  flex: 0 0 auto;
+  align-self: flex-start;
 }

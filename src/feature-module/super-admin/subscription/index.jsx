@@ -740,7 +740,7 @@ const Subscription = () => {
                 <div className="col-md-6">
                   <div className="mb-4">
                     <img
-                      src="assets/img/logo.svg"
+                      src="/branding/breezetech-logo.png"
                       className="img-fluid"
                       alt="logo" />
                     

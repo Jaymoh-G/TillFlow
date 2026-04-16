@@ -56,6 +56,11 @@ export default function TillFlowLogin() {
       <p className="tf-landing__subtitle">Use your TillFlow tenant account (Sanctum token).</p>
 
       <form className="tf-form" onSubmit={handleSubmit}>
+        {location.state?.inviteAccepted ? (
+          <div className="tf-alert tf-alert--success" style={{ marginBottom: '0.75rem' }}>
+            Your password is set. Sign in with your email and new password.
+          </div>
+        ) : null}
         {error ? <div className="tf-alert tf-alert--error">{error}</div> : null}
 
         <label className="tf-label">
@@ -89,6 +94,10 @@ export default function TillFlowLogin() {
             <span className="tf-field-error">{fieldErrors.password[0]}</span>
           ) : null}
         </label>
+
+        <p style={{ textAlign: 'right', marginTop: '-0.25rem', marginBottom: '0.5rem' }}>
+          <Link to="/tillflow/forgot-password">Forgot password?</Link>
+        </p>
 
         <button className="tf-btn tf-btn--primary" type="submit" disabled={submitting}>
           {submitting ? 'Signing in…' : 'Sign in'}

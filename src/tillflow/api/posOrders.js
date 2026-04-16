@@ -4,6 +4,26 @@ export function listPosOrdersRequest(token) {
   return tillflowFetch("/pos-orders", { token });
 }
 
+/**
+ * @param {string} token
+ * @param {{ store_id?: number|string|null, date?: string|null }} [params]
+ */
+export function fetchPosRegisterSummaryRequest(token, params = {}) {
+  const q = new URLSearchParams();
+  const sid = params.store_id;
+  if (sid !== undefined && sid !== null && sid !== "") {
+    const n = Number(sid);
+    if (Number.isFinite(n) && n > 0) {
+      q.set("store_id", String(n));
+    }
+  }
+  if (params.date) {
+    q.set("date", String(params.date).trim());
+  }
+  const suffix = q.toString() ? `?${q.toString()}` : "";
+  return tillflowFetch(`/pos-orders/register-summary${suffix}`, { token });
+}
+
 export function showPosOrderRequest(token, id) {
   return tillflowFetch(`/pos-orders/${encodeURIComponent(String(id))}`, { token });
 }

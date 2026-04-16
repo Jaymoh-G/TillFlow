@@ -11,6 +11,7 @@ const CollapsedSidebar = () => {
   const [isActive5, setIsActive5] = useState(false);
   const [isActive6, setIsActive6] = useState(false);
   const [isActive7, setIsActive7] = useState(false);
+  const [isActive8, setIsActive8] = useState(false);
 
   const handleSelectClick = () => {
     setIsActive(!isActive);
@@ -32,6 +33,9 @@ const CollapsedSidebar = () => {
   };
   const handleSelectClick7 = () => {
     setIsActive7(!isActive7);
+  };
+  const handleSelectClick8 = () => {
+    setIsActive8(!isActive8);
   };
 
   return (
@@ -268,25 +272,32 @@ const CollapsedSidebar = () => {
                   <span>Low Stocks</span>
                 </Link>
               </li>
-              <li>
-                <Link to="/manage-stocks">
-                  <span>Manage Stock</span>
+              <li className="submenu">
+                <Link
+                  to="#"
+                  onClick={handleSelectClick8}
+                  className={isActive8 ? "subdrop" : ""}
+                >
+                  <span>Stock</span>
+                  <span className="menu-arrow" />
                 </Link>
-              </li>
-              <li>
-                <Link to="/stock-adjustment">
-                  <span>Stock Adjustment</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/stock-transfer">
-                  <span>Stock Transfer</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/manage-stores">
-                  <span>Stores</span>
-                </Link>
+                <ul style={{ display: isActive8 ? "block" : "none" }}>
+                  <li>
+                    <Link to="/manage-stores">
+                      <span>Stores</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/stock-adjustment">
+                      <span>Adjust Stock</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/stock-transfer">
+                      <span>Transfer Stock</span>
+                    </Link>
+                  </li>
+                </ul>
               </li>
               <li>
                 <Link to="category-list">
@@ -405,11 +416,6 @@ const CollapsedSidebar = () => {
               <li>
                 <Link to="suppliers">
                   <span>Suppliers</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="store-list">
-                  <span>Store managers</span>
                 </Link>
               </li>
             </ul>

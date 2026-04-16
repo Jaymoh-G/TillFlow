@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import Dropdown from "react-bootstrap/Dropdown";
+import { Link, useNavigate } from "react-router-dom";
 import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
 import PrimeDataTable from "../../components/data-table";
-import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
 import TableTopHead from "../../components/table-top-head";
+import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
 import { waitForPrintRootImages } from "../../utils/htmlDocumentPdfExport";
 import { TillFlowApiError } from "../api/errors";
 import {
@@ -14,8 +14,8 @@ import {
   showPosOrderRequest
 } from "../api/posOrders";
 import { useAuth } from "../auth/AuthContext";
-import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
 import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
+import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
 
 function formatKes(n) {
   const x = Number(n);

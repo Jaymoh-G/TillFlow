@@ -200,7 +200,7 @@ const Biller = () => {
       setBillers([]);
       if (e instanceof TillFlowApiError) {
         setListError(
-          e.status === 403 ? `${e.message} (needs sales.manage)` : e.message
+          e.status === 403 ? `${e.message} (needs billers permission)` : e.message
         );
       } else {
         setListError("Failed to load billers.");

@@ -29,10 +29,16 @@ function buildItemExportRows(products, viewTrash) {
     SKU: String(p.sku ?? ""),
     Item: String(p.name ?? ""),
     Category: String(p.category?.name ?? ""),
+    Stores: String(p.storesWithStockLabel ?? p.store?.name ?? ""),
     Brand: String(p.brand?.name ?? ""),
     Selling: formatSelling(p.selling_price),
     Unit: String(p.unit?.short_name ?? p.unit?.name ?? ""),
-    Qty: p.qty != null && p.qty !== "" ? String(p.qty) : "",
+    Qty:
+      p.qtyDisplay != null && p.qtyDisplay !== ""
+        ? String(p.qtyDisplay)
+        : p.qty != null && p.qty !== ""
+          ? String(p.qty)
+          : "",
     [viewTrash ? "Deleted" : "Created"]: formatExportDate(viewTrash ? p.deleted_at : p.created_at)
   }));
 }
@@ -72,16 +78,21 @@ export async function downloadItemsPdf(products, viewTrash) {
   doc.text(title, 14, 16);
 
   const dateHead = viewTrash ? "Deleted" : "Created";
-  const head = [["SKU", "Item", "Category", "Brand", "Selling", "Unit", "Qty", dateHead]];
+  const head = [["SKU", "Item", "Category", "Stores", "Brand", "Selling", "Unit", "Qty", dateHead]];
 
   const body = (products ?? []).map((p) => [
     String(p.sku ?? ""),
     String(p.name ?? ""),
     String(p.category?.name ?? ""),
+    String(p.storesWithStockLabel ?? p.store?.name ?? ""),
     String(p.brand?.name ?? ""),
     formatSelling(p.selling_price),
     String(p.unit?.short_name ?? p.unit?.name ?? ""),
-    p.qty != null && p.qty !== "" ? String(p.qty) : "",
+    p.qtyDisplay != null && p.qtyDisplay !== ""
+      ? String(p.qtyDisplay)
+      : p.qty != null && p.qty !== ""
+        ? String(p.qty)
+        : "",
     formatExportDate(viewTrash ? p.deleted_at : p.created_at)
   ]);
 

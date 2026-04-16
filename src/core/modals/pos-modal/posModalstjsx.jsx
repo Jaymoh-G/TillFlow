@@ -1,10 +1,338 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import TableTopHead from "../../../components/table-top-head";
 import CommonSelect from "../../../components/select/common-select";
 import { barcodeImg3, giftCard, logo, posProduct16, posProduct17, scanImg, user02, user03, user05, user06, user12, user22, user27 } from "../../../utils/imagepath";
+import { fetchPosRegisterSummaryRequest } from "../../../tillflow/api/posOrders";
 
-const PosModals = () => {
+function formatPosMoney(value, currency = "KES") {
+  const x = Number(value);
+  if (Number.isNaN(x)) {
+    return "—";
+  }
+  const code = typeof currency === "string" && currency.trim() ? currency.trim() : "KES";
+  try {
+    return new Intl.NumberFormat("en-KE", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(x);
+  } catch {
+    return new Intl.NumberFormat("en-KE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(x);
+  }
+}
+
+/**
+ * Loads register summary when a Bootstrap modal is shown (TillFlow POS).
+ *
+ * @param {string} modalElementId DOM id of the modal root (e.g. `cash-register`)
+ * @param {{ token?: string, storeId?: string|number|null }|null} liveCashRegister
+ */
+function useRegisterSummaryOnShow(modalElementId, liveCashRegister) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [summary, setSummary] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!liveCashRegister?.token) {
+      return;
+    }
+    setLoading(true);
+    setErr("");
+    try {
+      const res = await fetchPosRegisterSummaryRequest(liveCashRegister.token, {
+        store_id: liveCashRegister.storeId
+      });
+      setSummary(res?.register_summary ?? null);
+    } catch (e) {
+      setSummary(null);
+      setErr(e?.message || "Could not load register summary.");
+    } finally {
+      setLoading(false);
+    }
+  }, [liveCashRegister]);
+
+  useEffect(() => {
+    const el = document.getElementById(modalElementId);
+    if (!el || !liveCashRegister?.token) {
+      return undefined;
+    }
+    const onShown = () => void load();
+    el.addEventListener("shown.bs.modal", onShown);
+    return () => el.removeEventListener("shown.bs.modal", onShown);
+  }, [modalElementId, liveCashRegister, load]);
+
+  return { loading, err, summary };
+}
+
+function CashRegisterModalBody({ liveCashRegister }) {
+  const { loading, err, summary } = useRegisterSummaryOnShow("cash-register", liveCashRegister);
+
+  if (!liveCashRegister?.token) {
+    return (
+      <div className="table-responsive">
+        <table className="table table-striped border">
+          <tbody>
+            <tr>
+              <td>Cash in Hand</td>
+              <td className="text-gray-9 fw-medium text-end">$45689</td>
+            </tr>
+            <tr>
+              <td>Total Sale Amount</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Total Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$566867.97</td>
+            </tr>
+            <tr>
+              <td>Cash Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$3355.84</td>
+            </tr>
+            <tr>
+              <td>Total Sale Return</td>
+              <td className="text-gray-9 fw-medium text-end">$1959</td>
+            </tr>
+            <tr>
+              <td>Total Expense</td>
+              <td className="text-gray-9 fw-medium text-end">$0</td>
+            </tr>
+            <tr>
+              <td className="text-gray-9 fw-bold bg-secondary-transparent">Total Cash</td>
+              <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">$587130.97</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const cur = summary?.currency || "KES";
+  const headline =
+    Number(summary?.cash_payment ?? 0) -
+    Number(summary?.total_sale_return ?? 0) -
+    Number(summary?.total_expense ?? 0);
+
+  return (
+    <>
+      {summary?.date ? (
+        <p className="small text-muted mb-2">
+          {summary.timezone ? `Day in ${summary.timezone}: ` : ""}
+          <span className="fw-medium text-dark">{summary.date}</span>
+          {typeof summary.order_count === "number" ? ` · ${summary.order_count} completed sale(s)` : null}
+        </p>
+      ) : null}
+      {err ? <div className="alert alert-danger py-2 mb-2">{err}</div> : null}
+      <div className="table-responsive position-relative">
+        {loading ? (
+          <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75 z-1 rounded">
+            <span className="spinner-border text-primary" role="status" aria-label="Loading" />
+          </div>
+        ) : null}
+        <table className="table table-striped border mb-0">
+          <tbody>
+            <tr>
+              <td>Estimated net cash (sales)</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.net_cash_from_sales, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total sale amount</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_sale_amount, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total tendered</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_tendered, cur)}</td>
+            </tr>
+            <tr>
+              <td>Cash payment</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.cash_payment, cur)}</td>
+            </tr>
+            <tr>
+              <td>Change issued</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_change_issued, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total sale return</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_sale_return, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total expense</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_expense, cur)}</td>
+            </tr>
+            <tr>
+              <td className="text-gray-9 fw-bold bg-secondary-transparent">Net cash (after returns &amp; expenses)</td>
+              <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">{formatPosMoney(headline, cur)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="small text-muted mt-2 mb-0">
+          Drawer opening/closing balances are not tracked yet; figures are from completed POS orders for the selected day
+          {liveCashRegister?.storeId ? " and store" : ""}.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function TodaySaleModalBody({ liveCashRegister }) {
+  const { loading, err, summary } = useRegisterSummaryOnShow("today-sale", liveCashRegister);
+
+  if (!liveCashRegister?.token) {
+    return (
+      <div className="table-responsive">
+        <table className="table table-striped border">
+          <tbody>
+            <tr>
+              <td>Total Sale Amount</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Cash Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$3355.84</td>
+            </tr>
+            <tr>
+              <td>Credit Card Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$1959</td>
+            </tr>
+            <tr>
+              <td>Cheque Payment:</td>
+              <td className="text-gray-9 fw-medium text-end">$0</td>
+            </tr>
+            <tr>
+              <td>Deposit Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Points Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$3355.84</td>
+            </tr>
+            <tr>
+              <td>Gift Card Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Scan &amp; Pay</td>
+              <td className="text-gray-9 fw-medium text-end">$3355.84</td>
+            </tr>
+            <tr>
+              <td>Pay Later</td>
+              <td className="text-gray-9 fw-medium text-end">$3355.84</td>
+            </tr>
+            <tr>
+              <td>Total Payment</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Total Sale Return</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td>Total Expense:</td>
+              <td className="text-gray-9 fw-medium text-end">$565597.88</td>
+            </tr>
+            <tr>
+              <td className="text-gray-9 fw-bold bg-secondary-transparent">Total Cash</td>
+              <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">$587130.97</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const cur = summary?.currency || "KES";
+  const pm = summary?.payments_by_method || {};
+  const headline =
+    Number(summary?.cash_payment ?? 0) -
+    Number(summary?.total_sale_return ?? 0) -
+    Number(summary?.total_expense ?? 0);
+
+  return (
+    <>
+      {summary?.date ? (
+        <p className="small text-muted mb-2">
+          {summary.timezone ? `Day in ${summary.timezone}: ` : ""}
+          <span className="fw-medium text-dark">{summary.date}</span>
+          {typeof summary.order_count === "number" ? ` · ${summary.order_count} completed sale(s)` : null}
+        </p>
+      ) : null}
+      {err ? <div className="alert alert-danger py-2 mb-2">{err}</div> : null}
+      <div className="table-responsive position-relative">
+        {loading ? (
+          <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75 z-1 rounded">
+            <span className="spinner-border text-primary" role="status" aria-label="Loading" />
+          </div>
+        ) : null}
+        <table className="table table-striped border mb-0">
+          <tbody>
+            <tr>
+              <td>Total sale amount</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_sale_amount, cur)}</td>
+            </tr>
+            <tr>
+              <td>M-Pesa</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.mpesa, cur)}</td>
+            </tr>
+            <tr>
+              <td>Card</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.card, cur)}</td>
+            </tr>
+            <tr>
+              <td>Bank transfer</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.bank_transfer, cur)}</td>
+            </tr>
+            <tr>
+              <td>Cash</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.cash, cur)}</td>
+            </tr>
+            <tr>
+              <td>Cheque</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.cheque, cur)}</td>
+            </tr>
+            <tr>
+              <td>Other</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(pm.other, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total payment (lines)</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_payment_lines, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total tendered</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_tendered, cur)}</td>
+            </tr>
+            <tr>
+              <td>Change issued</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_change_issued, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total sale return</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_sale_return, cur)}</td>
+            </tr>
+            <tr>
+              <td>Total expense</td>
+              <td className="text-gray-9 fw-medium text-end">{formatPosMoney(summary?.total_expense, cur)}</td>
+            </tr>
+            <tr>
+              <td className="text-gray-9 fw-bold bg-secondary-transparent">Net cash (after returns &amp; expenses)</td>
+              <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">{formatPosMoney(headline, cur)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="small text-muted mt-2 mb-0">
+          Payment rows sum POS payment lines by method for the selected day
+          {liveCashRegister?.storeId ? " and store" : ""}. Channels not used in TillFlow (e.g. gift cards) are omitted.
+        </p>
+      </div>
+    </>
+  );
+}
+
+const PosModals = ({ liveCashRegister = null }) => {
   const [selectedTaxType, setSelectedTaxType] = useState(null);
   const [selectedDiscountType, setSelectedDiscountType] = useState(
 
@@ -4144,58 +4472,14 @@ const PosModals = () => {
               </button>
             </div>
             <div className="modal-body">
-              <div className="table-responsive">
-                <table className="table table-striped border">
-                  <tbody>
-                    <tr>
-                      <td>Cash in Hand</td>
-                      <td className="text-gray-9 fw-medium text-end">$45689</td>
-                    </tr>
-                    <tr>
-                      <td>Total Sale Amount</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Total Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $566867.97
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Cash Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $3355.84
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Total Sale Return</td>
-                      <td className="text-gray-9 fw-medium text-end">$1959</td>
-                    </tr>
-                    <tr>
-                      <td>Total Expense</td>
-                      <td className="text-gray-9 fw-medium text-end">$0</td>
-                    </tr>
-                    <tr>
-                      <td className="text-gray-9 fw-bold bg-secondary-transparent">
-                        Total Cash
-                      </td>
-                      <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">
-                        $587130.97
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <CashRegisterModalBody liveCashRegister={liveCashRegister} />
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 flex-wrap">
               <button
                 type="button"
-                className="btn btn-md btn-primary"
+                className="btn btn-md btn-secondary"
                 data-bs-dismiss="modal">
-                
-                Cancel
+                Close
               </button>
             </div>
           </div>
@@ -4226,96 +4510,14 @@ const PosModals = () => {
               </button>
             </div>
             <div className="modal-body">
-              <div className="table-responsive">
-                <table className="table table-striped border">
-                  <tbody>
-                    <tr>
-                      <td>Total Sale Amount</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Cash Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $3355.84
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Credit Card Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">$1959</td>
-                    </tr>
-                    <tr>
-                      <td>Cheque Payment:</td>
-                      <td className="text-gray-9 fw-medium text-end">$0</td>
-                    </tr>
-                    <tr>
-                      <td>Deposit Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Points Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $3355.84
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Gift Card Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Scan &amp; Pay</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $3355.84
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Pay Later</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $3355.84
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Total Payment</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Total Sale Return</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Total Expense:</td>
-                      <td className="text-gray-9 fw-medium text-end">
-                        $565597.88
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="text-gray-9 fw-bold bg-secondary-transparent">
-                        Total Cash
-                      </td>
-                      <td className="text-gray-9 fw-bold text-end bg-secondary-transparent">
-                        $587130.97
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <TodaySaleModalBody liveCashRegister={liveCashRegister} />
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 flex-wrap">
               <button
                 type="button"
-                className="btn btn-md btn-primary"
+                className="btn btn-md btn-secondary"
                 data-bs-dismiss="modal">
-                
-                Cancel
+                Close
               </button>
             </div>
           </div>

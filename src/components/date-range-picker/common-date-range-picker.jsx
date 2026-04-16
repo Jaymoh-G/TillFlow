@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { DatePicker, Dropdown, Menu, Input } from 'antd';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -14,13 +14,30 @@ dayjs.extend(localeData);
 const { RangePicker } = DatePicker;
 const dateFormat = 'YYYY/MM/DD';
 
-const CommonDateRangePicker = () => {
-  const [dates, setDates] = useState([
-  dayjs().subtract(6, 'days'),
-  dayjs()]
-  );
+const defaultUncontrolledRange = () => [dayjs().subtract(6, 'day'), dayjs()];
+
+/**
+ * @param {{
+ *   value?: [import('dayjs').Dayjs, import('dayjs').Dayjs],
+ *   onChange?: (range: [import('dayjs').Dayjs, import('dayjs').Dayjs]) => void,
+ *   showAllDatesOption?: boolean,
+ *   allDatesActive?: boolean,
+ *   onAllDatesSelect?: () => void
+ * }} [props]
+ */
+const CommonDateRangePicker = ({
+  value,
+  onChange,
+  showAllDatesOption,
+  allDatesActive,
+  onAllDatesSelect
+}) => {
+  const [internalDates, setInternalDates] = useState(defaultUncontrolledRange);
   const [customVisible, setCustomVisible] = useState(false);
   const rangeRef = useRef(null);
+
+  const isControlled = value !== undefined && value !== null;
+  const dates = isControlled ? value : internalDates;
 
   const predefinedRanges = {
     Today: [dayjs(), dayjs()],
@@ -29,72 +46,85 @@ const CommonDateRangePicker = () => {
     'Last 30 Days': [dayjs().subtract(29, 'day'), dayjs()],
     'This Month': [dayjs().startOf('month'), dayjs().endOf('month')],
     'Last Month': [
-    dayjs().subtract(1, 'month').startOf('month'),
-    dayjs().subtract(1, 'month').endOf('month')]
+      dayjs().subtract(1, 'month').startOf('month'),
+      dayjs().subtract(1, 'month').endOf('month')
+    ]
+  };
 
+  const applyDates = (next) => {
+    if (!isControlled) {
+      setInternalDates(next);
+    }
+    onChange?.(next);
   };
 
   const handleMenuClick = ({ key }) => {
+    if (key === 'All') {
+      onAllDatesSelect?.();
+      setCustomVisible(false);
+
+      return;
+    }
     if (key === 'Custom Range') {
       setCustomVisible(true);
-      // Trigger calendar popup manually
       setTimeout(() => rangeRef.current?.focus(), 0);
     } else {
-      setDates(predefinedRanges[key]);
+      applyDates(predefinedRanges[key]);
       setCustomVisible(false);
     }
   };
 
-  const handleCustomChange = (value) => {
-    if (value) {
-      setDates(value);
+  const handleCustomChange = (nextRange) => {
+    if (nextRange) {
+      applyDates(nextRange);
       setCustomVisible(false);
     }
   };
 
-  const menu =
-  <Menu
-    onClick={handleMenuClick}
-    items={[
+  const menuItems = [];
+  if (showAllDatesOption && onAllDatesSelect) {
+    menuItems.push({ key: 'All', label: 'All' });
+    menuItems.push({ type: 'divider' });
+  }
+  menuItems.push(
     ...Object.keys(predefinedRanges).map((label) => ({
       key: label,
       label
-    })),
-    { type: 'divider' },
-    { key: 'Custom Range', label: 'Custom Range' }]
-    } />;
+    }))
+  );
+  menuItems.push({ type: 'divider' });
+  menuItems.push({ key: 'Custom Range', label: 'Custom Range' });
 
+  const menu = <Menu onClick={handleMenuClick} items={menuItems} />;
 
-
-  const displayValue = `${dates[0].format(dateFormat)} - ${dates[1].format(dateFormat)}`;
+  const displayValue = allDatesActive
+    ? 'All dates'
+    : `${dates[0].format(dateFormat)} - ${dates[1].format(dateFormat)}`;
 
   return (
     <div>
       <Dropdown overlay={menu} trigger={['click']}>
-        <Input
-          readOnly
-          value={displayValue}
-          className="" />
-        
+        <Input readOnly value={displayValue} className="" />
       </Dropdown>
 
-      {/* Hidden RangePicker - purely for calendar popup */}
-      {customVisible &&
-      <RangePicker
-        open
-        ref={rangeRef}
-        onChange={handleCustomChange}
-        format={dateFormat}
-        value={dates}
-        allowClear={false}
-        style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none' }}
-        onOpenChange={(open) => {
-          if (!open) setCustomVisible(false);
-        }} />
-
-      }
-    </div>);
-
+      {customVisible && (
+        <RangePicker
+          open
+          ref={rangeRef}
+          onChange={handleCustomChange}
+          format={dateFormat}
+          value={dates}
+          allowClear={false}
+          style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none' }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCustomVisible(false);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
 };
 
 export default CommonDateRangePicker;

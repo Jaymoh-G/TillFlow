@@ -1,5 +1,5 @@
-
 import { Link } from "react-router-dom";
+import { DEFAULT_BRAND_LOGO_URL } from "../../constants/defaultBrandLogo";
 import { all_routes } from "../../routes/all_routes";
 
 const Modals = () => {
@@ -696,7 +696,7 @@ const Modals = () => {
                               
                               <span className="logo-lg">
                                 <img
-                                  src="src/assets/img/logo.png"
+                                  src={DEFAULT_BRAND_LOGO_URL}
                                   alt="Logo"
                                   height={42} />
                                 
@@ -789,7 +789,7 @@ const Modals = () => {
                               
                               <span className="logo-lg">
                                 <img
-                                  src="src/assets/img/logo.png"
+                                  src={DEFAULT_BRAND_LOGO_URL}
                                   alt="Logo"
                                   height={42} />
                                 

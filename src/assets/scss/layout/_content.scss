@@ -26,7 +26,16 @@
             width: 100%;
         }
     }
-    
+
+    /* Retail dashboard: default 24px padding reads as excessive empty margin */
+    &.modern-dashboard-page .content {
+        @include mixins.margin-padding(null, 16px 20px);
+        padding-bottom: 0;
+        min-height: auto;
+        @include mixins.respond-below(custom991) {
+            @include mixins.margin-padding(null, 12px 14px);
+        }
+    }
 }
 .page-wrapper.details-blk {
     padding: 0;

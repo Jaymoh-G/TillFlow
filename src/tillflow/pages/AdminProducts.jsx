@@ -18,6 +18,21 @@ import DeleteConfirmModal from "../components/DeleteConfirmModal";
 import { downloadItemsExcel, downloadItemsPdf } from "../utils/itemListExport";
 import TableTopHead from "../../components/table-top-head";
 
+const ITEMS_COLUMN_VISIBILITY_KEY = "tillflow.admin.items.columnVisibility";
+
+function readItemsColumnVisibility() {
+  try {
+    const raw = localStorage.getItem(ITEMS_COLUMN_VISIBILITY_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function initials(name) {
   const parts = (name || "").trim().split(/\s+/);
   if (parts.length === 0) {
@@ -49,6 +64,26 @@ function formatPrice(val) {
     return "—";
   }
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/** Quantity at a single store from API buckets; falls back to total `qty` when no per-store rows (e.g. trash list). */
+function getQtyForStore(p, storeId) {
+  if (storeId == null || storeId === "") {
+    return p.qty;
+  }
+  const rows = Array.isArray(p.product_quantities)
+    ? p.product_quantities
+    : Array.isArray(p.store_stocks)
+      ? p.store_stocks
+      : [];
+  if (!rows.length) {
+    return p.qty != null ? p.qty : null;
+  }
+  const row = rows.find((r) => String(r.store_id ?? "") === String(storeId));
+  if (row && row.qty != null) {
+    return Number(row.qty);
+  }
+  return 0;
 }
 
 export default function AdminProducts() {
@@ -86,6 +121,7 @@ export default function AdminProducts() {
   const [bulkCategories, setBulkCategories] = useState([]);
   const [bulkBrands, setBulkBrands] = useState([]);
   const [bulkUnits, setBulkUnits] = useState([]);
+  const [columnVisibility, setColumnVisibility] = useState(readItemsColumnVisibility);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -99,7 +135,7 @@ export default function AdminProducts() {
     } catch (e) {
       setProducts([]);
       if (e instanceof TillFlowApiError) {
-        setListError(e.status === 403 ? `${e.message} (needs catalog.manage)` : e.message);
+        setListError(e.status === 403 ? `${e.message} (needs catalog items permission)` : e.message);
       } else {
         setListError("Failed to load items");
       }
@@ -175,11 +211,44 @@ export default function AdminProducts() {
           String(p?.store_name ?? "").trim();
         const mappedStoreName = storeNameById.get(String(fallbackStoreId ?? "")) ?? "";
         const resolvedStoreName = explicitStoreName || mappedStoreName;
-        if (!resolvedStoreName && !fallbackStoreId) {
-          return p;
+
+        const bucketRows = Array.isArray(p.product_quantities)
+          ? p.product_quantities
+          : Array.isArray(p.store_stocks)
+            ? p.store_stocks
+            : [];
+        const namesWithStock = [];
+        const seenId = new Set();
+        for (const row of bucketRows) {
+          const q = Number(row?.qty);
+          if (!Number.isFinite(q) || q <= 0) {
+            continue;
+          }
+          const sid = row?.store_id;
+          if (sid == null) {
+            continue;
+          }
+          const key = String(sid);
+          if (seenId.has(key)) {
+            continue;
+          }
+          seenId.add(key);
+          const label = storeNameById.get(key)?.trim() || `Store ${sid}`;
+          namesWithStock.push(label);
         }
+        namesWithStock.sort((a, b) => a.localeCompare(b));
+
+        let storesWithStockLabel = namesWithStock.length ? namesWithStock.join(", ") : "";
+        if (!storesWithStockLabel && Number(p.qty) > 0 && resolvedStoreName) {
+          storesWithStockLabel = resolvedStoreName;
+        }
+        if (!storesWithStockLabel) {
+          storesWithStockLabel = "—";
+        }
+
         return {
           ...p,
+          storesWithStockLabel,
           store: {
             ...(p?.store ?? {}),
             id: p?.store?.id ?? fallbackStoreId,
@@ -197,11 +266,26 @@ export default function AdminProducts() {
       next = next.filter(
         (p) =>
           (p.name && p.name.toLowerCase().includes(q)) ||
-          (p.sku && String(p.sku).toLowerCase().includes(q))
+          (p.sku && String(p.sku).toLowerCase().includes(q)) ||
+          String(p.storesWithStockLabel ?? "")
+            .toLowerCase()
+            .includes(q)
       );
     }
     if (storeFilter) {
-      next = next.filter((p) => String(p.store?.id ?? "") === storeFilter);
+      next = next.filter((p) => {
+        if (String(p.store?.id ?? "") === storeFilter) {
+          return true;
+        }
+        const rows = Array.isArray(p.product_quantities)
+          ? p.product_quantities
+          : Array.isArray(p.store_stocks)
+            ? p.store_stocks
+            : [];
+        return rows.some(
+          (r) => String(r.store_id ?? "") === storeFilter && Number(r.qty) > 0
+        );
+      });
     }
     if (categoryFilter) {
       next = next.filter((p) => String(p.category?.id ?? "") === categoryFilter);
@@ -209,23 +293,32 @@ export default function AdminProducts() {
     if (brandFilter) {
       next = next.filter((p) => String(p.brand?.id ?? "") === brandFilter);
     }
-    return next;
+    return next.map((p) => ({
+      ...p,
+      qtyDisplay: storeFilter ? getQtyForStore(p, storeFilter) : p.qty
+    }));
   }, [normalizedProducts, searchQuery, storeFilter, categoryFilter, brandFilter]);
 
   const storeFilterOptions = useMemo(() => {
     const seen = new Map();
+    bulkStores.forEach((s) => {
+      const id = String(s?.id ?? "").trim();
+      const name = String(s?.name ?? "").trim();
+      if (id && name) {
+        seen.set(id, name);
+      }
+    });
     normalizedProducts.forEach((p) => {
       const id = String(p.store?.id ?? "").trim();
       const name = String(p.store?.name ?? "").trim();
-      if (!id || !name || seen.has(id)) {
-        return;
+      if (id && name && !seen.has(id)) {
+        seen.set(id, name);
       }
-      seen.set(id, name);
     });
     return Array.from(seen.entries())
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [normalizedProducts]);
+  }, [bulkStores, normalizedProducts]);
 
   const categoryFilterOptions = useMemo(() => {
     const seen = new Map();
@@ -470,11 +563,17 @@ export default function AdminProducts() {
   const columns = useMemo(
     () => [
       {
+        columnId: "sku",
+        label: "SKU",
+        hideable: true,
         header: "SKU",
         field: "sku",
         body: (p) => <span className="tf-mono">{p.sku ?? "—"}</span>
       },
       {
+        columnId: "item",
+        label: "Item",
+        hideable: true,
         header: "Item",
         field: "name",
         body: (p) => (
@@ -496,10 +595,39 @@ export default function AdminProducts() {
           </div>
         )
       },
-      { header: "Category", field: "category.name", body: (p) => p.category?.name ?? "—" },
-      { header: "Store", field: "store.name", body: (p) => p.store?.name ?? "—" },
-      { header: "Brand", field: "brand.name", body: (p) => p.brand?.name ?? "—" },
       {
+        columnId: "category",
+        label: "Category",
+        hideable: true,
+        header: "Category",
+        field: "category.name",
+        body: (p) => p.category?.name ?? "—"
+      },
+      {
+        columnId: "stores",
+        label: "Stores",
+        hideable: true,
+        header: "Stores",
+        field: "storesWithStockLabel",
+        sortable: false,
+        body: (p) => (
+          <span className="text-break" title={p.storesWithStockLabel && p.storesWithStockLabel !== "—" ? p.storesWithStockLabel : undefined}>
+            {p.storesWithStockLabel ?? "—"}
+          </span>
+        )
+      },
+      {
+        columnId: "brand",
+        label: "Brand",
+        hideable: true,
+        header: "Brand",
+        field: "brand.name",
+        body: (p) => p.brand?.name ?? "—"
+      },
+      {
+        columnId: "selling",
+        label: "Selling",
+        hideable: true,
         header: "Selling",
         field: "selling_price",
         className: "text-end",
@@ -508,20 +636,33 @@ export default function AdminProducts() {
         body: (p) => <span className="text-end d-block">{formatPrice(p.selling_price)}</span>
       },
       {
+        columnId: "unit",
+        label: "Unit",
+        hideable: true,
         header: "Unit",
         field: "unit",
         sortable: false,
         body: (p) => p.unit?.short_name ?? p.unit?.name ?? "—"
       },
       {
-        header: "Qty",
-        field: "qty",
+        columnId: "qty",
+        label: storeFilter ? "Qty (store)" : "Qty",
+        hideable: true,
+        header: storeFilter ? "Qty (store)" : "Qty",
+        field: "qtyDisplay",
         className: "text-end",
         headerClassName: "text-end",
-        sortField: "qty",
-        body: (p) => <span className="text-end d-block">{p.qty != null ? p.qty : "—"}</span>
+        sortField: "qtyDisplay",
+        body: (p) => (
+          <span className="text-end d-block" title={storeFilter ? "Quantity at the selected store" : undefined}>
+            {p.qtyDisplay != null && p.qtyDisplay !== "" ? p.qtyDisplay : "—"}
+          </span>
+        )
       },
       {
+        columnId: "qty_alert",
+        label: "Qty alert",
+        hideable: true,
         header: "Qty Alert",
         field: "qty_alert",
         className: "text-end",
@@ -530,6 +671,9 @@ export default function AdminProducts() {
         body: (p) => <span className="text-end d-block">{p.qty_alert != null ? p.qty_alert : "—"}</span>
       },
       {
+        columnId: "updated",
+        label: viewTrash ? "Deleted at" : "Updated at",
+        hideable: true,
         header: viewTrash ? "Deleted At" : "Updated At",
         field: viewTrash ? "deleted_at" : "updated_at",
         body: (p) => (
@@ -539,6 +683,9 @@ export default function AdminProducts() {
         )
       },
       {
+        columnId: "actions",
+        label: "Actions",
+        hideable: false,
         header: "Actions",
         field: "actions",
         sortable: false,
@@ -576,8 +723,45 @@ export default function AdminProducts() {
         )
       }
     ],
-    [viewTrash, restoreSubmittingId, handleRestore, openDeleteModal]
+    [viewTrash, storeFilter, restoreSubmittingId, handleRestore, openDeleteModal]
   );
+
+  const visibleColumns = useMemo(
+    () =>
+      columns.filter((c) => {
+        if (c.hideable === false) {
+          return true;
+        }
+        return columnVisibility[c.columnId] !== false;
+      }),
+    [columns, columnVisibility]
+  );
+
+  const toggleColumnVisibility = useCallback((columnId) => {
+    setColumnVisibility((prev) => {
+      const next = { ...prev };
+      if (next[columnId] === false) {
+        delete next[columnId];
+      } else {
+        next[columnId] = false;
+      }
+      try {
+        localStorage.setItem(ITEMS_COLUMN_VISIBILITY_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
+  const resetColumnVisibility = useCallback(() => {
+    setColumnVisibility({});
+    try {
+      localStorage.removeItem(ITEMS_COLUMN_VISIBILITY_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   return (
     <div className="tf-item-list-page">
@@ -763,8 +947,8 @@ export default function AdminProducts() {
       ) : null}
 
       <div className="card table-list-card">
-        <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-          <div className="d-flex flex-wrap align-items-center gap-3 flex-grow-1">
+        <div className="card-header d-flex flex-wrap align-items-center gap-3 row-gap-3">
+          <div className="d-flex flex-wrap align-items-center gap-3">
             <div className="search-set">
               <div className="search-input">
                 <span className="btn-searchset">
@@ -799,49 +983,43 @@ export default function AdminProducts() {
               </button>
             </div>
           </div>
-          <div className="d-flex table-dropdown my-xl-auto right-content align-items-center flex-wrap gap-1 row-gap-1">
-            <div style={{ minWidth: 220 }}>
-              <select
-                className="form-select form-select-sm"
-                value={storeFilter}
-                onChange={(e) => setStoreFilter(e.target.value)}
-                aria-label="Filter items by store">
-                <option value="">All stores</option>
-                {storeFilterOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ minWidth: 220 }}>
-              <select
-                className="form-select form-select-sm"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                aria-label="Filter items by category">
-                <option value="">All categories</option>
-                {categoryFilterOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ minWidth: 220 }}>
-              <select
-                className="form-select form-select-sm"
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-                aria-label="Filter items by brand">
-                <option value="">All brands</option>
-                {brandFilterOptions.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="tf-item-list-toolbar-filters">
+            <select
+              className="form-select form-select-sm tf-filter-select"
+              value={storeFilter}
+              onChange={(e) => setStoreFilter(e.target.value)}
+              aria-label="Filter items by store">
+              <option value="">All stores</option>
+              {storeFilterOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-select form-select-sm tf-filter-select"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              aria-label="Filter items by category">
+              <option value="">All categories</option>
+              {categoryFilterOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-select form-select-sm tf-filter-select"
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              aria-label="Filter items by brand">
+              <option value="">All brands</option>
+              {brandFilterOptions.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
             <div className="dropdown">
               <button
                 type="button"
@@ -867,13 +1045,61 @@ export default function AdminProducts() {
                 </li>
               </ul>
             </div>
+            <div className="dropdown">
+              <button
+                type="button"
+                className="btn btn-white btn-md rounded d-inline-flex align-items-center justify-content-center p-0 border"
+                style={{ width: 38, height: 38 }}
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="outside"
+                aria-expanded="false"
+                aria-haspopup="true"
+                title="Show, hide, or reset table columns">
+                <span className="visually-hidden">Show or hide columns</span>
+                <i className="feather icon-grid" style={{ fontSize: "1.15rem" }} aria-hidden="true" />
+              </button>
+              <ul
+                className="dropdown-menu dropdown-menu-end p-2 shadow-sm"
+                style={{ minWidth: 240 }}
+                onClick={(e) => e.stopPropagation()}>
+                <li className="dropdown-header px-2 py-1 small" style={{ color: "#000" }}>
+                  Visible columns
+                </li>
+                {columns
+                  .filter((c) => c.hideable !== false)
+                  .map((c) => (
+                    <li key={c.columnId} className="px-1 py-1">
+                      <label className="d-flex align-items-center gap-2 mb-0 small w-100 cursor-pointer user-select-none">
+                        <input
+                          type="checkbox"
+                          className="form-check-input m-0"
+                          checked={columnVisibility[c.columnId] !== false}
+                          onChange={() => toggleColumnVisibility(c.columnId)}
+                        />
+                        <span>{c.label}</span>
+                      </label>
+                    </li>
+                  ))}
+                <li>
+                  <hr className="dropdown-divider my-2" />
+                </li>
+                <li className="px-1">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary w-100"
+                    onClick={resetColumnVisibility}>
+                    Show all columns
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
         <div className="card-body p-0">
           <div className="custom-datatable-filter table-responsive">
             <PrimeDataTable
-              column={columns}
+              column={visibleColumns}
               data={filtered}
               rows={rows}
               setRows={setRows}

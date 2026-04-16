@@ -268,6 +268,26 @@
     width: auto;
   }
 
+  /* Item list toolbar: one flex gap between store / category / brand / sort / columns (no extra wrapper spacing). */
+  .tf-item-list-toolbar-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+
+  .tf-item-list-toolbar-filters .tf-filter-select {
+    min-width: 10.5rem;
+    max-width: 12rem;
+    margin: 0;
+  }
+
+  .tf-item-list-toolbar-filters .dropdown {
+    margin: 0;
+  }
+
   .checkboxs {
     position: relative;
     display: inline-flex;

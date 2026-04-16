@@ -1,6 +1,6 @@
 /**
  * Inventory stores (stock locations) — persisted locally for the SPA.
- * Used by Manage Stores and Stock Transfer.
+ * Used by Manage Stores and Transfer Stock.
  *
  * loadStores() is used as getSnapshot for useSyncExternalStore: it must stay
  * pure during React render and return the same array reference when data is

@@ -39,6 +39,7 @@ import { getTenantCompanyProfileRequest } from "../../tillflow/api/tenantCompany
 import { getTenantUiSettingsRequest } from "../../tillflow/api/tenantUiSettings";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { TILLFLOW_API_BASE_URL } from "../../tillflow/config";
+import { DEFAULT_BRAND_LOGO_URL } from "../../constants/defaultBrandLogo";
 import {
   buildCategoryFilterValue,
   filterCatalogProducts
@@ -701,7 +702,7 @@ const QuotationList = () => {
       if (e instanceof TillFlowApiError) {
         setCatalogError(
           e.status === 403
-            ? `${e.message} (needs sales.manage for customers / catalog / billers)`
+            ? `${e.message} (needs quotations + catalog items + customers + billers permissions)`
             : e.message
         );
       } else {
@@ -741,7 +742,7 @@ const QuotationList = () => {
       setQuotations([]);
       if (e instanceof TillFlowApiError) {
         setListError(
-          e.status === 403 ? `${e.message} (needs sales.manage)` : e.message
+          e.status === 403 ? `${e.message} (needs quotations permission)` : e.message
         );
       } else {
         setListError("Failed to load quotations.");
@@ -879,8 +880,8 @@ const QuotationList = () => {
     () => resolveQuotationFooterFromSnapshot(companySnapshot),
     [companySnapshot]
   );
-  const quotationLogoSrc = companyLogosFromApi.logo || "/src/assets/img/logo.svg";
-  const quotationLogoDarkSrc = companyLogosFromApi.darkLogo || "/src/assets/img/logo-white.svg";
+  const quotationLogoSrc = companyLogosFromApi.logo || DEFAULT_BRAND_LOGO_URL;
+  const quotationLogoDarkSrc = companyLogosFromApi.darkLogo || DEFAULT_BRAND_LOGO_URL;
   const quotationViewPrintRootRef = useRef(null);
   const [quotationFormMode, setQuotationFormMode] = useState("list");
   const [catalogQuickAddKey, setCatalogQuickAddKey] = useState(0);

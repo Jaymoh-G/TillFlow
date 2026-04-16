@@ -1,7 +1,9 @@
-export { default as logoPng } from "../../assets/img/logo.png";
-export { default as logoWhitePng } from "../../assets/img/logo-white.png";
-export { default as logoSmallPng } from "../../assets/img/logo-small.png";
-export { default as logoSmallWhitePng } from "../../assets/img/logo-small-white.png";
+import { DEFAULT_BRAND_LOGO_URL } from "../../constants/defaultBrandLogo";
+
+export const logoPng = DEFAULT_BRAND_LOGO_URL;
+export const logoWhitePng = DEFAULT_BRAND_LOGO_URL;
+export const logoSmallPng = DEFAULT_BRAND_LOGO_URL;
+export const logoSmallWhitePng = DEFAULT_BRAND_LOGO_URL;
 export { default as facebookLogo } from "../../assets/img/icons/facebook-logo.svg";
 export { default as googleLogo } from "../../assets/img/icons/google-logo.svg";
 export { default as appleLogo } from "../../assets/img/icons/apple-logo.svg";
@@ -178,10 +180,10 @@ export { default as media22 } from "../../assets/img/media/media-22.jpg";
 export { default as media24 } from "../../assets/img/media/media-22.jpg";
 export { default as phoneAdd1 } from "../../assets/img/products/phone-add-1.png";
 export { default as phoneAdd2 } from "../../assets/img/products/phone-add-2.png";
-export { default as logo } from "../../assets/img/logo.svg";
-export { default as logoSmall } from "../../assets/img/logo-small.png";
-export { default as logoSmallWhite } from "../../assets/img/logo-small-white.png";
-export { default as logoWhite } from "../../assets/img/logo-white.svg";
+export const logo = DEFAULT_BRAND_LOGO_URL;
+export const logoSmall = DEFAULT_BRAND_LOGO_URL;
+export const logoSmallWhite = DEFAULT_BRAND_LOGO_URL;
+export const logoWhite = DEFAULT_BRAND_LOGO_URL;
 
 export { default as timesBigIcon } from "../../assets/img/icons/time-big.svg";
 export { default as hand1 } from "../../assets/img/icons/hand01.svg";
@@ -199,8 +201,8 @@ export { default as profile3 } from "../../assets/img/customer/profile3.jpg";
 export { default as profile4 } from "../../assets/img/customer/profile3.jpg";
 export { default as profile5 } from "../../assets/img/customer/profile3.jpg";
 export { default as customer4 } from "../../assets/img/customer/customer4.jpg";
-export { default as companyLogo } from "../../assets/img/products/company-logo.svg";
-export { default as whiteCompanyLogo } from "../../assets/img/products/white-logo.svg";
+export const companyLogo = DEFAULT_BRAND_LOGO_URL;
+export const whiteCompanyLogo = DEFAULT_BRAND_LOGO_URL;
 
 export { default as dash1 } from "../../assets/img/icons/dash1.svg";
 export { default as dash2 } from "../../assets/img/icons/dash2.svg";
