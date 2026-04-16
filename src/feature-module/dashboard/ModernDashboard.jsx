@@ -1,5 +1,5 @@
 import "bootstrap-daterangepicker/daterangepicker.css";
-import { default as ApexCharts, default as Chart, default as ReactApexChart } from "react-apexcharts";
+import { default as Chart } from "react-apexcharts";
 import { Doughnut } from "react-chartjs-2";
 import { Link } from "react-router-dom";
 
@@ -52,8 +52,6 @@ import {
   categoryDoughnutOptions,
   customerChart,
   customerRadialSeries,
-  heatChart,
-  revenueExpenseBarOptions,
   salesDayChart
 } from "./dashboardChartConfigs.js";
 
@@ -816,82 +814,8 @@ const ModernDashboard = ({ hideFooter = false }) => {
           {/* /Recent Sales */}
         </div>
         <div className="row">
-          {/* Sales Statics */}
-          <div className="col-xl-6 col-sm-12 col-12 d-flex">
-            <div className="card flex-fill">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <div className="d-inline-flex align-items-center">
-                  <span className="title-icon bg-soft-danger fs-16 me-2">
-                    <i className="ti ti-alert-triangle" />
-                  </span>
-                  <h5 className="card-title mb-0">Sales Statics</h5>
-                </div>
-                <div className="dropdown">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-sm btn-white"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false">
-
-                    <i className="ti ti-calendar me-1" />
-                    2025
-                  </Link>
-                  <ul className="dropdown-menu p-3">
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        2025
-                      </Link>
-                    </li>
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        2022
-                      </Link>
-                    </li>
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        2021
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="card-body pb-0">
-                <div className="d-flex align-items-center flex-wrap gap-2">
-                  <div className="border p-2 br-8">
-                    <h5 className="d-inline-flex align-items-center text-teal">
-                      $12,189
-                      <span className="badge badge-success badge-xs d-inline-flex align-items-center ms-2">
-                        <i className="ti ti-arrow-up-left me-1" />
-                        25%
-                      </span>
-                    </h5>
-                    <p>Revenue</p>
-                  </div>
-                  <div className="border p-2 br-8">
-                    <h5 className="d-inline-flex align-items-center text-orange">
-                      $48,988,078
-                      <span className="badge badge-danger badge-xs d-inline-flex align-items-center ms-2">
-                        <i className="ti ti-arrow-down-right me-1" />
-                        25%
-                      </span>
-                    </h5>
-                    <p>Expense</p>
-                  </div>
-                </div>
-                <div id="sales-statistics">
-                  <ReactApexChart
-                    options={revenueExpenseBarOptions}
-                    series={revenueExpenseBarOptions.series}
-                    type="bar"
-                    height={290} />
-
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* /Sales Statics */}
           {/* Recent Transactions */}
-          <div className="col-xl-6 col-sm-12 col-12 d-flex">
+          <div className="col-xxl-4 col-lg-4 col-md-12 d-flex">
             <div className="card flex-fill">
               <div className="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div className="d-inline-flex align-items-center">
@@ -1671,10 +1595,8 @@ const ModernDashboard = ({ hideFooter = false }) => {
             </div>
           </div>
           {/* /Recent Transactions */}
-        </div>
-        <div className="row">
           {/* Top Customers */}
-          <div className="col-xxl-4 col-md-6 d-flex">
+          <div className="col-xxl-4 col-lg-4 col-md-12 d-flex">
             <div className="card flex-fill">
               <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div className="d-inline-flex align-items-center">
@@ -1806,7 +1728,7 @@ const ModernDashboard = ({ hideFooter = false }) => {
           </div>
           {/* /Top Customers */}
           {/* Top Categories */}
-          <div className="col-xxl-4 col-md-6 d-flex">
+          <div className="col-xxl-4 col-lg-4 col-md-12 d-flex">
             <div className="card flex-fill">
               <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div className="d-inline-flex align-items-center">
@@ -1908,58 +1830,6 @@ const ModernDashboard = ({ hideFooter = false }) => {
             </div>
           </div>
           {/* /Top Categories */}
-          {/* Order Statistics */}
-          <div className="col-xxl-4 col-md-12 d-flex">
-            <div className="card flex-fill">
-              <div className="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div className="d-inline-flex align-items-center">
-                  <span className="title-icon bg-soft-indigo fs-16 me-2">
-                    <i className="ti ti-package" />
-                  </span>
-                  <h5 className="card-title mb-0">Order Statistics</h5>
-                </div>
-                <div className="dropdown">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-sm btn-white"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false">
-
-                    <i className="ti ti-calendar me-1" />
-                    Weekly
-                  </Link>
-                  <ul className="dropdown-menu p-3">
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        Today
-                      </Link>
-                    </li>
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        Weekly
-                      </Link>
-                    </li>
-                    <li>
-                      <Link to="#" className="dropdown-item">
-                        Monthly
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="card-body pb-0">
-                <div id="heat_chart">
-                  <ApexCharts
-                    options={heatChart}
-                    series={heatChart.series}
-                    type="heatmap"
-                    height={370} />
-
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* /Order Statistics */}
         </div>
       </div>
       {!hideFooter ? <CommonFooter /> : null}

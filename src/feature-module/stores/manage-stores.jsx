@@ -53,14 +53,12 @@ export default function ManageStores() {
   const [listError, setListError] = useState("");
 
   const [addName, setAddName] = useState("");
-  const [addCode, setAddCode] = useState("");
   const [addLocation, setAddLocation] = useState("");
   const [addError, setAddError] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [editRow, setEditRow] = useState(null);
   const [editName, setEditName] = useState("");
-  const [editCode, setEditCode] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editError, setEditError] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
@@ -81,10 +79,6 @@ export default function ManageStores() {
         id: Number(s.id),
         name: String(s.name ?? ""),
         code: String(s.code ?? ""),
-        username: s.username ?? null,
-        phone: s.phone ?? null,
-        status: s.status ?? null,
-        email: s.email ?? null,
         location: s.location ?? null,
         totalQty:
           s.total_qty != null && s.total_qty !== ""
@@ -131,9 +125,6 @@ export default function ManageStores() {
       Code: String(s.code ?? ""),
       "Total Qty": s.totalQty != null ? String(s.totalQty) : "0",
       Location: String(s.location ?? ""),
-      Status: String(s.status ?? ""),
-      Phone: String(s.phone ?? ""),
-      Email: String(s.email ?? ""),
       Updated: formatWhen(s.updatedAt)
     }));
     await downloadRowsExcel(records, "Stores", "stores");
@@ -145,9 +136,6 @@ export default function ManageStores() {
       String(s.code ?? ""),
       s.totalQty != null ? String(s.totalQty) : "0",
       String(s.location ?? ""),
-      String(s.status ?? ""),
-      String(s.phone ?? ""),
-      String(s.email ?? ""),
       formatWhen(s.updatedAt)
     ]);
     await downloadRowsPdf(
@@ -157,9 +145,6 @@ export default function ManageStores() {
         "Code",
         "Total Qty",
         "Location",
-        "Status",
-        "Phone",
-        "Email",
         "Updated"
       ],
       body,
@@ -170,7 +155,6 @@ export default function ManageStores() {
   const openEdit = useCallback((row) => {
     setEditRow(row);
     setEditName(row.name);
-    setEditCode(row.code ?? "");
     setEditLocation(row.location ?? "");
     setEditError("");
   }, []);
@@ -179,7 +163,6 @@ export default function ManageStores() {
     e.preventDefault();
     setAddError("");
     const name = String(addName || "").trim();
-    const code = String(addCode || "").trim();
     const location = String(addLocation || "").trim();
     if (!name) {
       setAddError("Name is required.");
@@ -194,13 +177,10 @@ export default function ManageStores() {
       await createStoreRequest(token, {
         name,
         store_name: name,
-        code: code || null,
-        location: location || null,
-        status: "Active"
+        location: location || null
       });
       await loadStoresFromApi();
       setAddName("");
-      setAddCode("");
       setAddLocation("");
       hideBsModal("add-store");
     } catch (e1) {
@@ -225,7 +205,6 @@ export default function ManageStores() {
       return;
     }
     const name = String(editName || "").trim();
-    const code = String(editCode || "").trim();
     const location = String(editLocation || "").trim();
     if (!name) {
       setEditError("Name is required.");
@@ -236,7 +215,6 @@ export default function ManageStores() {
       await updateStoreRequest(token, editRow.id, {
         name,
         store_name: name,
-        code: code || null,
         location: location || null
       });
       await loadStoresFromApi();
@@ -393,7 +371,6 @@ export default function ManageStores() {
                 onClick={() => {
                   setAddError("");
                   setAddName("");
-                  setAddCode("");
                   setAddLocation("");
                 }}>
                 <i className="ti ti-circle-plus me-1" />
@@ -489,15 +466,10 @@ export default function ManageStores() {
                     placeholder="Location (optional)"
                   />
                 </div>
-                <div className="mb-0 mt-3">
-                  <label className="form-label">Code</label>
-                  <input
-                    className="form-control"
-                    value={addCode}
-                    onChange={(e) => setAddCode(e.target.value)}
-                    placeholder="Short code (optional)"
-                  />
-                </div>
+                <p className="text-muted small mb-0 mt-3">
+                  Store code is generated on save until the API assigns canonical codes
+                  (e.g. ST-001).
+                </p>
               </div>
               <div className="modal-footer">
                 <button
@@ -553,14 +525,13 @@ export default function ManageStores() {
                     placeholder="Location (optional)"
                   />
                 </div>
-                <div className="mb-0">
-                  <label className="form-label">Code</label>
-                  <input
-                    className="form-control"
-                    value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
-                  />
-                </div>
+                {editRow?.code ? (
+                  <p className="text-muted small mb-0">
+                    Store code:{" "}
+                    <span className="font-monospace">{editRow.code}</span>{" "}
+                    (assigned when created)
+                  </p>
+                ) : null}
               </div>
               <div className="modal-footer">
                 <button
