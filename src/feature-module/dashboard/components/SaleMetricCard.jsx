@@ -43,9 +43,11 @@ export default function SaleMetricCard({
           <p className="text-white mb-1">{title}</p>
           <div className="d-inline-flex align-items-center flex-wrap gap-2">
             <h4 className="text-white">{value}</h4>
-            <TrendBadge direction={trendDirection} variant={trendBadgeVariant}>
-              {trendLabel}
-            </TrendBadge>
+            {trendLabel ? (
+              <TrendBadge direction={trendDirection} variant={trendBadgeVariant}>
+                {trendLabel}
+              </TrendBadge>
+            ) : null}
           </div>
         </div>
       </div>

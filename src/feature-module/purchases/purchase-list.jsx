@@ -2139,6 +2139,7 @@ const PurchasesList = () => {
               type="button"
               className="btn btn-sm btn-light p-1 d-inline-flex align-items-center justify-content-center"
               data-bs-toggle="dropdown"
+              data-bs-popper-config={JSON.stringify({ strategy: "fixed" })}
               aria-expanded="false"
               title="Actions">
               <MoreVertical size={16} />

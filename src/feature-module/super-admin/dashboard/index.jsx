@@ -561,10 +561,6 @@ const SuperAdminDashboard = () => {
         <div className="d-lg-flex align-items-center justify-content-between mb-4">
           <div>
             <h2 className="mb-1">Welcome, Admin</h2>
-            <p>
-              You have <span className="text-primary fw-bold">200+</span>{" "}
-              Orders, Today
-            </p>
           </div>
           <ul className="table-top-head">
             <li>

@@ -33,6 +33,36 @@ export function fetchOutstandingInvoices(token) {
   return tillflowFetch(`/reports/outstanding-invoices`, { token });
 }
 
+/** @param {string} token @param {{ limit?: number }} [params] */
+export function fetchDashboardTopCustomers(token, params) {
+  return tillflowFetch(`/reports/dashboard-top-customers${qs(params)}`, { token });
+}
+
+/** @param {string} token @param {{ limit?: number }} [params] */
+export function fetchTopCustomersArrears(token, params) {
+  return tillflowFetch(`/reports/top-customers-arrears${qs(params)}`, { token });
+}
+
+/** @param {string} token @param {{ period?: string, limit?: number }} [params] */
+export function fetchDashboardTopCategories(token, params) {
+  return tillflowFetch(`/reports/dashboard-top-categories${qs(params)}`, { token });
+}
+
+/** @param {string} token @param {Record<string, string|number|undefined>} [params] limit, period, from, to */
+export function fetchDashboardRecentTransactions(token, params) {
+  return tillflowFetch(`/reports/dashboard-recent-transactions${qs(params)}`, { token });
+}
+
+/** @param {string} token @param {{ period?: string }} [params] period: 1d|1w|1m|3m|6m|1y */
+export function fetchDashboardSalesPurchase(token, params) {
+  return tillflowFetch(`/reports/dashboard-sales-purchase${qs(params)}`, { token });
+}
+
+/** @param {string} token @param {{ period?: string, from?: string, to?: string }} [params] */
+export function fetchDashboardOverallInformation(token, params) {
+  return tillflowFetch(`/reports/dashboard-overall-information${qs(params)}`, { token });
+}
+
 /** Invoice report register: date range, optional customer_id & status; includes KPI summary. */
 export function fetchInvoiceRegister(token, params) {
   return tillflowFetch(`/reports/invoice-register${qs(params)}`, { token });
