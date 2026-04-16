@@ -17,8 +17,10 @@ class Product extends Model
         'brand_id',
         'unit_id',
         'warranty_id',
+        'store_id',
         'name',
         'sku',
+        'image_path',
         'qty',
         'qty_alert',
         'manufactured_at',
@@ -65,8 +67,26 @@ class Product extends Model
         return $this->belongsTo(Warranty::class);
     }
 
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(StoreManager::class, 'store_id');
+    }
+
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function stockAdjustments(): HasMany
+    {
+        return $this->hasMany(StockAdjustment::class);
+    }
+
+    /**
+     * Per-store stock buckets (product_quantities table).
+     */
+    public function productQuantities(): HasMany
+    {
+        return $this->hasMany(ProductQuantity::class);
     }
 }

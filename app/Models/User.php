@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,36 +11,31 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPasswordContract
 {
-    /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use CanResetPassword;
+    use HasApiTokens;
+    use HasFactory;
+    use Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
+        'tenant_id',
         'name',
         'email',
         'password',
-        'tenant_id',
+        'phone',
+        'address_line',
+        'location',
+        'avatar_path',
+        'allowed_store_ids',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -48,6 +43,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'allowed_store_ids' => 'array',
         ];
     }
 
@@ -58,20 +54,56 @@ class User extends Authenticatable
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class)->withTimestamps();
+        return $this->belongsToMany(Role::class);
     }
 
-    public function hasRole(string $roleSlug): bool
+    /**
+     * Flattened permission slugs from all roles (current request).
+     *
+     * @return list<string>
+     */
+    public function permissionSlugs(): array
     {
-        return $this->roles()->where('slug', $roleSlug)->exists();
+        $this->loadMissing('roles.permissions');
+
+        return $this->roles
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('slug'))
+            ->unique()
+            ->values()
+            ->all();
     }
 
-    public function hasPermission(string $permissionSlug): bool
+    public function hasPermission(string $slug): bool
     {
-        return $this->roles()
-            ->whereHas('permissions', function ($query) use ($permissionSlug): void {
-                $query->where('slug', $permissionSlug);
-            })
-            ->exists();
+        $slugs = $this->flattenAssignedPermissionSlugs();
+
+        if ($slugs->contains($slug)) {
+            return true;
+        }
+
+        // Tenant administrators can manage users and roles (routes use `users.manage`).
+        if ($slug === 'users.manage' && $slugs->contains('tenant.manage')) {
+            return true;
+        }
+
+        if (str_ends_with($slug, '.view')) {
+            $manage = substr($slug, 0, -strlen('.view')).'.manage';
+
+            return $slugs->contains($manage);
+        }
+
+        return false;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    private function flattenAssignedPermissionSlugs(): \Illuminate\Support\Collection
+    {
+        $this->loadMissing('roles.permissions');
+
+        return $this->roles
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('slug'))
+            ->unique();
     }
 }

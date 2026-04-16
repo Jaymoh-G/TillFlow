@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductQuantity;
 use App\Models\ProductVariant;
 use App\Models\Tenant;
 use App\Models\VariantAttribute;
+use App\Services\Inventory\ProductStoreStockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -27,16 +30,27 @@ class ProductController extends Controller
                 'brand:id,name,logo_url',
                 'unit:id,name,short_name',
                 'warranty:id,name,duration_value,duration_unit,is_active',
+                'store:id,store_name',
+                'productQuantities:product_id,store_id,qty',
             ])
             ->orderBy('name')
             ->get([
-                'id', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id', 'name', 'sku', 'qty', 'qty_alert',
+                'id', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id', 'store_id', 'name', 'sku', 'image_path', 'qty', 'qty_alert',
                 'manufactured_at', 'expires_at', 'buying_price', 'selling_price', 'created_at', 'updated_at',
             ]);
 
         return response()->json([
             'message' => 'Products retrieved.',
-            'products' => $products,
+            'products' => $products
+                ->map(function (Product $product) {
+                    $base = $product->toArray();
+                    unset($base['product_quantities'], $base['store_stocks']);
+
+                    return $base + [
+                        'image_url' => $product->image_path ? Storage::disk('public')->url($product->image_path) : null,
+                    ] + $this->productQuantityPayload($product);
+                })
+                ->values(),
         ]);
     }
 
@@ -52,13 +66,18 @@ class ProductController extends Controller
                 'brand:id,name,logo_url',
                 'unit:id,name,short_name',
                 'warranty:id,name,duration_value,duration_unit,is_active',
+                'store:id,store_name',
             ])
             ->orderByDesc('deleted_at')
-            ->get(['id', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id', 'name', 'sku', 'qty', 'qty_alert', 'manufactured_at', 'expires_at', 'created_at', 'updated_at', 'deleted_at']);
+            ->get(['id', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id', 'store_id', 'name', 'sku', 'image_path', 'qty', 'qty_alert', 'manufactured_at', 'expires_at', 'created_at', 'updated_at', 'deleted_at']);
 
         return response()->json([
             'message' => 'Trashed products retrieved.',
-            'products' => $products,
+            'products' => $products
+                ->map(fn (Product $product) => $product->toArray() + [
+                    'image_url' => $product->image_path ? Storage::disk('public')->url($product->image_path) : null,
+                ])
+                ->values(),
         ]);
     }
 
@@ -105,6 +124,13 @@ class ProductController extends Controller
                     ->where('tenant_id', $tenant->id)
                     ->whereNull('deleted_at'),
             ],
+            'store_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('store_managers', 'id')
+                    ->where('tenant_id', $tenant->id)
+                    ->whereNull('deleted_at'),
+            ],
             'qty' => ['sometimes', 'integer', 'min:0'],
             'qty_alert' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'manufactured_at' => ['sometimes', 'nullable', 'date'],
@@ -137,6 +163,7 @@ class ProductController extends Controller
             'brand_id' => $validated['brand_id'] ?? null,
             'unit_id' => $validated['unit_id'] ?? null,
             'warranty_id' => $validated['warranty_id'] ?? null,
+            'store_id' => $validated['store_id'] ?? null,
             'name' => $validated['name'],
             'sku' => $validated['sku'] ?? null,
             'qty' => $validated['qty'] ?? 0,
@@ -149,6 +176,11 @@ class ProductController extends Controller
 
         if (! empty($validated['variants'] ?? [])) {
             $this->syncProductVariants($tenant, $product, $validated['variants']);
+        }
+
+        $fresh = $product->fresh();
+        if ((int) $fresh->qty !== 0) {
+            app(ProductStoreStockService::class)->setTotalQuantity($fresh, (int) $fresh->qty, $fresh->store_id);
         }
 
         return response()->json([
@@ -216,6 +248,14 @@ class ProductController extends Controller
                     ->where('tenant_id', $tenant->id)
                     ->whereNull('deleted_at'),
             ],
+            'store_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('store_managers', 'id')
+                    ->where('tenant_id', $tenant->id)
+                    ->whereNull('deleted_at'),
+            ],
             'qty' => ['sometimes', 'integer', 'min:0'],
             'qty_alert' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'manufactured_at' => ['sometimes', 'nullable', 'date'],
@@ -244,17 +284,33 @@ class ProductController extends Controller
             unset($validated['variants']);
         }
 
-        $model->fill($validated);
-        $model->save();
-
-        if ($variantsPayload !== null) {
-            if ($variantsPayload === []) {
-                $this->deleteAllProductVariants($model);
-            } else {
-                $this->validateVariantDefinitions($tenant, $variantsPayload);
-                $this->syncProductVariants($tenant, $model->fresh(), $variantsPayload);
-            }
+        $qtyPatch = null;
+        if (array_key_exists('qty', $validated)) {
+            $qtyPatch = (int) $validated['qty'];
+            unset($validated['qty']);
         }
+
+        DB::transaction(function () use ($tenant, $model, $validated, $variantsPayload, $qtyPatch): void {
+            $model->fill($validated);
+            $model->save();
+
+            if ($qtyPatch !== null) {
+                $locked = Product::query()
+                    ->whereKey($model->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                app(ProductStoreStockService::class)->setTotalQuantity($locked, $qtyPatch, $locked->store_id);
+            }
+
+            if ($variantsPayload !== null) {
+                if ($variantsPayload === []) {
+                    $this->deleteAllProductVariants($model);
+                } else {
+                    $this->validateVariantDefinitions($tenant, $variantsPayload);
+                    $this->syncProductVariants($tenant, $model->fresh(), $variantsPayload);
+                }
+            }
+        });
 
         return response()->json([
             'message' => 'Product updated.',
@@ -285,6 +341,28 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Variant image uploaded.',
             'variant' => $this->serializeVariant($variantModel),
+        ]);
+    }
+
+    public function uploadMainImage(Request $request, string $product): JsonResponse
+    {
+        $productModel = $this->resolveProduct($request, $product);
+
+        $request->validate([
+            'image' => ['required', 'file', 'image', 'max:4096'],
+        ]);
+
+        if ($productModel->image_path) {
+            Storage::disk('public')->delete($productModel->image_path);
+        }
+
+        $path = $request->file('image')->store('products/main', 'public');
+        $productModel->image_path = $path;
+        $productModel->save();
+
+        return response()->json([
+            'message' => 'Main image uploaded.',
+            'product' => $this->productPayload($productModel->fresh()),
         ]);
     }
 
@@ -323,11 +401,13 @@ class ProductController extends Controller
             'brand:id,name,logo_url',
             'unit:id,name,short_name',
             'warranty:id,name,duration_value,duration_unit,is_active',
+            'store:id,store_name',
+            'productQuantities:product_id,store_id,qty',
             'variants',
         ]);
 
         return $product->only([
-            'id', 'name', 'sku', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id',
+            'id', 'name', 'sku', 'tenant_id', 'category_id', 'brand_id', 'unit_id', 'warranty_id', 'store_id', 'image_path',
             'qty', 'qty_alert', 'manufactured_at', 'expires_at', 'buying_price', 'selling_price', 'created_at', 'updated_at',
         ]) + [
             'category' => $product->category ? $product->category->only(['id', 'name']) : null,
@@ -336,7 +416,31 @@ class ProductController extends Controller
             'warranty' => $product->warranty
                 ? $product->warranty->only(['id', 'name', 'duration_value', 'duration_unit', 'is_active'])
                 : null,
+            'store' => $product->store
+                ? ['id' => $product->store->id, 'name' => $product->store->store_name]
+                : null,
+            'image_url' => $product->image_path ? Storage::disk('public')->url($product->image_path) : null,
+        ] + $this->productQuantityPayload($product) + [
             'variants' => $product->variants->map(fn (ProductVariant $v) => $this->serializeVariant($v))->values(),
+        ];
+    }
+
+    /**
+     * @return array{store_stocks: list<array{store_id: int, qty: int}>, product_quantities: list<array{store_id: int, qty: int}>}
+     */
+    private function productQuantityPayload(Product $product): array
+    {
+        $rows = $product->productQuantities
+            ->map(fn (ProductQuantity $b) => [
+                'store_id' => (int) $b->store_id,
+                'qty' => (int) $b->qty,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'store_stocks' => $rows,
+            'product_quantities' => $rows,
         ];
     }
 

@@ -47,7 +47,7 @@ class RbacSeeder extends Seeder
 
         $admin->permissions()->sync(
             Permission::query()
-                ->whereIn('slug', ['users.manage', 'catalog.manage', 'sales.manage', 'reports.view'])
+                ->whereIn('slug', ['tenant.manage', 'users.manage', 'catalog.manage', 'sales.manage', 'reports.view'])
                 ->pluck('id')
                 ->all()
         );

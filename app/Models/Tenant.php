@@ -10,7 +10,6 @@ class Tenant extends Model
     protected $fillable = [
         'name',
         'slug',
-        'status',
     ];
 
     public function users(): HasMany
@@ -18,8 +17,8 @@ class Tenant extends Model
         return $this->hasMany(User::class);
     }
 
-    public function products(): HasMany
+    public function roles(): HasMany
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Role::class);
     }
 }
