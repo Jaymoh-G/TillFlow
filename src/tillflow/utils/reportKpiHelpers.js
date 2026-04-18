@@ -381,6 +381,16 @@ export function buildKpiItemsForSlug(slug, ctx) {
     ]);
   }
 
+  if (slug === 'proposal-report' && meta.proposalSummary) {
+    const s = meta.proposalSummary;
+    return padFour([
+      item('c', 'Proposals', String(s.count ?? '—'), 'info'),
+      item('v', 'Total value', fmt(s.total_amount), 'success'),
+      item('a', 'Accepted', String(s.accepted_count ?? '—'), 'orange'),
+      item('rows', 'Rows loaded', String(rows.length), 'danger')
+    ]);
+  }
+
   // Default: row count + simple stats
   if (rows.length) {
     return padFour([

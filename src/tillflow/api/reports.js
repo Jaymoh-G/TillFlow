@@ -29,6 +29,10 @@ export function fetchPaymentBreakdown(token, params) {
   return tillflowFetch(`/reports/payment-breakdown${qs(params)}`, { token });
 }
 
+/**
+ * GET `/reports/outstanding-invoices` — optional `summary` (`unpaid_balance`, `partial_balance`,
+ * `overdue_balance`, `total_outstanding`, …) and/or `rows` / `invoices` with `status` + `balance_due`.
+ */
 export function fetchOutstandingInvoices(token) {
   return tillflowFetch(`/reports/outstanding-invoices`, { token });
 }
@@ -53,7 +57,11 @@ export function fetchDashboardRecentTransactions(token, params) {
   return tillflowFetch(`/reports/dashboard-recent-transactions${qs(params)}`, { token });
 }
 
-/** @param {string} token @param {{ period?: string }} [params] period: 1d|1w|1m|3m|6m|1y */
+/**
+ * @param {string} token
+ * @param {{ period?: string, from?: string, to?: string }} [params]
+ *   `period` (e.g. 1w|1m|6m) or `from`/`to` (YYYY-MM-DD) when the API supports a custom range.
+ */
 export function fetchDashboardSalesPurchase(token, params) {
   return tillflowFetch(`/reports/dashboard-sales-purchase${qs(params)}`, { token });
 }
@@ -122,4 +130,13 @@ export function fetchAnnualSummary(token, params) {
 
 export function fetchCustomerPurchaseLines(token, params) {
   return tillflowFetch(`/reports/customer-purchase-lines${qs(params)}`, { token });
+}
+
+export function fetchProposalsReport(token, params) {
+  return tillflowFetch(`/reports/proposals${qs(params)}`, { token });
+}
+
+/** Dashboard Recent Transactions — proposals tab (requires sales.proposals.view + reports.view). */
+export function fetchDashboardRecentProposals(token, params) {
+  return tillflowFetch(`/reports/dashboard-recent-proposals${qs(params)}`, { token });
 }

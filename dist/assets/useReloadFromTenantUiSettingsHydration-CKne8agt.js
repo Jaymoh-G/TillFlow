@@ -1,1 +1,0 @@
-import{r}from"./index-BS81Fl5c.js";import{T as n}from"./events-CvzQRriI.js";function s(t){r.useEffect(()=>{const e=()=>t();return window.addEventListener(n,e),()=>window.removeEventListener(n,e)},[t])}export{s as u};

@@ -35,6 +35,7 @@ import PosSettings from '../feature-module/settings/websitesettings/possettings'
 import Preference from '../feature-module/settings/websitesettings/preference';
 import SocialAuthentication from '../feature-module/settings/websitesettings/socialauthentication';
 import SystemSettings from '../feature-module/settings/websitesettings/systemsettings';
+import AutomationSettings from '../feature-module/settings/systemsettings/automationsettings';
 import StockAdjustment from '../feature-module/stock/stock-adjustment';
 import StockTransfer from '../feature-module/stock/stock-transfer';
 import ManageStores from '../feature-module/stores/manage-stores';
@@ -52,10 +53,13 @@ import AdminCreditNotes from './pages/AdminCreditNotes';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
 import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
+import AdminActivityLogs from './pages/AdminActivityLogs';
 import AdminExpiredItems from './pages/AdminExpiredItems';
 import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
 import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
 import AdminInvoicePayments from './pages/AdminInvoicePayments';
+import AdminLeadDetail from './pages/AdminLeadDetail';
+import AdminLeads from './pages/AdminLeads';
 import AdminLowStock from './pages/AdminLowStock';
 import AdminPosOrderDetail from './pages/AdminPosOrderDetail';
 import AdminPosOrders from './pages/AdminPosOrders';
@@ -172,6 +176,10 @@ export default function TillFlowApp() {
                   <Route path="reports/:slug" element={<AdminReportRunner />} />
                 </Route>
 
+                <Route element={<RequirePermission anyOf={[PERMISSION.ACTIVITY_LOGS_VIEW]} />}>
+                  <Route path="activity-logs" element={<AdminActivityLogs />} />
+                </Route>
+
                 <Route element={<RequirePermission anyOf={vm(M.ORDERS)} />}>
                   <Route path="orders/:posOrderId" element={<AdminPosOrderDetail />} />
                   <Route path="orders" element={<AdminPosOrders />} />
@@ -182,6 +190,18 @@ export default function TillFlowApp() {
                   <Route path="quotations/:quotationId/edit" element={<QuotationList />} />
                   <Route path="quotations/:quotationId" element={<QuotationList />} />
                   <Route path="quotations" element={<QuotationList />} />
+                </Route>
+
+                <Route element={<RequirePermission anyOf={vm(M.LEADS)} />}>
+                  <Route path="leads/:leadId" element={<AdminLeadDetail />} />
+                  <Route path="leads" element={<AdminLeads />} />
+                </Route>
+
+                <Route element={<RequirePermission anyOf={vm(M.PROPOSALS)} />}>
+                  <Route path="proposals/new" element={<QuotationList />} />
+                  <Route path="proposals/:proposalId/edit" element={<QuotationList />} />
+                  <Route path="proposals/:proposalId" element={<QuotationList />} />
+                  <Route path="proposals" element={<QuotationList />} />
                 </Route>
 
                 <Route element={<RequirePermission anyOf={vm(M.INVOICES)} />}>
@@ -225,6 +245,7 @@ export default function TillFlowApp() {
 
                 <Route element={<RequirePermission anyOf={[PERMISSION.TENANT_MANAGE]} />}>
                   <Route path="settings/system" element={<SystemSettings />} />
+                  <Route path="settings/automation" element={<AutomationSettings />} />
                   <Route path="settings/company" element={<CompanySettings />} />
                   <Route path="settings/preference" element={<Preference />} />
                   <Route path="settings/appearance" element={<Appearance />} />

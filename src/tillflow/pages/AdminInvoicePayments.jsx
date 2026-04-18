@@ -253,8 +253,8 @@ export default function AdminInvoicePayments() {
         sortable: false,
         className: "text-end",
         body: (p) => (
-          <div className="text-end">
-            <Dropdown align="end">
+          <div className="text-end edit-delete-action">
+            <Dropdown align="end" drop="down">
               <Dropdown.Toggle
                 variant="light"
                 id={`invoice-payment-actions-${String(p.id)}`}
@@ -262,20 +262,20 @@ export default function AdminInvoicePayments() {
                 aria-label="Payment actions">
                 <i className="ti ti-dots-vertical" />
               </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}`)}>
-                  <i className="ti ti-eye me-2 text-dark" />
+              <Dropdown.Menu popperConfig={{ strategy: "fixed" }} renderOnMount>
+                <Dropdown.Item as={Link} to={`/tillflow/admin/invoice-payments/${p.id}`}>
+                  <i className="ti ti-eye text-dark" aria-hidden />
                   View
                 </Dropdown.Item>
                 <Dropdown.Item
                   as="button"
                   type="button"
                   onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}?emailCustomer=1`)}>
-                  <i className="ti ti-send me-2 text-dark" />
+                  <i className="ti ti-send text-dark" aria-hidden />
                   Send to customer
                 </Dropdown.Item>
                 <Dropdown.Item as="button" type="button" onClick={() => openEdit(p)}>
-                  <i className="ti ti-edit me-2 text-dark" />
+                  <i className="ti ti-edit text-dark" aria-hidden />
                   Edit
                 </Dropdown.Item>
                 <Dropdown.Divider />
@@ -285,7 +285,7 @@ export default function AdminInvoicePayments() {
                   className="text-danger"
                   disabled={String(p.payment_method ?? "") === "opening_balance"}
                   onClick={() => void deletePayment(p)}>
-                  <i className="ti ti-trash me-2" />
+                  <i className="ti ti-trash" aria-hidden />
                   Delete
                 </Dropdown.Item>
               </Dropdown.Menu>
@@ -367,17 +367,19 @@ export default function AdminInvoicePayments() {
               </div>
             </div>
 
-            <PrimeDataTable
-              column={columns}
-              data={filtered}
-              rows={tableRows}
-              setRows={setTableRows}
-              currentPage={tableCurrentPage}
-              setCurrentPage={setTableCurrentPage}
-              totalRecords={filtered.length}
-              loading={loading}
-              isPaginationEnabled
-            />
+            <div className="table-responsive">
+              <PrimeDataTable
+                column={columns}
+                data={filtered}
+                rows={tableRows}
+                setRows={setTableRows}
+                currentPage={tableCurrentPage}
+                setCurrentPage={setTableCurrentPage}
+                totalRecords={filtered.length}
+                loading={loading}
+                isPaginationEnabled
+              />
+            </div>
           </div>
         </div>
       </div>

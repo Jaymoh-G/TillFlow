@@ -16,6 +16,10 @@ const VARIANTS = {
   info: {
     card: "bg-info",
     iconWrap: "bg-white text-info"
+  },
+  success: {
+    card: "bg-success",
+    iconWrap: "bg-white text-success"
   }
 };
 
@@ -26,6 +30,7 @@ export default function SaleMetricCard({
   variant = "primary",
   iconClassName,
   title,
+  subtitle = null,
   value,
   trendDirection = "up",
   trendLabel,
@@ -41,6 +46,9 @@ export default function SaleMetricCard({
         </span>
         <div className="ms-2">
           <p className="text-white mb-1">{title}</p>
+          {subtitle ? (
+            <p className="text-white-50 small mb-1">{subtitle}</p>
+          ) : null}
           <div className="d-inline-flex align-items-center flex-wrap gap-2">
             <h4 className="text-white">{value}</h4>
             {trendLabel ? (

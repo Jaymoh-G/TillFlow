@@ -130,6 +130,7 @@ export const all_routes = {
   tillflowAdminProfile: "/tillflow/admin/settings/profile",
   tillflowAdminCompanySettings: "/tillflow/admin/settings/company",
   tillflowAdminSystemSettings: "/tillflow/admin/settings/system",
+  tillflowAdminAutomationSettings: "/tillflow/admin/settings/automation",
   tillflowAdminPreference: "/tillflow/admin/settings/preference",
   tillflowAdminAppearance: "/tillflow/admin/settings/appearance",
   tillflowAdminSocialAuth: "/tillflow/admin/settings/social-authentication",

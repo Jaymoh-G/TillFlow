@@ -24,6 +24,8 @@ import {
 } from "../api/invoicePayments";
 import { showInvoiceRequest } from "../api/invoices";
 import { useAuth } from "../auth/AuthContext";
+import { PERMISSION } from "../auth/permissions";
+import ActivityLogModal from "../components/ActivityLogModal";
 
 const FEATURE_PLACEHOLDER_BODY =
   "This feature is not implemented yet. It needs backend support (e.g. mail, tracking tables, or credits).";
@@ -78,7 +80,8 @@ function formatKes(n) {
 export default function AdminInvoicePaymentDetail() {
   const { paymentId } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, hasPermission } = useAuth();
+  const canViewActivityLog = hasPermission(PERMISSION.ACTIVITY_LOGS_VIEW);
   const receiptRef = useRef(null);
   const invoicePrintRootRef = useRef(null);
 
@@ -92,6 +95,7 @@ export default function AdminInvoicePaymentDetail() {
   const [invoiceSideRow, setInvoiceSideRow] = useState(null);
   const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState(null);
   const [placeholder, setPlaceholder] = useState(null);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
 
   const [editRow, setEditRow] = useState(null);
   const [editAmount, setEditAmount] = useState("");
@@ -388,10 +392,6 @@ export default function AdminInvoicePaymentDetail() {
     }
   }, [selected]);
 
-  const openActivityLog = useCallback(() => {
-    setPlaceholder({ title: "Activity log", body: FEATURE_PLACEHOLDER_BODY });
-  }, []);
-
   const goEmailCustomer = useCallback(() => {
     if (!selected?.invoice_id || !canEmailCustomer) {
       return;
@@ -495,10 +495,16 @@ export default function AdminInvoicePaymentDetail() {
                     <i className="ti ti-file-invoice me-1" />
                     View PDF
                   </button>
-                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={openActivityLog}>
-                    <i className="ti ti-history me-1" />
-                    Activity log
-                  </button>
+                  {canViewActivityLog ? (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setActivityLogOpen(true)}
+                      disabled={!selected?.invoice_id}>
+                      <i className="ti ti-history me-1" />
+                      Activity log
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className={`btn btn-sm ${invoiceIssued ? "btn-outline-danger" : "btn-outline-success"}`}
@@ -573,6 +579,14 @@ export default function AdminInvoicePaymentDetail() {
           </button>
         </Modal.Footer>
       </Modal>
+
+      <ActivityLogModal
+        show={activityLogOpen}
+        onHide={() => setActivityLogOpen(false)}
+        token={token}
+        canView={canViewActivityLog}
+        invoiceId={selected?.invoice_id ? Number(selected.invoice_id) : null}
+      />
 
       <DocumentPdfPreviewModal
         url={invoicePdfPreviewUrl}

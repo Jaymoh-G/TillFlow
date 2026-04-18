@@ -1303,6 +1303,15 @@ svg.p-icon.p-chips-token-icon {
   z-index: 9999 !important;
 }
 
+/* Quotation / proposal list: Bootstrap row menus above Prime filter panels + sortable header stacking */
+.page-wrapper.quotation-list-page .table-responsive .edit-delete-action .dropdown-menu {
+  z-index: 10050;
+}
+
+.page-wrapper.invoice-payments-page .table-responsive .edit-delete-action .dropdown-menu {
+  z-index: 10050 !important;
+}
+
 .p-datepicker-header button svg,
 .p-dropdown-trigger svg {
   width: 12px;

@@ -75,6 +75,8 @@ const QuotationPrintDocument = forwardRef(function QuotationPrintDocument(
     return null;
   }
 
+  const isProposalDoc = viewRow.documentKind === "proposal";
+
   return (
     <div ref={ref} className="card border-0 shadow-none bg-white quotation-view-print-root">
       <div className="card-body pt-2 pb-3 px-3 bg-white">
@@ -92,7 +94,7 @@ const QuotationPrintDocument = forwardRef(function QuotationPrintDocument(
               <h2
                 className="text-black mb-0 text-uppercase fw-bolder"
                 style={{ letterSpacing: "0.07em", fontSize: "1.5rem" }}>
-                QUOTATION
+                {isProposalDoc ? "PROPOSAL" : "QUOTATION"}
               </h2>
               <p className="mb-1 fw-bold text-black" style={{ fontSize: "1.05rem", marginTop: 0 }}>
                 # {viewRow.quoteRef}
@@ -159,11 +161,13 @@ const QuotationPrintDocument = forwardRef(function QuotationPrintDocument(
             <h4
               className="mb-0 text-break quotation-view-quote-title text-black fw-bold flex-grow-1 me-md-2"
               style={{ whiteSpace: "pre-wrap" }}>
-              Quotation for : {String(viewRow.quoteTitle ?? "").trim() || "—"}
+              {isProposalDoc ? "Proposal for :" : "Quotation for :"}{" "}
+              {String(viewRow.quoteTitle ?? "").trim() || "—"}
             </h4>
             <p className="mb-0 fw-medium text-break quotation-view-quote-dates ms-md-auto text-md-end flex-shrink-0">
               <span>
-                Quote date : <span className="text-dark">{viewRow.quotedDate}</span>
+                {isProposalDoc ? "Proposal date :" : "Quote date :"}{" "}
+                <span className="text-dark">{viewRow.quotedDate}</span>
               </span>
               <span className="text-muted px-2">·</span>
               <span>

@@ -33,6 +33,8 @@ export default function AdminSidebarTwoColumn() {
   const canSuppliers = can('procurement.suppliers.view');
   const canOrders = can('sales.orders.view');
   const canQuotations = can('sales.quotations.view');
+  const canLeads = can('sales.leads.view');
+  const canProposals = can('sales.proposals.view');
   const canInvoices = can('sales.invoices.view');
   const canDeliveryNotes = can('sales.delivery_notes.view');
   const canCreditNotes = can('sales.credit_notes.view');
@@ -42,6 +44,7 @@ export default function AdminSidebarTwoColumn() {
   const canBillers = can('sales.billers.view');
   const canUsers = hasPermission(PERMISSION.USERS_MANAGE);
   const canReports = hasPermission(PERMISSION.REPORTS_VIEW);
+  const canActivityLogs = hasPermission(PERMISSION.ACTIVITY_LOGS_VIEW);
   const canTenant = hasPermission(PERMISSION.TENANT_MANAGE);
 
   const reportNavGroupsVisible = useMemo(
@@ -54,6 +57,8 @@ export default function AdminSidebarTwoColumn() {
   const showSalesNav =
     canOrders ||
     canQuotations ||
+    canLeads ||
+    canProposals ||
     canInvoices ||
     canDeliveryNotes ||
     canCreditNotes ||
@@ -92,7 +97,7 @@ export default function AdminSidebarTwoColumn() {
     if (showPurchasesSection) {
       items.push({ id: 'purchases', icon: 'icon-download', label: 'Purchases' });
     }
-    if (canReports) {
+    if (canReports || canActivityLogs) {
       items.push({ id: 'reports', icon: 'icon-pie-chart', label: 'Reports' });
     }
     items.push({ id: 'settings', icon: 'icon-settings', label: 'Settings' });
@@ -103,7 +108,8 @@ export default function AdminSidebarTwoColumn() {
     showSalesNav,
     showPeople,
     showPurchasesSection,
-    canReports
+    canReports,
+    canActivityLogs
   ]);
 
   const syncSectionsToPath = useCallback((pathname) => {
@@ -322,6 +328,26 @@ export default function AdminSidebarTwoColumn() {
                   Quotations
                 </NavLink>
               ) : null}
+              {canLeads ? (
+                <NavLink
+                  to="/tillflow/admin/leads"
+                  className={({ isActive }) =>
+                    isActive || location.pathname.startsWith('/tillflow/admin/leads') ? 'active' : undefined
+                  }>
+                  <i className="feather icon-user-plus tf-nav__icon" aria-hidden />
+                  Leads
+                </NavLink>
+              ) : null}
+              {canProposals ? (
+                <NavLink
+                  to="/tillflow/admin/proposals"
+                  className={({ isActive }) =>
+                    isActive || location.pathname.startsWith('/tillflow/admin/proposals') ? 'active' : undefined
+                  }>
+                  <i className="feather icon-send tf-nav__icon" aria-hidden />
+                  Proposals
+                </NavLink>
+              ) : null}
               {canInvoices ? (
                 <NavLink
                   to="/tillflow/admin/invoices"
@@ -444,8 +470,10 @@ export default function AdminSidebarTwoColumn() {
           </>
         ) : null;
       case 'reports':
-        return canReports ? (
+        return canReports || canActivityLogs ? (
           <AdminSidebarReportsPanel
+            canReports={canReports}
+            canActivityLogs={canActivityLogs}
             reportNavGroupsVisible={reportNavGroupsVisible}
             reportSubgroupOpen={reportSubgroupOpen}
             setReportSubgroupOpen={setReportSubgroupOpen}

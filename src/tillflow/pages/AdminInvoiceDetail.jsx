@@ -62,6 +62,8 @@ import {
 import { createInvoiceDeliveryNoteRequest, listInvoiceDeliveryNotesRequest } from "../api/deliveryNotes";
 import { createInvoiceCreditNoteRequest, listInvoiceCreditNotesRequest } from "../api/creditNotes";
 import { useOptionalAuth } from "../auth/AuthContext";
+import { PERMISSION } from "../auth/permissions";
+import ActivityLogModal from "../components/ActivityLogModal";
 import { roundMoney } from "../../utils/salesDocumentLineItems";
 
 function enrichCustomerRow(baseRow, catalogCustomers) {
@@ -103,6 +105,7 @@ export default function AdminInvoiceDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const auth = useOptionalAuth();
   const token = auth?.token ?? null;
+  const canViewActivityLog = Boolean(auth?.hasPermission?.(PERMISSION.ACTIVITY_LOGS_VIEW));
 
   const paymentsSectionRef = useRef(null);
   const paymentsHintTimerRef = useRef(null);
@@ -126,6 +129,7 @@ export default function AdminInvoiceDetail() {
   const [notesSaving, setNotesSaving] = useState(false);
 
   const [placeholder, setPlaceholder] = useState(null);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
   const [paymentsHint, setPaymentsHint] = useState("");
 
   const [showRecordPayment, setShowRecordPayment] = useState(false);
@@ -180,6 +184,11 @@ export default function AdminInvoiceDetail() {
   const invoiceEmailSuccessTimerRef = useRef(null);
 
   const viewDoc = useMemo(() => (detailRow ? buildInvoiceViewDocumentData(detailRow) : null), [detailRow]);
+  const activityLogInvoiceId = useMemo(() => {
+    const raw = rawInvoice?.id ?? detailRow?.apiId ?? invoiceId;
+    const n = typeof raw === "number" ? raw : Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [rawInvoice?.id, detailRow?.apiId, invoiceId]);
   const listSidebarColumns = useMemo(
     () => [
       {
@@ -1405,12 +1414,14 @@ export default function AdminInvoiceDetail() {
                       </Dropdown.Item>
                       <Dropdown.Divider />
                       <Dropdown.Header className="small text-muted py-1">Tracking & history</Dropdown.Header>
-                      <Dropdown.Item
-                        disabled={isCancelled}
-                        onClick={() => setPlaceholder({ title: "Activity log", body: placeholderBody })}>
-                        <i className="ti ti-history me-2 text-dark" />
-                        Activity log
-                      </Dropdown.Item>
+                      {canViewActivityLog ? (
+                        <Dropdown.Item
+                          disabled={!activityLogInvoiceId}
+                          onClick={() => setActivityLogOpen(true)}>
+                          <i className="ti ti-history me-2 text-dark" />
+                          Activity log
+                        </Dropdown.Item>
+                      ) : null}
                       <Dropdown.Item
                         disabled={isCancelled}
                         onClick={() =>
@@ -1701,7 +1712,9 @@ export default function AdminInvoiceDetail() {
         onSendReceiptToCustomer={token ? handleSendReceiptToCustomer : undefined}
         onViewInvoicePdf={token ? () => void handleViewPdfPreview() : undefined}
         onActivityLog={
-          token ? () => setPlaceholder({ title: "Activity log", body: placeholderBody }) : undefined
+          token && canViewActivityLog && activityLogInvoiceId
+            ? () => setActivityLogOpen(true)
+            : undefined
         }
       />
 
@@ -1721,6 +1734,14 @@ export default function AdminInvoiceDetail() {
         viewPayEditError={viewPayEditError}
         viewPayEditSaving={viewPayEditSaving}
         onSubmit={submitViewPaymentEdit}
+      />
+
+      <ActivityLogModal
+        show={activityLogOpen}
+        onHide={() => setActivityLogOpen(false)}
+        token={token}
+        canView={canViewActivityLog}
+        invoiceId={activityLogInvoiceId}
       />
 
       <Modal show={Boolean(placeholder)} onHide={() => setPlaceholder(null)} centered>

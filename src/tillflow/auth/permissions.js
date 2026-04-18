@@ -3,6 +3,7 @@
 export const PERMISSION = {
   TENANT_MANAGE: 'tenant.manage',
   USERS_MANAGE: 'users.manage',
+  ACTIVITY_LOGS_VIEW: 'system.activity_logs.view',
   REPORTS_VIEW: 'reports.view',
 };
 
@@ -18,6 +19,8 @@ export const M = {
   STORES: 'stores',
   ORDERS: 'sales.orders',
   QUOTATIONS: 'sales.quotations',
+  LEADS: 'sales.leads',
+  PROPOSALS: 'sales.proposals',
   INVOICES: 'sales.invoices',
   DELIVERY_NOTES: 'sales.delivery_notes',
   CREDIT_NOTES: 'sales.credit_notes',

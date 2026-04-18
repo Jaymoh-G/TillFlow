@@ -14,6 +14,8 @@ import TableTopHead from "../../components/table-top-head";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
 import DocumentFormActions from "../../components/DocumentFormActions";
+import { defaultDueAfterIssue } from "../../utils/defaultDocumentValidity";
+import { loadSystemSettings } from "../../utils/systemSettingsStorage";
 import { downloadInvoicesExcel, downloadInvoicesPdf } from "../../utils/invoiceExport";
 import { invoicereportdata } from "../../core/json/invoicereportdata";
 import { all_routes } from "../../routes/all_routes";
@@ -44,6 +46,8 @@ import {
   filterCatalogProducts
 } from "../../tillflow/utils/catalogCategoryFilter";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
+import { PERMISSION } from "../../tillflow/auth/permissions";
+import ActivityLogModal from "../../tillflow/components/ActivityLogModal";
 import { pdf, stockImg01 } from "../../utils/imagepath";
 import {
   createHtmlDocumentPdfObjectUrl,
@@ -88,6 +92,17 @@ import {
   RecordInvoicePaymentModal
 } from "./InvoicePaymentModals";
 
+function getInvoiceDefaultDueDays() {
+  try {
+    const a = loadSystemSettings().automation;
+    if (a && typeof a.invoiceDefaultDueDays === "number" && Number.isFinite(a.invoiceDefaultDueDays)) {
+      return Math.max(1, Math.min(3650, Math.floor(a.invoiceDefaultDueDays)));
+    }
+  } catch {
+    /* ignore */
+  }
+  return 21;
+}
 
 const TILLFLOW_INVOICES_BASE = "/tillflow/admin/invoices";
 const TILLFLOW_SESSION_TOKEN_KEY = "tillflow_sanctum_token";
@@ -222,6 +237,7 @@ const Invoice = () => {
   const route = all_routes;
 
   const auth = useOptionalAuth();
+  const canViewActivityLog = Boolean(auth?.hasPermission?.(PERMISSION.ACTIVITY_LOGS_VIEW));
   const tokenFromSession =
     typeof sessionStorage !== "undefined"
       ? sessionStorage.getItem(TILLFLOW_SESSION_TOKEN_KEY)
@@ -351,7 +367,9 @@ const Invoice = () => {
   const [invInvoiceRef, setInvInvoiceRef] = useState("");
   const [invTitle, setInvTitle] = useState("");
   const [invIssueAt, setInvIssueAt] = useState(() => new Date().toISOString().slice(0, 10));
-  const [invDueAt, setInvDueAt] = useState("");
+  const [invDueAt, setInvDueAt] = useState(() =>
+    defaultDueAfterIssue(new Date().toISOString().slice(0, 10), getInvoiceDefaultDueDays())
+  );
   const [invCustomerId, setInvCustomerId] = useState("");
   const [invAmountPaid, setInvAmountPaid] = useState("0");
   const [invCreateStatus, setInvCreateStatus] = useState("Draft");
@@ -393,8 +411,9 @@ const Invoice = () => {
   const resetCreateForm = useCallback(() => {
     setInvInvoiceRef("");
     setInvTitle("");
-    setInvIssueAt(new Date().toISOString().slice(0, 10));
-    setInvDueAt("");
+    const issued = new Date().toISOString().slice(0, 10);
+    setInvIssueAt(issued);
+    setInvDueAt(defaultDueAfterIssue(issued, getInvoiceDefaultDueDays()));
     setInvCustomerId("");
     setInvAmountPaid("0");
     setInvCreateStatus("Draft");
@@ -1048,6 +1067,7 @@ const Invoice = () => {
   const [invoiceViewPdfPreviewUrl, setInvoiceViewPdfPreviewUrl] = useState(null);
   const [invoiceViewPdfTitle, setInvoiceViewPdfTitle] = useState("");
   const [receiptInfoModal, setReceiptInfoModal] = useState(null);
+  const [activityLogOpen, setActivityLogOpen] = useState(false);
 
   const customerFilterOptions = useMemo(() => {
     const names = [
@@ -1409,7 +1429,7 @@ const Invoice = () => {
   }, [receiptPreviewRow, token, inTillflowShell]);
 
   const handleReceiptActivityLog = useCallback(() => {
-    setReceiptInfoModal({ title: "Activity log", body: FEATURE_NOT_IMPLEMENTED_BODY });
+    setActivityLogOpen(true);
   }, []);
 
   const handleViewInvoicePdfNewTab = useCallback(async () => {
@@ -3020,7 +3040,21 @@ const Invoice = () => {
           onViewInvoicePdf={
             token && inTillflowShell && receiptPreviewRow ? handleViewInvoicePdfFromReceipt : undefined
           }
-          onActivityLog={token && inTillflowShell ? handleReceiptActivityLog : undefined}
+          onActivityLog={
+            token && inTillflowShell && canViewActivityLog && receiptPreviewRow?.apiId
+              ? handleReceiptActivityLog
+              : undefined
+          }
+        />
+
+        <ActivityLogModal
+          show={activityLogOpen}
+          onHide={() => setActivityLogOpen(false)}
+          token={token}
+          canView={canViewActivityLog}
+          invoiceId={
+            receiptPreviewRow?.apiId ? Number(receiptPreviewRow.apiId) : null
+          }
         />
 
         {receiptPreview && receiptPreviewRow && token && inTillflowShell ? (

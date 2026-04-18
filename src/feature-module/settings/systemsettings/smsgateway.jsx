@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "../../../tillflow/auth/AuthContext";
+import { sendTestSmsRequest } from "../../../tillflow/api/sms";
+import { TillFlowApiError } from "../../../tillflow/api/errors";
 import SettingsSideBar from "../settingssidebar";
 import CommonFooter from "../../../components/footer/commonFooter";
 import RefreshIcon from "../../../components/tooltip-content/refresh";
@@ -36,10 +39,14 @@ function ModalFrame({ title, onClose, children, footer }) {
 const SmsGateway = () => {
   const location = useLocation();
   const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const { token } = useAuth();
 
   const [all, setAll] = useState(loadSystemSettings);
   const [savedMsg, setSavedMsg] = useState("");
   const [modal, setModal] = useState(/** @type {null | "nexmo" | "twilio" | "twoFactor"} */ (null));
+  const [testPhone, setTestPhone] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
+  const [testMsg, setTestMsg] = useState("");
 
   const g = all.smsGateways;
   const d = all.smsDelivery;
@@ -76,6 +83,28 @@ const SmsGateway = () => {
       }
     }));
   }, []);
+
+  const sendTest = useCallback(async () => {
+    if (!token || !isTillflow) {
+      setTestMsg("Sign in to TillFlow admin to send a test SMS.");
+      return;
+    }
+    const to = testPhone.trim();
+    if (!to) {
+      setTestMsg("Enter a mobile number.");
+      return;
+    }
+    setTestBusy(true);
+    setTestMsg("");
+    try {
+      await sendTestSmsRequest(token, { to });
+      setTestMsg("Test SMS sent.");
+    } catch (e) {
+      setTestMsg(e instanceof TillFlowApiError ? e.message : "Could not send test SMS.");
+    } finally {
+      setTestBusy(false);
+    }
+  }, [token, isTillflow, testPhone]);
 
   const cards = [
     { key: "nexmo", title: "Nexmo / Vonage", img: smsIcon01, id: "nexmo" },
@@ -194,6 +223,41 @@ const SmsGateway = () => {
                         </div>
                       </div>
                     </div>
+                    {isTillflow ? (
+                      <div className="border-top pt-3 mt-3">
+                        <h6 className="mb-2">Test SMS</h6>
+                        <p className="text-muted small mb-2">
+                          Uses the first enabled gateway with valid credentials (Twilio, Nexmo, or 2Factor). Requires{" "}
+                          <strong>tenant.manage</strong> and synced SMS settings on the server.
+                        </p>
+                        <div className="row g-2 align-items-end">
+                          <div className="col-md-6">
+                            <label className="form-label">Mobile number</label>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="e.g. 254712345678"
+                              value={testPhone}
+                              onChange={(ev) => setTestPhone(ev.target.value)}
+                            />
+                          </div>
+                          <div className="col-md-6">
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary"
+                              disabled={testBusy}
+                              onClick={() => void sendTest()}>
+                              {testBusy ? "Sending…" : "Send test SMS"}
+                            </button>
+                          </div>
+                        </div>
+                        {testMsg ? (
+                          <p className="small mt-2 mb-0 text-muted" role="status">
+                            {testMsg}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -340,13 +404,23 @@ const SmsGateway = () => {
                 onChange={(ev) => setGateway("twoFactor", { apiKey: ev.target.value })}
               />
             </div>
-            <div className="mb-0">
+            <div className="mb-3">
               <label className="form-label">Sender ID</label>
               <input
                 type="text"
                 className="form-control"
                 value={g.twoFactor.senderId}
                 onChange={(ev) => setGateway("twoFactor", { senderId: ev.target.value })}
+              />
+            </div>
+            <div className="mb-0">
+              <label className="form-label">Partner ID (optional)</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="If your provider requires it"
+                value={g.twoFactor.partnerId ?? ""}
+                onChange={(ev) => setGateway("twoFactor", { partnerId: ev.target.value })}
               />
             </div>
           </>

@@ -13,7 +13,7 @@ import {
     Search,
     X
 } from "react-feather";
-import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
 import DocumentFormActions from "../../components/DocumentFormActions";
@@ -26,7 +26,17 @@ import { listBillersRequest } from "../../tillflow/api/billers";
 import { listCategoriesRequest } from "../../tillflow/api/categories";
 import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
+import { listLeadsRequest } from "../../tillflow/api/leads";
 import { listSalesCatalogProductsRequest } from "../../tillflow/api/products";
+import {
+    acceptProposalRequest,
+    createProposalRequest,
+    deleteProposalRequest,
+    getProposalRequest,
+    listProposalsRequest,
+    sendProposalToRecipientRequest,
+    updateProposalRequest
+} from "../../tillflow/api/proposals";
 import {
     convertQuotationToInvoiceRequest,
     createQuotationRequest,
@@ -50,6 +60,7 @@ import {
     resolveQuotationFooterFromSnapshot,
     saveCompanySettings
 } from "../../utils/companySettingsStorage";
+import { validityOneMonthAfter } from "../../utils/defaultDocumentValidity";
 import { pdf, stockImg01, user33 } from "../../utils/imagepath";
 import {
     downloadQuotationDetailPdf,
@@ -130,6 +141,7 @@ const PICK_PLACEHOLDER = { label: "Select…", value: "" };
 const QUOTE_LINE_ITEMS_COL_WIDTHS_DEFAULT = [28, 44, 120, 300, 52, 136, 52, 72, 50];
 
 const TILLFLOW_QUOTATIONS_BASE = "/tillflow/admin/quotations";
+const TILLFLOW_PROPOSALS_BASE = "/tillflow/admin/proposals";
 
 const STORAGE_KEY = "retailpos_quotations_v1";
 /** Same key as TillFlow `AuthContext` — legacy `/quotation-list` has no AuthProvider, so read token here. */
@@ -298,6 +310,46 @@ function isoDateOnly(v) {
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
+function apiProposalToRow(p) {
+  const items = normalizeApiItemsForRow(p.items);
+  const { label, imgSrc, exportLabel } = productSummaryFromItems(items, resolveMediaUrl);
+  return {
+    id: String(p.id),
+    apiId: p.id,
+    quoteRef: p.proposal_ref,
+    documentKind: "proposal",
+    quotedDate: formatQuotedDisplay(p.proposed_at),
+    quotedAtIso: p.proposed_at,
+    expiresAtIso: isoDateOnly(p.expires_at),
+    lead_id: p.lead_id ?? null,
+    customer_id: p.customer_id ?? null,
+    customer_image_url: p.recipient_image_url ?? null,
+    productImg: imgSrc,
+    Product_Name: label,
+    productsExportLabel: exportLabel,
+    items,
+    customerImg: resolveMediaUrl(p.recipient_image_url, user33),
+    Custmer_Name: p.recipient_name ?? "",
+    customer_email: p.customer_email ?? p.lead_email ?? null,
+    customer_phone: null,
+    customer_location: null,
+    Status: normalizeQuotationStatus(p.status),
+    Total: Number(p.total_amount),
+    clientNote: p.client_note ?? "",
+    termsAndConditions: p.terms_and_conditions ?? "",
+    quoteTitle: p.proposal_title != null ? String(p.proposal_title) : "",
+    biller_id: p.biller_id ?? null,
+    Biller_Name: p.biller_name ?? "",
+    discount_type: p.discount_type ?? "none",
+    discount_basis: p.discount_basis === "fixed" ? "fixed" : "percent",
+    discount_value:
+      p.discount_value != null && String(p.discount_value) !== ""
+        ? String(p.discount_value)
+        : "0",
+    quotation_id: p.quotation_id ?? null
+  };
+}
+
 function apiQuotationToRow(q) {
   const items = normalizeApiItemsForRow(q.items);
   const { label, imgSrc, exportLabel } = productSummaryFromItems(items, resolveMediaUrl);
@@ -305,6 +357,7 @@ function apiQuotationToRow(q) {
     id: String(q.id),
     apiId: q.id,
     quoteRef: q.quote_ref,
+    documentKind: "quotation",
     quotedDate: formatQuotedDisplay(q.quoted_at),
     quotedAtIso: q.quoted_at,
     expiresAtIso: isoDateOnly(q.expires_at),
@@ -331,7 +384,8 @@ function apiQuotationToRow(q) {
     discount_value:
       q.discount_value != null && String(q.discount_value) !== ""
         ? String(q.discount_value)
-        : "0"
+        : "0",
+    quotation_id: null
   };
 }
 
@@ -645,8 +699,20 @@ function quoteLineEligibleForAddAbove(line, useApiProductLines) {
 const QuotationList = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { quotationId: routeQuotationId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { quotationId: routeQuotationId, proposalId: routeProposalId } = useParams();
+  const isProposalModule = location.pathname.includes("/tillflow/admin/proposals");
+  const tillflowDocBase = isProposalModule ? TILLFLOW_PROPOSALS_BASE : TILLFLOW_QUOTATIONS_BASE;
+  const routeDetailDocId = isProposalModule ? routeProposalId : routeQuotationId;
+  const docUiNoun = isProposalModule ? "Proposal" : "Quotation";
+  const docUiNounPlural = isProposalModule ? "Proposals" : "Quotations";
+  const docUiNounLower = isProposalModule ? "proposal" : "quotation";
+  const docUiRefColumn = isProposalModule ? "PR #" : "Quote #";
+  const docUiDetailSidebarRef = isProposalModule ? "PR #" : "QT #";
   const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const pendingProposalEditFetchRef = useRef(null);
+  const leadFromQueryAppliedRef = useRef("");
+  const urlLeadTitleSuggestIdRef = useRef(null);
 
   const auth = useOptionalAuth();
   const tokenFromSession =
@@ -659,12 +725,14 @@ const QuotationList = () => {
   const [quotations, setQuotations] = useState(getInitialQuotationRows);
   const [listLoading, setListLoading] = useState(() => Boolean(token));
   const [listError, setListError] = useState("");
+  const [listSuccess, setListSuccess] = useState("");
   const listLoadGenRef = useRef(0);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [catalogCategories, setCatalogCategories] = useState([]);
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("");
   const [catalogCustomers, setCatalogCustomers] = useState([]);
+  const [catalogLeads, setCatalogLeads] = useState([]);
   const [catalogBillers, setCatalogBillers] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
@@ -678,12 +746,14 @@ const QuotationList = () => {
     setCatalogLoading(true);
     setCatalogError("");
     try {
-      const [prodData, custData, billerData, categoryData] = await Promise.all([
-        listSalesCatalogProductsRequest(token),
-        listCustomersRequest(token),
-        listBillersRequest(token),
-        listCategoriesRequest(token)
-      ]);
+      const prodData = await listSalesCatalogProductsRequest(token);
+      const custData = await listCustomersRequest(token);
+      const billerData = await listBillersRequest(token);
+      const categoryData = await listCategoriesRequest(token);
+      let leadsData = { leads: [] };
+      if (isProposalModule) {
+        leadsData = await listLeadsRequest(token);
+      }
       if (gen !== catalogLoadGenRef.current) {
         return;
       }
@@ -691,6 +761,7 @@ const QuotationList = () => {
       setCatalogCategories(categoryData.categories ?? []);
       setCatalogCustomers(custData.customers ?? []);
       setCatalogBillers(billerData.billers ?? []);
+      setCatalogLeads(leadsData.leads ?? []);
     } catch (e) {
       if (gen !== catalogLoadGenRef.current) {
         return;
@@ -698,22 +769,29 @@ const QuotationList = () => {
       setCatalogProducts([]);
       setCatalogCategories([]);
       setCatalogCustomers([]);
+      setCatalogLeads([]);
       setCatalogBillers([]);
       if (e instanceof TillFlowApiError) {
         setCatalogError(
           e.status === 403
-            ? `${e.message} (needs quotations + catalog items + customers + billers permissions)`
+            ? `${e.message} (needs catalog items, customers, billers${
+                isProposalModule ? ", leads" : ""
+              }${isProposalModule ? "" : ", quotations"} permissions)`
             : e.message
         );
       } else {
-        setCatalogError("Could not load products or customers for quotations.");
+        setCatalogError(
+          isProposalModule
+            ? "Could not load products, customers, or leads for proposals."
+            : "Could not load products or customers for quotations."
+        );
       }
     } finally {
       if (gen === catalogLoadGenRef.current) {
         setCatalogLoading(false);
       }
     }
-  }, [token]);
+  }, [token, isProposalModule]);
 
   useEffect(() => {
     if (!token) {
@@ -729,12 +807,21 @@ const QuotationList = () => {
     const gen = ++listLoadGenRef.current;
     setListLoading(true);
     setListError("");
+    setListSuccess("");
     try {
-      const data = await listQuotationsRequest(token);
-      if (gen !== listLoadGenRef.current) {
-        return;
+      if (isProposalModule) {
+        const data = await listProposalsRequest(token);
+        if (gen !== listLoadGenRef.current) {
+          return;
+        }
+        setQuotations((data.proposals ?? []).map(apiProposalToRow));
+      } else {
+        const data = await listQuotationsRequest(token);
+        if (gen !== listLoadGenRef.current) {
+          return;
+        }
+        setQuotations((data.quotations ?? []).map(apiQuotationToRow));
       }
-      setQuotations((data.quotations ?? []).map(apiQuotationToRow));
     } catch (e) {
       if (gen !== listLoadGenRef.current) {
         return;
@@ -742,17 +829,19 @@ const QuotationList = () => {
       setQuotations([]);
       if (e instanceof TillFlowApiError) {
         setListError(
-          e.status === 403 ? `${e.message} (needs quotations permission)` : e.message
+          e.status === 403
+            ? `${e.message} (needs ${isProposalModule ? "proposals" : "quotations"} permission)`
+            : e.message
         );
       } else {
-        setListError("Failed to load quotations.");
+        setListError(isProposalModule ? "Failed to load proposals." : "Failed to load quotations.");
       }
     } finally {
       if (gen === listLoadGenRef.current) {
         setListLoading(false);
       }
     }
-  }, [token]);
+  }, [token, isProposalModule]);
 
   useEffect(() => {
     if (!token) {
@@ -786,6 +875,8 @@ const QuotationList = () => {
   const [addQuotedAt, setAddQuotedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [addExpiresAt, setAddExpiresAt] = useState("");
   const [addCustomerId, setAddCustomerId] = useState("");
+  const [addLeadId, setAddLeadId] = useState("");
+  const [addProposalRecipientKind, setAddProposalRecipientKind] = useState("customer");
   const [addLines, setAddLines] = useState([]);
   const [addCustomerName, setAddCustomerName] = useState("");
   const [addStatus, setAddStatus] = useState("Draft");
@@ -802,6 +893,8 @@ const QuotationList = () => {
   const [editQuotedAt, setEditQuotedAt] = useState("");
   const [editExpiresAt, setEditExpiresAt] = useState("");
   const [editCustomerId, setEditCustomerId] = useState("");
+  const [editLeadId, setEditLeadId] = useState("");
+  const [editProposalRecipientKind, setEditProposalRecipientKind] = useState("customer");
   const [editCustomerName, setEditCustomerName] = useState("");
   const [editLines, setEditLines] = useState([]);
   const [editStatus, setEditStatus] = useState("Draft");
@@ -828,6 +921,19 @@ const QuotationList = () => {
     logo: null,
     darkLogo: null
   });
+
+  useEffect(() => {
+    if (!isProposalModule || routeProposalId) {
+      return;
+    }
+    const s = searchParams.get("status");
+    if (s == null || s === "") {
+      return;
+    }
+    if (QUOTATION_CRM_STATUSES.includes(s)) {
+      setFilterStatus(s);
+    }
+  }, [searchParams, isProposalModule, routeProposalId]);
 
   useEffect(() => {
     if (!token || !inTillflowShell) {
@@ -901,6 +1007,11 @@ const QuotationList = () => {
   const [sendPreviewError, setSendPreviewError] = useState("");
   const [sendQuoteBusyId, setSendQuoteBusyId] = useState("");
   const [convertQuoteBusyId, setConvertQuoteBusyId] = useState("");
+  const [acceptProposalRow, setAcceptProposalRow] = useState(null);
+  const [acceptProposalSubmitting, setAcceptProposalSubmitting] = useState(false);
+  const [acceptProposalPendingKind, setAcceptProposalPendingKind] = useState(null);
+  const [acceptProposalError, setAcceptProposalError] = useState("");
+  const [acceptProposalSuccess, setAcceptProposalSuccess] = useState(null);
   /** When true, `/quotations/new` route effect must not call `resetAddForm()` (avoids wiping clone data). */
   const quotationClonePopulateRef = useRef(false);
 
@@ -958,13 +1069,16 @@ const QuotationList = () => {
 
   const sortOptions = useMemo(
     () => [
-      { label: "Recently quoted", value: "recent" },
-      { label: "Quote ref A–Z", value: "refAsc" },
-      { label: "Quote ref Z–A", value: "refDesc" },
+      {
+        label: isProposalModule ? "Most recent proposal date" : "Recently quoted",
+        value: "recent"
+      },
+      { label: isProposalModule ? "PR ref A–Z" : "Quote ref A–Z", value: "refAsc" },
+      { label: isProposalModule ? "PR ref Z–A" : "Quote ref Z–A", value: "refDesc" },
       { label: "Last month", value: "lastMonth" },
       { label: "Last 7 days", value: "last7" }
     ],
-    []
+    [isProposalModule]
   );
 
   const catalogCustomerPickOptions = useMemo(
@@ -976,6 +1090,17 @@ const QuotationList = () => {
       }))
     ],
     [catalogCustomers]
+  );
+
+  const catalogLeadPickOptions = useMemo(
+    () => [
+      PICK_PLACEHOLDER,
+      ...catalogLeads.map((l) => ({
+        label: `${l.name ?? "Lead"}${l.company ? ` — ${l.company}` : ""}`,
+        value: String(l.id)
+      }))
+    ],
+    [catalogLeads]
   );
 
   const catalogBillerPickOptions = useMemo(
@@ -1128,9 +1253,12 @@ const QuotationList = () => {
   }, [displayRows]);
 
   const resetAddForm = useCallback(() => {
-    setAddQuotedAt(new Date().toISOString().slice(0, 10));
-    setAddExpiresAt("");
+    const quoted = new Date().toISOString().slice(0, 10);
+    setAddQuotedAt(quoted);
+    setAddExpiresAt(validityOneMonthAfter(quoted));
     setAddCustomerId("");
+    setAddLeadId("");
+    setAddProposalRecipientKind("customer");
     setAddLines(token ? [emptyApiLine()] : [emptyLocalLine()]);
     setAddCustomerName("");
     setAddStatus("Draft");
@@ -1158,7 +1286,7 @@ const QuotationList = () => {
 
   const leaveQuotationForm = useCallback(() => {
     if (inTillflowShell) {
-      navigate(TILLFLOW_QUOTATIONS_BASE);
+      navigate(tillflowDocBase);
       return;
     }
     setQuotationFormMode("list");
@@ -1178,7 +1306,9 @@ const QuotationList = () => {
     setEditDiscountValue("0");
     setEditSalesAgentName("");
     setEditQuoteTitle("");
-  }, [inTillflowShell, navigate, resetAddForm]);
+    setEditLeadId("");
+    setEditProposalRecipientKind("customer");
+  }, [inTillflowShell, navigate, resetAddForm, tillflowDocBase]);
 
   const openEditQuotation = useCallback(
     (row) => {
@@ -1187,9 +1317,25 @@ const QuotationList = () => {
       setEditQuoteRef(String(row.quoteRef ?? ""));
       setEditQuotedAt(row.quotedAtIso || new Date().toISOString().slice(0, 10));
       setEditExpiresAt(row.expiresAtIso ?? "");
-      setEditCustomerId(
-        row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
-      );
+      if (isProposalModule && token && row.apiId != null) {
+        if (row.lead_id != null && String(row.lead_id) !== "") {
+          setEditProposalRecipientKind("lead");
+          setEditLeadId(String(row.lead_id));
+          setEditCustomerId("");
+        } else {
+          setEditProposalRecipientKind("customer");
+          setEditLeadId("");
+          setEditCustomerId(
+            row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
+          );
+        }
+      } else {
+        setEditLeadId("");
+        setEditProposalRecipientKind("customer");
+        setEditCustomerId(
+          row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
+        );
+      }
       if (token && row.apiId != null) {
         setEditCustomerName("");
         const src = row.items ?? [];
@@ -1264,18 +1410,30 @@ const QuotationList = () => {
       setEditError("");
       setQuotationFormMode("edit");
     },
-    [token, inTillflowShell]
+    [token, inTillflowShell, isProposalModule]
   );
 
   const openCloneQuotation = useCallback(
     (row) => {
       quotationClonePopulateRef.current = true;
       resetAddForm();
-      setAddQuotedAt(new Date().toISOString().slice(0, 10));
-      setAddExpiresAt(row.expiresAtIso ?? "");
-      setAddCustomerId(
-        row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
-      );
+      if (isProposalModule && token && row.apiId != null) {
+        if (row.lead_id != null && String(row.lead_id) !== "") {
+          setAddProposalRecipientKind("lead");
+          setAddLeadId(String(row.lead_id));
+          setAddCustomerId("");
+        } else {
+          setAddProposalRecipientKind("customer");
+          setAddLeadId("");
+          setAddCustomerId(
+            row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
+          );
+        }
+      } else {
+        setAddCustomerId(
+          row.customer_id != null && row.customer_id !== "" ? String(row.customer_id) : ""
+        );
+      }
       setAddCustomerName(String(row.Custmer_Name ?? ""));
       const src = row.items ?? [];
       if (token) {
@@ -1375,10 +1533,10 @@ const QuotationList = () => {
       setAddSalesAgentName(String(row.Biller_Name ?? ""));
       setQuotationFormMode("create");
       if (inTillflowShell) {
-        navigate(`${TILLFLOW_QUOTATIONS_BASE}/new`);
+        navigate(`${tillflowDocBase}/new`);
       }
     },
-    [inTillflowShell, navigate, resetAddForm, token]
+    [inTillflowShell, navigate, resetAddForm, token, isProposalModule, tillflowDocBase]
   );
 
   useEffect(() => {
@@ -1387,7 +1545,7 @@ const QuotationList = () => {
     }
     const norm = location.pathname.replace(/\/$/, "");
 
-    if (norm === `${TILLFLOW_QUOTATIONS_BASE}/new`) {
+    if (norm === `${tillflowDocBase}/new`) {
       if (quotationClonePopulateRef.current) {
         quotationClonePopulateRef.current = false;
         return;
@@ -1402,46 +1560,84 @@ const QuotationList = () => {
       return;
     }
 
-    const editRe = new RegExp(
-      `^${TILLFLOW_QUOTATIONS_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([^/]+)/edit$`
-    );
+    const baseEsc = tillflowDocBase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const editRe = new RegExp(`^${baseEsc}/([^/]+)/edit$`);
     const editMatch = norm.match(editRe);
     if (editMatch) {
       const targetId = editMatch[1];
       if (listLoading) {
         return;
       }
-      const row = quotations.find((r) => String(r.apiId ?? r.id) === targetId);
-      if (!row) {
-        navigate(TILLFLOW_QUOTATIONS_BASE, { replace: true });
+      let row = quotations.find((r) => String(r.apiId ?? r.id) === targetId);
+      if (!row && isProposalModule && token) {
+        if (pendingProposalEditFetchRef.current !== targetId) {
+          pendingProposalEditFetchRef.current = targetId;
+          void getProposalRequest(token, targetId)
+            .then((data) => {
+              const pr = apiProposalToRow(data.proposal);
+              setQuotations((prev) => {
+                if (prev.some((r) => String(r.apiId) === String(pr.apiId))) {
+                  return prev;
+                }
+                return [pr, ...prev];
+              });
+            })
+            .catch(() => {
+              navigate(tillflowDocBase, { replace: true });
+            });
+        }
         return;
       }
+      if (!row) {
+        navigate(tillflowDocBase, { replace: true });
+        return;
+      }
+      pendingProposalEditFetchRef.current = null;
       if (quotationFormMode !== "edit" || editingRowId !== row.id) {
         openEditQuotation(row);
       }
       return;
     }
 
-    const detailRe = new RegExp(
-      `^${TILLFLOW_QUOTATIONS_BASE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([^/]+)$`
-    );
+    const detailRe = new RegExp(`^${baseEsc}/([^/]+)$`);
     const detailMatch = norm.match(detailRe);
     if (detailMatch) {
       const targetId = detailMatch[1];
       if (listLoading) {
         return;
       }
-      const row = quotations.find((r) => String(r.apiId ?? r.id) === targetId);
-      if (!row) {
-        navigate(TILLFLOW_QUOTATIONS_BASE, { replace: true });
+      let row = quotations.find((r) => String(r.apiId ?? r.id) === targetId);
+      if (!row && isProposalModule && token) {
+        if (pendingProposalEditFetchRef.current !== targetId) {
+          pendingProposalEditFetchRef.current = targetId;
+          void getProposalRequest(token, targetId)
+            .then((data) => {
+              const pr = apiProposalToRow(data.proposal);
+              setQuotations((prev) => {
+                if (prev.some((r) => String(r.apiId) === String(pr.apiId))) {
+                  return prev;
+                }
+                return [pr, ...prev];
+              });
+            })
+            .catch(() => {
+              navigate(tillflowDocBase, { replace: true });
+            });
+        }
         return;
       }
+      if (!row) {
+        navigate(tillflowDocBase, { replace: true });
+        return;
+      }
+      pendingProposalEditFetchRef.current = null;
       setQuotationFormMode("list");
       setViewRow(row);
       return;
     }
 
-    if (norm === TILLFLOW_QUOTATIONS_BASE) {
+    if (norm === tillflowDocBase) {
+      pendingProposalEditFetchRef.current = null;
       if (quotationFormMode !== "list") {
         setQuotationFormMode("list");
         resetAddForm();
@@ -1460,6 +1656,8 @@ const QuotationList = () => {
         setEditDiscountValue("0");
         setEditSalesAgentName("");
         setEditQuoteTitle("");
+        setEditLeadId("");
+        setEditProposalRecipientKind("customer");
       }
     }
   }, [
@@ -1471,7 +1669,95 @@ const QuotationList = () => {
     editingRowId,
     navigate,
     resetAddForm,
-    openEditQuotation
+    openEditQuotation,
+    isProposalModule,
+    token,
+    tillflowDocBase
+  ]);
+
+  useEffect(() => {
+    if (!inTillflowShell || !isProposalModule) {
+      return;
+    }
+    const norm = location.pathname.replace(/\/$/, "");
+    if (norm !== `${tillflowDocBase}/new`) {
+      leadFromQueryAppliedRef.current = "";
+      urlLeadTitleSuggestIdRef.current = null;
+      return;
+    }
+    if (quotationFormMode !== "create") {
+      return;
+    }
+
+    const raw = searchParams.get("leadId");
+    if (raw == null || String(raw).trim() === "") {
+      leadFromQueryAppliedRef.current = "";
+      return;
+    }
+    const trimmed = String(raw).trim();
+    if (!/^\d+$/.test(trimmed)) {
+      return;
+    }
+    const id = String(Number(trimmed));
+    const key = `${tillflowDocBase}/new:${id}`;
+    if (leadFromQueryAppliedRef.current === key) {
+      return;
+    }
+    leadFromQueryAppliedRef.current = key;
+
+    setAddProposalRecipientKind("lead");
+    setAddLeadId(id);
+    setAddCustomerId("");
+    urlLeadTitleSuggestIdRef.current = id;
+
+    const next = new URLSearchParams(searchParams);
+    if (next.has("leadId")) {
+      next.delete("leadId");
+      setSearchParams(next, { replace: true });
+    }
+  }, [
+    inTillflowShell,
+    isProposalModule,
+    tillflowDocBase,
+    location.pathname,
+    quotationFormMode,
+    searchParams,
+    setSearchParams
+  ]);
+
+  useEffect(() => {
+    if (!isProposalModule || quotationFormMode !== "create") {
+      return;
+    }
+    const sugId = urlLeadTitleSuggestIdRef.current;
+    if (sugId == null || String(addLeadId) !== String(sugId)) {
+      return;
+    }
+    if (String(addQuoteTitle ?? "").trim() !== "") {
+      urlLeadTitleSuggestIdRef.current = null;
+      return;
+    }
+    const lead = catalogLeads.find((l) => String(l.id) === String(sugId));
+    if (!lead) {
+      if (!catalogLoading) {
+        urlLeadTitleSuggestIdRef.current = null;
+      }
+      return;
+    }
+    const name = String(lead.name ?? "").trim();
+    if (!name) {
+      urlLeadTitleSuggestIdRef.current = null;
+      return;
+    }
+    setAddQuoteTitle(name);
+    urlLeadTitleSuggestIdRef.current = null;
+  }, [
+    isProposalModule,
+    quotationFormMode,
+    addLeadId,
+    addQuoteTitle,
+    catalogLeads,
+    catalogLoading
   ]);
 
   const openViewQuotation = useCallback((row) => {
@@ -1487,11 +1773,17 @@ const QuotationList = () => {
   const saveNewQuotation = useCallback(async () => {
     setAddError("");
     if (!addQuotedAt) {
-      setAddError("Please choose a quote date.");
+      setAddError(
+        isProposalModule ? "Please choose a proposal date." : "Please choose a quote date."
+      );
       return;
     }
     if (addExpiresAt && addQuotedAt && addExpiresAt < addQuotedAt) {
-      setAddError("Valid until date must be on or after the quote date.");
+      setAddError(
+        isProposalModule
+          ? "Valid until date must be on or after the proposal date."
+          : "Valid until date must be on or after the quote date."
+      );
       return;
     }
 
@@ -1499,7 +1791,17 @@ const QuotationList = () => {
     const customerUrl = addCustomerImgUrl.trim() || null;
 
     if (token) {
-      if (!addCustomerId) {
+      if (isProposalModule) {
+        if (addProposalRecipientKind === "lead") {
+          if (!addLeadId) {
+            setAddError("Choose a lead.");
+            return;
+          }
+        } else if (!addCustomerId) {
+          setAddError("Choose a customer.");
+          return;
+        }
+      } else if (!addCustomerId) {
         setAddError("Choose a customer.");
         return;
       }
@@ -1517,41 +1819,70 @@ const QuotationList = () => {
       }
       const items = lines.map((l) => apiFormLineToSavedItem(l, catalogProducts));
       try {
-        const body = {
-          quoted_at: addQuotedAt,
-          customer_id: Number(addCustomerId),
-          status: "Draft",
-          items
-        };
-        if (addExpiresAt) {
-          body.expires_at = addExpiresAt;
-        }
         const cn = addClientNote.trim();
         const tc = addTermsAndConditions.trim();
-        if (cn) {
-          body.client_note = cn;
-        }
-        if (tc) {
-          body.terms_and_conditions = tc;
-        }
-        body.quote_title = addQuoteTitle.trim() || null;
-        body.discount_type = addDiscountType;
-        body.discount_basis = addDiscountType === "none" ? "percent" : addDiscountBasis;
-        body.discount_value =
+        const discVal =
           addDiscountType === "none"
             ? null
             : addDiscountBasis === "percent"
               ? parseDiscountPercent(addDiscountValue)
               : roundMoney(parseDiscountValueFixed(addDiscountValue));
-        body.biller_id = addBillerId ? Number(addBillerId) : null;
-        await createQuotationRequest(token, body);
+        if (isProposalModule) {
+          const body = {
+            proposed_at: addQuotedAt,
+            status: "Draft",
+            items,
+            proposal_title: addQuoteTitle.trim() || null,
+            discount_type: addDiscountType,
+            discount_basis: addDiscountType === "none" ? "percent" : addDiscountBasis,
+            discount_value: discVal,
+            biller_id: addBillerId ? Number(addBillerId) : null
+          };
+          if (addExpiresAt) {
+            body.expires_at = addExpiresAt;
+          }
+          if (cn) {
+            body.client_note = cn;
+          }
+          if (tc) {
+            body.terms_and_conditions = tc;
+          }
+          if (addProposalRecipientKind === "lead") {
+            body.lead_id = Number(addLeadId);
+          } else {
+            body.customer_id = Number(addCustomerId);
+          }
+          await createProposalRequest(token, body);
+        } else {
+          const body = {
+            quoted_at: addQuotedAt,
+            customer_id: Number(addCustomerId),
+            status: "Draft",
+            items
+          };
+          if (addExpiresAt) {
+            body.expires_at = addExpiresAt;
+          }
+          if (cn) {
+            body.client_note = cn;
+          }
+          if (tc) {
+            body.terms_and_conditions = tc;
+          }
+          body.quote_title = addQuoteTitle.trim() || null;
+          body.discount_type = addDiscountType;
+          body.discount_basis = addDiscountType === "none" ? "percent" : addDiscountBasis;
+          body.discount_value = discVal;
+          body.biller_id = addBillerId ? Number(addBillerId) : null;
+          await createQuotationRequest(token, body);
+        }
         await loadQuotations();
         setSelectedQuotations([]);
       } catch (e) {
         if (e instanceof TillFlowApiError) {
           setAddError(e.message);
         } else {
-          setAddError("Could not create quotation.");
+          setAddError(isProposalModule ? "Could not create proposal." : "Could not create quotation.");
         }
         return;
       }
@@ -1568,7 +1899,11 @@ const QuotationList = () => {
       }
       const quoteRef = nextQuoteRefLocal(quotations);
       if (quotations.some((r) => String(r.quoteRef).toLowerCase() === quoteRef.toLowerCase())) {
-        setAddError("That quote reference is already in use.");
+        setAddError(
+          isProposalModule
+            ? "That proposal reference is already in use."
+            : "That quote reference is already in use."
+        );
         return;
       }
       const builtItems = lineRows.map((l) => {
@@ -1633,7 +1968,7 @@ const QuotationList = () => {
     }
 
     if (inTillflowShell) {
-      navigate(TILLFLOW_QUOTATIONS_BASE);
+      navigate(tillflowDocBase);
     } else {
       resetAddForm();
       setQuotationFormMode("list");
@@ -1643,6 +1978,8 @@ const QuotationList = () => {
     addExpiresAt,
     addLines,
     addCustomerId,
+    addLeadId,
+    addProposalRecipientKind,
     addCustomerName,
     addQuoteTotal,
     addProductImgUrl,
@@ -1661,7 +1998,9 @@ const QuotationList = () => {
     loadQuotations,
     catalogProducts,
     inTillflowShell,
-    navigate
+    navigate,
+    isProposalModule,
+    tillflowDocBase
   ]);
 
   const handleAddSubmit = (e) => {
@@ -1675,7 +2014,9 @@ const QuotationList = () => {
       return;
     }
     if (!editQuotedAt) {
-      setEditError("Please choose a quote date.");
+      setEditError(
+        isProposalModule ? "Please choose a proposal date." : "Please choose a quote date."
+      );
       return;
     }
     if (!QUOTATION_CRM_STATUSES.includes(editStatus)) {
@@ -1683,7 +2024,11 @@ const QuotationList = () => {
       return;
     }
     if (editExpiresAt && editQuotedAt && editExpiresAt < editQuotedAt) {
-      setEditError("Valid until date must be on or after the quote date.");
+      setEditError(
+        isProposalModule
+          ? "Valid until date must be on or after the proposal date."
+          : "Valid until date must be on or after the quote date."
+      );
       return;
     }
 
@@ -1691,7 +2036,17 @@ const QuotationList = () => {
     const customerUrl = editCustomerImgUrl.trim() || null;
 
     if (token && editingApiId != null) {
-      if (!editCustomerId) {
+      if (isProposalModule) {
+        if (editProposalRecipientKind === "lead") {
+          if (!editLeadId) {
+            setEditError("Choose a lead.");
+            return;
+          }
+        } else if (!editCustomerId) {
+          setEditError("Choose a customer.");
+          return;
+        }
+      } else if (!editCustomerId) {
         setEditError("Choose a customer.");
         return;
       }
@@ -1712,25 +2067,49 @@ const QuotationList = () => {
       }
       const items = lines.map((l) => apiFormLineToSavedItem(l, catalogProducts));
       try {
-        await updateQuotationRequest(token, editingApiId, {
-          quoted_at: editQuotedAt,
-          expires_at: editExpiresAt || null,
-          customer_id: Number(editCustomerId),
-          status: editStatus,
-          items,
-          client_note: editClientNote.trim() || null,
-          terms_and_conditions: editTermsAndConditions.trim() || null,
-          quote_title: editQuoteTitle.trim() || null,
-          discount_type: editDiscountType,
-          discount_basis: editDiscountType === "none" ? "percent" : editDiscountBasis,
-          discount_value:
-            editDiscountType === "none"
-              ? null
-              : editDiscountBasis === "percent"
-                ? parseDiscountPercent(editDiscountValue)
-                : roundMoney(parseDiscountValueFixed(editDiscountValue)),
-          biller_id: editBillerId ? Number(editBillerId) : null
-        });
+        if (isProposalModule) {
+          const patch = {
+            proposed_at: editQuotedAt,
+            expires_at: editExpiresAt || null,
+            status: editStatus,
+            items,
+            client_note: editClientNote.trim() || null,
+            terms_and_conditions: editTermsAndConditions.trim() || null,
+            proposal_title: editQuoteTitle.trim() || null,
+            discount_type: editDiscountType,
+            discount_basis: editDiscountType === "none" ? "percent" : editDiscountBasis,
+            discount_value:
+              editDiscountType === "none"
+                ? null
+                : editDiscountBasis === "percent"
+                  ? parseDiscountPercent(editDiscountValue)
+                  : roundMoney(parseDiscountValueFixed(editDiscountValue)),
+            biller_id: editBillerId ? Number(editBillerId) : null,
+            lead_id: editProposalRecipientKind === "lead" ? Number(editLeadId) : null,
+            customer_id: editProposalRecipientKind === "customer" ? Number(editCustomerId) : null
+          };
+          await updateProposalRequest(token, editingApiId, patch);
+        } else {
+          await updateQuotationRequest(token, editingApiId, {
+            quoted_at: editQuotedAt,
+            expires_at: editExpiresAt || null,
+            customer_id: Number(editCustomerId),
+            status: editStatus,
+            items,
+            client_note: editClientNote.trim() || null,
+            terms_and_conditions: editTermsAndConditions.trim() || null,
+            quote_title: editQuoteTitle.trim() || null,
+            discount_type: editDiscountType,
+            discount_basis: editDiscountType === "none" ? "percent" : editDiscountBasis,
+            discount_value:
+              editDiscountType === "none"
+                ? null
+                : editDiscountBasis === "percent"
+                  ? parseDiscountPercent(editDiscountValue)
+                  : roundMoney(parseDiscountValueFixed(editDiscountValue)),
+            biller_id: editBillerId ? Number(editBillerId) : null
+          });
+        }
         await loadQuotations();
         setSelectedQuotations([]);
       } catch (e) {
@@ -1744,7 +2123,9 @@ const QuotationList = () => {
     } else {
       const ref = editQuoteRef.trim();
       if (!ref) {
-        setEditError("Quote reference is required.");
+        setEditError(
+          isProposalModule ? "Proposal reference is required." : "Quote reference is required."
+        );
         return;
       }
       const cust = editCustomerName.trim();
@@ -1761,7 +2142,11 @@ const QuotationList = () => {
         (r) => r.id !== editingRowId && String(r.quoteRef).toLowerCase() === ref.toLowerCase()
       );
       if (refDup) {
-        setEditError("Another row already uses this quote reference.");
+        setEditError(
+          isProposalModule
+            ? "Another row already uses this proposal reference."
+            : "Another row already uses this quote reference."
+        );
         return;
       }
       const builtItems = lineRows.map((l) => {
@@ -1830,7 +2215,7 @@ const QuotationList = () => {
     setEditingRowId(null);
     setEditingApiId(null);
     if (inTillflowShell) {
-      navigate(TILLFLOW_QUOTATIONS_BASE);
+      navigate(tillflowDocBase);
     } else {
       setQuotationFormMode("list");
     }
@@ -1842,6 +2227,8 @@ const QuotationList = () => {
     editExpiresAt,
     editLines,
     editCustomerId,
+    editLeadId,
+    editProposalRecipientKind,
     editCustomerName,
     editQuoteTotal,
     editStatus,
@@ -1860,7 +2247,9 @@ const QuotationList = () => {
     loadQuotations,
     catalogProducts,
     inTillflowShell,
-    navigate
+    navigate,
+    isProposalModule,
+    tillflowDocBase
   ]);
 
   const handleEditSubmit = (e) => {
@@ -1874,14 +2263,18 @@ const QuotationList = () => {
     }
     if (token && deleteApiId != null) {
       try {
-        await deleteQuotationRequest(token, deleteApiId);
+        if (isProposalModule) {
+          await deleteProposalRequest(token, deleteApiId);
+        } else {
+          await deleteQuotationRequest(token, deleteApiId);
+        }
         await loadQuotations();
         setSelectedQuotations([]);
       } catch (e) {
         if (e instanceof TillFlowApiError) {
           setListError(e.message);
         } else {
-          setListError("Could not delete quotation.");
+          setListError(isProposalModule ? "Could not delete proposal." : "Could not delete quotation.");
         }
         return;
       }
@@ -1898,20 +2291,39 @@ const QuotationList = () => {
   const handleSendQuotationToCustomer = useCallback(
     async (row, payload, attachOptions = {}) => {
       if (!token || row?.apiId == null) {
-        setListError("Send to email is available for saved quotations only.");
+        setListError(
+          row?.documentKind === "proposal"
+            ? "Send to email is available for saved proposals only."
+            : "Send to email is available for saved quotations only."
+        );
         return;
       }
       setListError("");
+      setListSuccess("");
       setSendQuoteBusyId(String(row.id ?? row.apiId ?? ""));
       try {
-        await sendQuotationToCustomerRequest(token, row.apiId, payload || undefined, attachOptions);
+        if (row.documentKind === "proposal") {
+          await sendProposalToRecipientRequest(token, row.apiId, payload || undefined, attachOptions);
+        } else {
+          await sendQuotationToCustomerRequest(token, row.apiId, payload || undefined, attachOptions);
+        }
         await loadQuotations();
+        setListSuccess(
+          row.documentKind === "proposal"
+            ? "Proposal email sent successfully."
+            : "Quotation email sent successfully."
+        );
         return true;
       } catch (e) {
+        setListSuccess("");
         if (e instanceof TillFlowApiError) {
           setListError(e.message);
         } else {
-          setListError("Could not send quotation email.");
+          setListError(
+            row.documentKind === "proposal"
+              ? "Could not send proposal email."
+              : "Could not send quotation email."
+          );
         }
         return false;
       } finally {
@@ -1919,6 +2331,66 @@ const QuotationList = () => {
       }
     },
     [token, loadQuotations]
+  );
+
+  const openAcceptProposalModal = useCallback((row) => {
+    setAcceptProposalError("");
+    setAcceptProposalPendingKind(null);
+    setAcceptProposalRow(row);
+    showBsModal("accept-proposal-modal");
+  }, []);
+
+  const submitAcceptProposal = useCallback(
+    async (convertTo) => {
+      if (!token || acceptProposalRow?.apiId == null) {
+        return;
+      }
+      setAcceptProposalError("");
+      setAcceptProposalPendingKind(convertTo);
+      setAcceptProposalSubmitting(true);
+      try {
+        const data = await acceptProposalRequest(token, acceptProposalRow.apiId, {
+          convert_to: convertTo
+        });
+        const q = data?.quotation;
+        const inv = data?.invoice;
+        hideBsModal("accept-proposal-modal");
+        setAcceptProposalRow(null);
+        await loadQuotations();
+        setSelectedQuotations([]);
+        const qid = q?.id ?? null;
+        const invId = inv?.id ?? null;
+        if (convertTo === "quotation" && qid != null) {
+          setAcceptProposalSuccess(null);
+          hideBsModal("accept-proposal-success-modal");
+          window.setTimeout(() => {
+            navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(qid))}/edit`);
+          }, 100);
+        } else if (convertTo === "invoice" && invId != null) {
+          setAcceptProposalSuccess(null);
+          hideBsModal("accept-proposal-success-modal");
+          window.setTimeout(() => {
+            navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(invId))}/edit`);
+          }, 100);
+        } else {
+          setAcceptProposalSuccess({
+            quotationId: qid,
+            quoteRef: q?.quote_ref || "—",
+            invoiceId: invId,
+            invoiceRef: inv?.invoice_ref ?? null
+          });
+          showBsModal("accept-proposal-success-modal");
+        }
+      } catch (e) {
+        setAcceptProposalError(
+          e instanceof TillFlowApiError ? e.message : "Could not convert this proposal."
+        );
+      } finally {
+        setAcceptProposalSubmitting(false);
+        setAcceptProposalPendingKind(null);
+      }
+    },
+    [token, acceptProposalRow, loadQuotations, navigate]
   );
 
   const handleConvertQuotationToInvoice = useCallback(
@@ -1957,17 +2429,25 @@ const QuotationList = () => {
 
   const openSendQuotationPreviewModal = useCallback(
     (row) => {
+      const isProposal = row.documentKind === "proposal";
       const customer = catalogCustomers.find((c) => String(c.id) === String(row.customer_id ?? ""));
       const customerName = String(row.Custmer_Name || customer?.name || "Customer");
-      const defaultTo = String(customer?.email || "").trim();
+      const defaultTo = String(
+        (isProposal ? row.customer_email || customer?.email : customer?.email) || ""
+      ).trim();
       setSendPreviewQuote(row);
       setSendPreviewTo(defaultTo);
       setSendPreviewCc("");
-      setSendPreviewSubject(`Quotation ${row.quoteRef || ""}`.trim());
+      setSendPreviewSubject(
+        (isProposal ? `Proposal ${row.quoteRef || ""}` : `Quotation ${row.quoteRef || ""}`).trim()
+      );
       setSendPreviewMessage(
-        `Hello ${customerName},\n\nPlease find your quotation ${row.quoteRef || "—"} dated ${row.quotedDate || "—"}.\n\nTotal amount: ${typeof row.Total === "number" ? formatQuoteMoneyKes(row.Total) : "Ksh0.00"}.\n\nThank you.`
+        isProposal
+          ? `Hello ${customerName},\n\nPlease find your proposal ${row.quoteRef || "—"} dated ${row.quotedDate || "—"}.\n\nTotal amount: ${typeof row.Total === "number" ? formatQuoteMoneyKes(row.Total) : "Ksh0.00"}.\n\nThank you.`
+          : `Hello ${customerName},\n\nPlease find your quotation ${row.quoteRef || "—"} dated ${row.quotedDate || "—"}.\n\nTotal amount: ${typeof row.Total === "number" ? formatQuoteMoneyKes(row.Total) : "Ksh0.00"}.\n\nThank you.`
       );
       setSendPreviewError("");
+      setListSuccess("");
       showBsModal("send-quotation-preview-modal");
     },
     [catalogCustomers]
@@ -2056,7 +2536,8 @@ const QuotationList = () => {
       }
     }
 
-    const attachFilename = `quotation-${String(sendPreviewQuote.quoteRef ?? sendPreviewQuote.apiId ?? "quote").replace(/[^\w.-]+/g, "_")}.pdf`;
+    const docTag = sendPreviewQuote.documentKind === "proposal" ? "proposal" : "quotation";
+    const attachFilename = `${docTag}-${String(sendPreviewQuote.quoteRef ?? sendPreviewQuote.apiId ?? "quote").replace(/[^\w.-]+/g, "_")}.pdf`;
     const ok = await handleSendQuotationToCustomer(sendPreviewQuote, payload, {
       pdfBlob: pdfBlob instanceof Blob ? pdfBlob : undefined,
       attachmentFilename: attachFilename
@@ -2082,12 +2563,12 @@ const QuotationList = () => {
   const columns = useMemo(
     () => [
       {
-        header: "Quote #",
+        header: docUiRefColumn,
         field: "quoteRef",
         sortable: true,
         body: (row) => (
           inTillflowShell ? (
-            <Link to={`${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}`} style={{ color: "#0d6efd" }}>
+            <Link to={`${tillflowDocBase}/${encodeURIComponent(String(row.apiId ?? row.id))}`} style={{ color: "#0d6efd" }}>
               {row.quoteRef}
             </Link>
           ) : (
@@ -2183,6 +2664,7 @@ const QuotationList = () => {
                 type="button"
                 className="btn btn-sm btn-light p-1 d-inline-flex align-items-center justify-content-center dropdown-toggle quotation-list__row-actions-toggle"
                 data-bs-toggle="dropdown"
+                data-bs-popper-config={JSON.stringify({ strategy: "fixed" })}
                 aria-expanded="false"
                 title="Actions">
                 <MoreVertical size={16} />
@@ -2204,10 +2686,14 @@ const QuotationList = () => {
                   <button
                     type="button"
                     className="dropdown-item"
+                    disabled={
+                      row.documentKind === "proposal" &&
+                      (normalizeQuotationStatus(row.Status) === "Accepted" || row.quotation_id != null)
+                    }
                     onClick={() => {
                       if (inTillflowShell) {
                         navigate(
-                          `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
+                          `${tillflowDocBase}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
                         );
                       } else {
                         openEditQuotation(row);
@@ -2228,18 +2714,43 @@ const QuotationList = () => {
                     Clone
                   </button>
                 </li>
-                <li>
-                  <button
-                    type="button"
-                    className="dropdown-item"
-                    disabled={convertQuoteBusyId === String(row.id ?? row.apiId ?? "")}
-                    onClick={() => {
-                      void handleConvertQuotationToInvoice(row);
-                    }}>
-                    <i className="ti ti-file-invoice me-2" />
-                    {convertQuoteBusyId === String(row.id ?? row.apiId ?? "") ? "Converting..." : "Convert to invoice"}
-                  </button>
-                </li>
+                {!isProposalModule ? (
+                  <li>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      disabled={convertQuoteBusyId === String(row.id ?? row.apiId ?? "")}
+                      onClick={() => {
+                        void handleConvertQuotationToInvoice(row);
+                      }}>
+                      <i className="ti ti-file-invoice me-2" />
+                      {convertQuoteBusyId === String(row.id ?? row.apiId ?? "") ? "Converting..." : "Convert to invoice"}
+                    </button>
+                  </li>
+                ) : null}
+                {isProposalModule ? (
+                  normalizeQuotationStatus(row.Status) === "Accepted" || row.quotation_id != null ? (
+                    <li>
+                      <button type="button" className="dropdown-item text-success" disabled>
+                        <i className="ti ti-circle-check me-2" />
+                        Accepted
+                      </button>
+                    </li>
+                  ) : (
+                    <li>
+                      <button
+                        type="button"
+                        className="dropdown-item text-success"
+                        disabled={acceptProposalSubmitting && acceptProposalRow?.id === row.id}
+                        onClick={() => openAcceptProposalModal(row)}>
+                        <i className="ti ti-circle-check me-2" />
+                        {acceptProposalSubmitting && acceptProposalRow?.id === row.id
+                          ? "Converting…"
+                          : "Convert"}
+                      </button>
+                    </li>
+                  )
+                ) : null}
                 <li>
                   <button
                     type="button"
@@ -2285,18 +2796,25 @@ const QuotationList = () => {
       inTillflowShell,
       navigate,
       sendQuoteBusyId,
-      convertQuoteBusyId
+      convertQuoteBusyId,
+      tillflowDocBase,
+      isProposalModule,
+      openAcceptProposalModal,
+      acceptProposalSubmitting,
+      acceptProposalPendingKind,
+      acceptProposalRow,
+      docUiRefColumn
     ]
   );
 
   const quotationDetailSidebarColumns = useMemo(
     () => [
       {
-        header: "QT #",
+        header: docUiDetailSidebarRef,
         field: "quoteRef",
         body: (r) => (
-          <Link to={`${TILLFLOW_QUOTATIONS_BASE}/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
-            {r.quoteRef || `QT-${r.apiId ?? r.id}`}
+          <Link to={`${tillflowDocBase}/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
+            {r.quoteRef || `${isProposalModule ? "PR" : "QT"}-${r.apiId ?? r.id}`}
           </Link>
         )
       },
@@ -2327,7 +2845,7 @@ const QuotationList = () => {
         )
       }
     ],
-    []
+    [tillflowDocBase, docUiDetailSidebarRef, isProposalModule]
   );
 
   const formIsCreate = quotationFormMode === "create";
@@ -2341,9 +2859,9 @@ const QuotationList = () => {
   const crmQuotationForm = inTillflowShell && quotationFormMode !== "list";
   const quotationDetailRouteActive =
     inTillflowShell &&
-    Boolean(routeQuotationId) &&
+    Boolean(routeDetailDocId) &&
     location.pathname.replace(/\/$/, "") ===
-      `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(routeQuotationId))}`;
+      `${tillflowDocBase}/${encodeURIComponent(String(routeDetailDocId))}`;
   const discountFieldsActive =
     (formIsCreate ? addDiscountType : editDiscountType) !== "none";
 
@@ -2451,7 +2969,11 @@ const QuotationList = () => {
       await downloadQuotationDetailPdf(viewRow, quotationViewModel, { useKes: inTillflowShell });
     } catch (e2) {
       console.error(e2);
-      window.alert("Could not generate the PDF. Please try again.");
+      window.alert(
+        viewRow?.documentKind === "proposal"
+          ? "Could not generate the proposal PDF. Please try again."
+          : "Could not generate the PDF. Please try again."
+      );
     }
   }, [viewRow, quotationViewModel, inTillflowShell]);
 
@@ -2467,12 +2989,12 @@ const QuotationList = () => {
     hideBsModal("view-quotation-modal");
     if (inTillflowShell) {
       navigate(
-        `${TILLFLOW_QUOTATIONS_BASE}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
+        `${tillflowDocBase}/${encodeURIComponent(String(row.apiId ?? row.id))}/edit`
       );
     } else {
       openEditQuotation(row);
     }
-  }, [viewRow, inTillflowShell, navigate, openEditQuotation]);
+  }, [viewRow, inTillflowShell, navigate, openEditQuotation, tillflowDocBase]);
 
   const handleQuoteLineColResizeMouseDown = useCallback(
     (colIndex) => (e) => {
@@ -2706,18 +3228,27 @@ const QuotationList = () => {
               <div className="page-header">
                 <div className="add-item d-flex">
                   <div className="page-title">
-                    <h4>Quotations</h4>
-                    <h6>Create, track, and convert quotes — filter by product, customer, or status.</h6>
+                    <h4>{isProposalModule ? "Proposals" : "Quotations"}</h4>
+                    <h6>
+                      {isProposalModule
+                        ? "Create and track proposals — filter by product, customer, or status."
+                        : "Create, track, and convert quotes — filter by product, customer, or status."}
+                    </h6>
                   </div>
                 </div>
                 <TableTopHead
                   onRefresh={resetFilters}
-                  onExportPdf={handleExportPdf}
-                  onExportExcel={handleExportExcel}
+                  onExportPdf={isProposalModule ? undefined : handleExportPdf}
+                  onExportExcel={isProposalModule ? undefined : handleExportExcel}
                 />
                 {listError ? (
                   <div className="alert alert-danger mt-3 mb-0" role="alert">
                     {listError}
+                  </div>
+                ) : null}
+                {listSuccess && !listError ? (
+                  <div className="alert alert-success mt-3 mb-0" role="status">
+                    {listSuccess}
                   </div>
                 ) : null}
                 {catalogError ? (
@@ -2732,13 +3263,13 @@ const QuotationList = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       if (inTillflowShell) {
-                        navigate(`${TILLFLOW_QUOTATIONS_BASE}/new`);
+                        navigate(`${tillflowDocBase}/new`);
                       } else {
                         openCreateQuotationForm();
                       }
                     }}>
                     <PlusCircle size={18} strokeWidth={1.75} className="me-1" aria-hidden />
-                    Create Quotation
+                    {`Create ${docUiNoun}`}
                   </Link>
                   {inTillflowShell ? (
                     <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
@@ -2839,12 +3370,17 @@ const QuotationList = () => {
             <div className="tf-admin-invoice-detail__layout tf-quotation-detail__layout">
               <aside className="tf-admin-invoice-detail__list">
                 <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
-                  <h5 className="tf-heading mb-0">Quotations</h5>
-                  <NavLink to={`${TILLFLOW_QUOTATIONS_BASE}/new`} className="btn btn-sm btn-outline-primary">
+                  <h5 className="tf-heading mb-0">{isProposalModule ? "Proposals" : "Quotations"}</h5>
+                  <NavLink to={`${tillflowDocBase}/new`} className="btn btn-sm btn-outline-primary">
                     New
                   </NavLink>
                 </div>
                 {listError ? <div className="alert alert-warning py-2 small">{listError}</div> : null}
+                {listSuccess && !listError ? (
+                  <div className="alert alert-success py-2 small" role="status">
+                    {listSuccess}
+                  </div>
+                ) : null}
                 {listLoading ? <p className="text-muted small">Loading…</p> : null}
                 <div className="tf-admin-invoice-detail__list-scroll">
                   <PrimeDataTable
@@ -2860,8 +3396,8 @@ const QuotationList = () => {
                   />
                 </div>
                 <div className="mt-2">
-                  <NavLink to={TILLFLOW_QUOTATIONS_BASE} className="small">
-                    Full quotations list
+                  <NavLink to={tillflowDocBase} className="small">
+                    {isProposalModule ? "Full proposals list" : "Full quotations list"}
                   </NavLink>
                 </div>
               </aside>
@@ -2870,11 +3406,11 @@ const QuotationList = () => {
                   <div className="page-header border-0 pb-2 quotation-view-no-print">
                     <div className="d-flex flex-wrap align-items-start gap-3 justify-content-between w-100">
                       <div className="page-title mb-0 min-w-0 flex-grow-1 pe-2">
-                        <h4 className="mb-0">Quotation details</h4>
+                        <h4 className="mb-0">{isProposalModule ? "Proposal details" : "Quotation details"}</h4>
                       </div>
-                      <Link to={TILLFLOW_QUOTATIONS_BASE} className="btn btn-outline-secondary">
+                      <Link to={tillflowDocBase} className="btn btn-outline-secondary">
                         <i className="feather icon-arrow-left me-1" />
-                        Back to quotations
+                        {isProposalModule ? "Back to proposals" : "Back to quotations"}
                       </Link>
                     </div>
                   </div>
@@ -2887,21 +3423,21 @@ const QuotationList = () => {
                             className="btn btn-primary d-flex justify-content-center align-items-center"
                             onClick={() => void handleDownloadViewQuotationPdf()}>
                             <i className="ti ti-file-download me-2" />
-                            Download PDF
+                            {`Download ${docUiNoun} PDF`}
                           </button>
                           <button
                             type="button"
                             className="btn btn-outline-primary d-flex justify-content-center align-items-center"
                             onClick={handlePrintViewQuotation}>
                             <i className="ti ti-printer me-2" />
-                            Print quotation
+                            {`Print ${docUiNounLower}`}
                           </button>
                           <button
                             type="button"
                             className="btn btn-outline-primary d-flex justify-content-center align-items-center"
                             onClick={handleEditFromViewQuotation}>
                             <Edit2 size={18} strokeWidth={1.75} className="me-2" aria-hidden />
-                            Edit quote
+                            {`Edit ${docUiNounLower}`}
                           </button>
                         </div>
                         <QuotationPrintDocument
@@ -2917,7 +3453,9 @@ const QuotationList = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="alert alert-warning mb-0">Quotation not found.</div>
+                    <div className="alert alert-warning mb-0">
+                      {isProposalModule ? "Proposal not found." : "Quotation not found."}
+                    </div>
                   )}
                 </div>
               </main>
@@ -2936,7 +3474,7 @@ const QuotationList = () => {
                     <>
                       <div className="page-title mb-0 min-w-0 flex-grow-1 pe-2">
                         <h4 className="mb-0">
-                          {formIsCreate ? "Create Quotation" : "Edit quotation"}
+                          {formIsCreate ? `Create ${docUiNoun}` : `Edit ${docUiNoun}`}
                         </h4>
                       </div>
                       <button
@@ -2958,10 +3496,12 @@ const QuotationList = () => {
                       </button>
                       <div className="page-title mb-0">
                         <h4 className="mb-0">
-                          {formIsCreate ? "Create Quotation" : "Edit quotation"}
+                          {formIsCreate ? `Create ${docUiNoun}` : `Edit ${docUiNoun}`}
                         </h4>
                         <h6 className="text-muted mb-0 fw-normal mt-1">
-                          Customer, dates, line items, and totals — same fields as before, full page layout.
+                          {isProposalModule
+                            ? "Recipient, dates, line items, and totals — same layout as quotations."
+                            : "Customer, dates, line items, and totals — same fields as before, full page layout."}
                         </h6>
                       </div>
                     </div>
@@ -2994,13 +3534,17 @@ const QuotationList = () => {
                       <div className="row g-3 align-items-end mb-3">
                         <div className="col-12 col-lg-8">
                           <label className="form-label">
-                            Quote title
+                            {`${docUiNoun} title`}
                             <span className="text-muted fw-normal ms-1">(optional)</span>
                           </label>
                           <input
                             type="text"
                             className="form-control"
-                            placeholder="Shown on the quote PDF and details view"
+                            placeholder={
+                              isProposalModule
+                                ? "Shown on the proposal PDF and details view"
+                                : "Shown on the quote PDF and details view"
+                            }
                             value={formIsCreate ? addQuoteTitle : editQuoteTitle}
                             onChange={(e) =>
                               formIsCreate
@@ -3012,39 +3556,197 @@ const QuotationList = () => {
                         <div className="col-12 col-lg-4">
                           {token ? (
                             formIsCreate ? (
-                              <>
-                                <label className="form-label">
-                                  Customer<span className="text-danger ms-1">*</span>
-                                </label>
-                                <CommonSelect
-                                  className="w-100"
-                                  options={catalogCustomerPickOptions}
-                                  value={addCustomerId === "" ? "" : addCustomerId}
-                                  onChange={(e) => {
-                                    const v = e.value;
-                                    setAddCustomerId(v == null || v === "" ? "" : String(v));
-                                  }}
-                                  placeholder="Customer"
-                                  filter
-                                />
-                              </>
+                              isProposalModule ? (
+                                <>
+                                  <label className="form-label mb-2">Recipient</label>
+                                  <div className="d-flex flex-wrap gap-3 mb-2">
+                                    <div className="form-check mb-0">
+                                      <input
+                                        className="form-check-input"
+                                        type="radio"
+                                        name="addProposalRecipientKind"
+                                        id="add-proposal-recipient-customer"
+                                        checked={addProposalRecipientKind === "customer"}
+                                        onChange={() => {
+                                          setAddProposalRecipientKind("customer");
+                                          setAddLeadId("");
+                                        }}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor="add-proposal-recipient-customer">
+                                        Customer
+                                      </label>
+                                    </div>
+                                    <div className="form-check mb-0">
+                                      <input
+                                        className="form-check-input"
+                                        type="radio"
+                                        name="addProposalRecipientKind"
+                                        id="add-proposal-recipient-lead"
+                                        checked={addProposalRecipientKind === "lead"}
+                                        onChange={() => {
+                                          setAddProposalRecipientKind("lead");
+                                          setAddCustomerId("");
+                                        }}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor="add-proposal-recipient-lead">
+                                        Lead
+                                      </label>
+                                    </div>
+                                  </div>
+                                  {addProposalRecipientKind === "customer" ? (
+                                    <>
+                                      <label className="form-label">
+                                        Customer<span className="text-danger ms-1">*</span>
+                                      </label>
+                                      <CommonSelect
+                                        className="w-100"
+                                        options={catalogCustomerPickOptions}
+                                        value={addCustomerId === "" ? "" : addCustomerId}
+                                        onChange={(e) => {
+                                          const v = e.value;
+                                          setAddCustomerId(v == null || v === "" ? "" : String(v));
+                                        }}
+                                        placeholder="Customer"
+                                        filter
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <label className="form-label">
+                                        Lead<span className="text-danger ms-1">*</span>
+                                      </label>
+                                      <CommonSelect
+                                        className="w-100"
+                                        options={catalogLeadPickOptions}
+                                        value={addLeadId === "" ? "" : addLeadId}
+                                        onChange={(e) => {
+                                          const v = e.value;
+                                          setAddLeadId(v == null || v === "" ? "" : String(v));
+                                        }}
+                                        placeholder="Lead"
+                                        filter
+                                      />
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <label className="form-label">
+                                    Customer<span className="text-danger ms-1">*</span>
+                                  </label>
+                                  <CommonSelect
+                                    className="w-100"
+                                    options={catalogCustomerPickOptions}
+                                    value={addCustomerId === "" ? "" : addCustomerId}
+                                    onChange={(e) => {
+                                      const v = e.value;
+                                      setAddCustomerId(v == null || v === "" ? "" : String(v));
+                                    }}
+                                    placeholder="Customer"
+                                    filter
+                                  />
+                                </>
+                              )
                             ) : editingApiId != null ? (
-                              <>
-                                <label className="form-label">
-                                  Customer<span className="text-danger ms-1">*</span>
-                                </label>
-                                <CommonSelect
-                                  className="w-100"
-                                  options={catalogCustomerPickOptions}
-                                  value={editCustomerId === "" ? "" : editCustomerId}
-                                  onChange={(e) => {
-                                    const v = e.value;
-                                    setEditCustomerId(v == null || v === "" ? "" : String(v));
-                                  }}
-                                  placeholder="Customer"
-                                  filter
-                                />
-                              </>
+                              isProposalModule ? (
+                                <>
+                                  <label className="form-label mb-2">Recipient</label>
+                                  <div className="d-flex flex-wrap gap-3 mb-2">
+                                    <div className="form-check mb-0">
+                                      <input
+                                        className="form-check-input"
+                                        type="radio"
+                                        name="editProposalRecipientKind"
+                                        id="edit-proposal-recipient-customer"
+                                        checked={editProposalRecipientKind === "customer"}
+                                        onChange={() => {
+                                          setEditProposalRecipientKind("customer");
+                                          setEditLeadId("");
+                                        }}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor="edit-proposal-recipient-customer">
+                                        Customer
+                                      </label>
+                                    </div>
+                                    <div className="form-check mb-0">
+                                      <input
+                                        className="form-check-input"
+                                        type="radio"
+                                        name="editProposalRecipientKind"
+                                        id="edit-proposal-recipient-lead"
+                                        checked={editProposalRecipientKind === "lead"}
+                                        onChange={() => {
+                                          setEditProposalRecipientKind("lead");
+                                          setEditCustomerId("");
+                                        }}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor="edit-proposal-recipient-lead">
+                                        Lead
+                                      </label>
+                                    </div>
+                                  </div>
+                                  {editProposalRecipientKind === "customer" ? (
+                                    <>
+                                      <label className="form-label">
+                                        Customer<span className="text-danger ms-1">*</span>
+                                      </label>
+                                      <CommonSelect
+                                        className="w-100"
+                                        options={catalogCustomerPickOptions}
+                                        value={editCustomerId === "" ? "" : editCustomerId}
+                                        onChange={(e) => {
+                                          const v = e.value;
+                                          setEditCustomerId(v == null || v === "" ? "" : String(v));
+                                        }}
+                                        placeholder="Customer"
+                                        filter
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <label className="form-label">
+                                        Lead<span className="text-danger ms-1">*</span>
+                                      </label>
+                                      <CommonSelect
+                                        className="w-100"
+                                        options={catalogLeadPickOptions}
+                                        value={editLeadId === "" ? "" : editLeadId}
+                                        onChange={(e) => {
+                                          const v = e.value;
+                                          setEditLeadId(v == null || v === "" ? "" : String(v));
+                                        }}
+                                        placeholder="Lead"
+                                        filter
+                                      />
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <label className="form-label">
+                                    Customer<span className="text-danger ms-1">*</span>
+                                  </label>
+                                  <CommonSelect
+                                    className="w-100"
+                                    options={catalogCustomerPickOptions}
+                                    value={editCustomerId === "" ? "" : editCustomerId}
+                                    onChange={(e) => {
+                                      const v = e.value;
+                                      setEditCustomerId(v == null || v === "" ? "" : String(v));
+                                    }}
+                                    placeholder="Customer"
+                                    filter
+                                  />
+                                </>
+                              )
                             ) : (
                               <>
                                 <label className="form-label">
@@ -3081,7 +3783,7 @@ const QuotationList = () => {
                       <div className="row g-3">
                         <div className="col-md-6 col-lg-4">
                           <label className="form-label">
-                            Quote date
+                            {isProposalModule ? "Proposal date" : "Quote date"}
                             <span className="text-danger ms-1">*</span>
                           </label>
                           <input
@@ -3116,7 +3818,9 @@ const QuotationList = () => {
                             <>
                               <input type="text" className="form-control" value="Draft" readOnly disabled />
                               <p className="text-muted small mb-0 mt-1">
-                                Status switches to Sent after sending.
+                                {isProposalModule
+                                  ? "Status switches to Sent after you send the proposal."
+                                  : "Status switches to Sent after sending."}
                               </p>
                             </>
                           ) : (
@@ -3141,7 +3845,7 @@ const QuotationList = () => {
                       <div className="col-lg-6">
                         {!crmQuotationForm ? (
                           <div className="mb-3">
-                            <label className="form-label">Quote total</label>
+                            <label className="form-label">{`${docUiNoun} total`}</label>
                             <div className="form-control bg-light fw-medium">{formatMoney(formQuoteTotal)}</div>
                           </div>
                         ) : null}
@@ -3878,10 +4582,10 @@ const QuotationList = () => {
                     saveLabel={
                       crmQuotationForm
                         ? formIsCreate
-                          ? "Save quotation"
-                          : "Update quotation"
+                          ? `Save ${docUiNounLower}`
+                          : `Update ${docUiNounLower}`
                         : formIsCreate
-                          ? "Save quotation"
+                          ? `Save ${docUiNounLower}`
                           : "Save changes"
                     }
                   />
@@ -3899,7 +4603,9 @@ const QuotationList = () => {
             <div className="modal-header border-bottom align-items-center flex-wrap gap-2 quotation-view-no-print">
               <div className="add-item d-flex flex-grow-1">
                 <div className="page-title mb-0">
-                  <h4 className="mb-0">Quotation Details</h4>
+                  <h4 className="mb-0">
+                    {viewRow?.documentKind === "proposal" ? "Proposal details" : "Quotation details"}
+                  </h4>
                 </div>
               </div>
               <ul className="table-top-head mb-0">
@@ -3907,7 +4613,9 @@ const QuotationList = () => {
                   <button
                     type="button"
                     className="border-0 bg-transparent p-0"
-                    title="Download PDF"
+                    title={
+                      viewRow?.documentKind === "proposal" ? "Download proposal PDF" : "Download PDF"
+                    }
                     onClick={() => void handleDownloadViewQuotationPdf()}>
                     <img src={pdf} alt="" />
                   </button>
@@ -3925,7 +4633,9 @@ const QuotationList = () => {
                   <button
                     type="button"
                     className="border-0 bg-transparent p-0"
-                    title="Edit quote"
+                    title={
+                      viewRow?.documentKind === "proposal" ? "Edit proposal" : "Edit quote"
+                    }
                     onClick={handleEditFromViewQuotation}>
                     <Edit2 size={18} strokeWidth={1.75} aria-hidden />
                   </button>
@@ -3945,11 +4655,11 @@ const QuotationList = () => {
                 <div className="px-3 pt-2 pb-3 quotation-view-modal-body-inner">
                   <div className="page-btn mb-2 quotation-view-no-print d-flex flex-wrap align-items-center gap-2">
                     <Link
-                      to={inTillflowShell ? TILLFLOW_QUOTATIONS_BASE : all_routes.quotationlist}
+                      to={inTillflowShell ? tillflowDocBase : all_routes.quotationlist}
                       className="btn btn-primary"
                       onClick={() => hideBsModal("view-quotation-modal")}>
                       <i className="feather icon-arrow-left me-2" />
-                      Back to Quotations
+                      {isProposalModule ? "Back to proposals" : "Back to Quotations"}
                     </Link>
                     <Link
                       to="#"
@@ -3959,7 +4669,7 @@ const QuotationList = () => {
                         handleEditFromViewQuotation();
                       }}>
                       <Edit2 size={18} strokeWidth={1.75} className="me-2" aria-hidden />
-                      Edit quote
+                      {viewRow?.documentKind === "proposal" ? "Edit proposal" : "Edit quote"}
                     </Link>
                   </div>
                   <QuotationPrintDocument
@@ -3978,21 +4688,21 @@ const QuotationList = () => {
                       className="btn btn-primary d-flex justify-content-center align-items-center"
                       onClick={() => void handleDownloadViewQuotationPdf()}>
                       <i className="ti ti-file-download me-2" />
-                      Download PDF
+                      {viewRow?.documentKind === "proposal" ? "Download proposal PDF" : "Download PDF"}
                     </button>
                     <button
                       type="button"
                       className="btn btn-outline-primary d-flex justify-content-center align-items-center"
                       onClick={handlePrintViewQuotation}>
                       <i className="ti ti-printer me-2" />
-                      Print quotation
+                      {viewRow?.documentKind === "proposal" ? "Print proposal" : "Print quotation"}
                     </button>
                     <button
                       type="button"
                       className="btn btn-outline-primary d-flex justify-content-center align-items-center"
                       onClick={handleEditFromViewQuotation}>
                       <Edit2 size={18} strokeWidth={1.75} className="me-2" aria-hidden />
-                      Edit quote
+                      {viewRow?.documentKind === "proposal" ? "Edit proposal" : "Edit quote"}
                     </button>
                     <button type="button" className="btn btn-secondary border" data-bs-dismiss="modal">
                       Close
@@ -4103,7 +4813,7 @@ const QuotationList = () => {
           <div className="modal-content">
             <div className="modal-header">
               <div className="page-title">
-                <h4>Delete quotation</h4>
+                <h4>{isProposalModule ? "Delete proposal" : "Delete quotation"}</h4>
               </div>
               <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">×</span>
@@ -4111,7 +4821,8 @@ const QuotationList = () => {
             </div>
             <div className="modal-body">
               <p className="mb-0">
-                Delete quotation <strong>{deleteQuoteRef}</strong>? This cannot be undone.
+                {isProposalModule ? "Delete proposal" : "Delete quotation"}{" "}
+                <strong>{deleteQuoteRef}</strong>? This cannot be undone.
               </p>
             </div>
             <div className="modal-footer">
@@ -4121,6 +4832,202 @@ const QuotationList = () => {
               <button type="button" className="btn btn-danger" onClick={handleDeleteConfirm}>
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="modal fade" id="accept-proposal-modal" tabIndex={-1}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Convert</h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={() => {
+                  setAcceptProposalRow(null);
+                  setAcceptProposalError("");
+                }}
+              />
+            </div>
+            <div className="modal-body">
+              {acceptProposalError ? (
+                <div className="alert alert-danger py-2 mb-3">{acceptProposalError}</div>
+              ) : null}
+              {acceptProposalRow ? (
+                <>
+                  <p className="text-muted small mb-2">You are about to convert:</p>
+                  <div className="border rounded-3 p-3 mb-3 bg-light">
+                    <div className="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-1">
+                      <span className="text-uppercase text-muted small fw-semibold">Proposal</span>
+                      <span className="fs-4 fw-bold text-success tabular-nums">
+                        {acceptProposalRow.quoteRef}
+                      </span>
+                    </div>
+                    {String(acceptProposalRow.quoteTitle ?? "").trim() ? (
+                      <p className="text-body-secondary small mb-0">
+                        &ldquo;{String(acceptProposalRow.quoteTitle).trim()}&rdquo;
+                      </p>
+                    ) : null}
+                    <dl className="row small mb-0 mt-3">
+                      <dt className="col-sm-4 text-muted">Recipient</dt>
+                      <dd className="col-sm-8 mb-2">{acceptProposalRow.Custmer_Name || "—"}</dd>
+                      <dt className="col-sm-4 text-muted">Total</dt>
+                      <dd className="col-sm-8 mb-2 fw-semibold tabular-nums">
+                        {typeof acceptProposalRow.Total === "number"
+                          ? formatQuoteMoneyKes(acceptProposalRow.Total)
+                          : "—"}
+                      </dd>
+                      <dt className="col-sm-4 text-muted">Date</dt>
+                      <dd className="col-sm-8 mb-0">{acceptProposalRow.quotedDate || "—"}</dd>
+                    </dl>
+                  </div>
+                  <p className="mb-2 small">
+                    <strong>Convert → quotation</strong> creates an <strong className="text-success">Accepted</strong>{" "}
+                    quotation with the same line items. <strong>Convert → invoice only</strong> creates an{" "}
+                    <strong>invoice</strong> from the proposal and does <strong>not</strong> create a quotation (requires{" "}
+                    <span className="text-nowrap">sales.invoices.manage</span>).
+                    {acceptProposalRow.lead_id ? (
+                      <>
+                        {" "}
+                        The lead will be marked <strong>Closed won</strong> and a customer record will be created or
+                        linked as applicable.
+                      </>
+                    ) : (
+                      <> For this customer.</>
+                    )}
+                  </p>
+                </>
+              ) : null}
+            </div>
+            <div className="modal-footer flex-wrap gap-2 justify-content-end">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                data-bs-dismiss="modal"
+                disabled={acceptProposalSubmitting}
+                onClick={() => {
+                  setAcceptProposalRow(null);
+                  setAcceptProposalError("");
+                }}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={acceptProposalSubmitting}
+                onClick={() => void submitAcceptProposal("quotation")}>
+                {acceptProposalSubmitting && acceptProposalPendingKind === "quotation"
+                  ? "Converting…"
+                  : "Convert → quotation"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                disabled={acceptProposalSubmitting}
+                onClick={() => void submitAcceptProposal("invoice")}>
+                {acceptProposalSubmitting && acceptProposalPendingKind === "invoice"
+                  ? "Converting…"
+                  : "Convert → invoice only"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="modal fade" id="accept-proposal-success-modal" tabIndex={-1}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
+            <div className="modal-header border-0 pb-0">
+              <h5 className="modal-title text-success">Converted</h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={() => setAcceptProposalSuccess(null)}
+              />
+            </div>
+            <div className="modal-body text-center pt-0">
+              {acceptProposalSuccess ? (
+                <>
+                  {acceptProposalSuccess.invoiceId ? (
+                    <>
+                      <p className="text-muted small mb-2">
+                        {acceptProposalSuccess.quotationId
+                          ? "Quotation and invoice created"
+                          : "Invoice created"}
+                      </p>
+                      <p className="fs-3 fw-bold text-primary tabular-nums mb-1">
+                        {acceptProposalSuccess.invoiceRef}
+                      </p>
+                      <p className="small text-body-secondary mb-2">Invoice</p>
+                      {acceptProposalSuccess.quotationId ? (
+                        <p className="small text-muted mb-0">
+                          Quotation <strong className="tabular-nums">{acceptProposalSuccess.quoteRef}</strong> is also
+                          available under <strong>Quotations</strong>.
+                        </p>
+                      ) : (
+                        <p className="small text-muted mb-0">
+                          No quotation was created. Open the invoice to print, send, or record payments.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted small mb-2">Quotation created</p>
+                      <p className="fs-3 fw-bold text-primary tabular-nums mb-3">
+                        {acceptProposalSuccess.quoteRef}
+                      </p>
+                      <p className="small text-body-secondary mb-0">
+                        Open it under <strong>Quotations</strong> to print, send, or convert to an invoice.
+                      </p>
+                    </>
+                  )}
+                </>
+              ) : null}
+            </div>
+            <div className="modal-footer border-0 justify-content-center gap-2 pt-0 flex-wrap">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                data-bs-dismiss="modal"
+                onClick={() => setAcceptProposalSuccess(null)}>
+                Close
+              </button>
+              {acceptProposalSuccess?.invoiceId ? (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const id = acceptProposalSuccess.invoiceId;
+                    hideBsModal("accept-proposal-success-modal");
+                    setAcceptProposalSuccess(null);
+                    window.setTimeout(() => {
+                      navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(id))}/edit`);
+                    }, 100);
+                  }}>
+                  Open invoice
+                </button>
+              ) : null}
+              {acceptProposalSuccess?.quotationId ? (
+                <button
+                  type="button"
+                  className={`btn ${acceptProposalSuccess?.invoiceId ? "btn-outline-primary" : "btn-primary"}`}
+                  onClick={() => {
+                    const id = acceptProposalSuccess.quotationId;
+                    hideBsModal("accept-proposal-success-modal");
+                    setAcceptProposalSuccess(null);
+                    window.setTimeout(() => {
+                      navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(id))}/edit`);
+                    }, 100);
+                  }}>
+                  Open quotation
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

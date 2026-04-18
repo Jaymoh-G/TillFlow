@@ -11,7 +11,7 @@ export const PEOPLE_PATH_RE =
 export const PURCHASES_PATH_RE = /\/tillflow\/admin\/(purchases|purchase-returns)(\/|$)/;
 /** Reports menu + inventory report shortcuts (hub links) */
 export const REPORTS_SECTION_PATH_RE =
-  /\/tillflow\/admin\/(reports|expired-items|low-stock)(\/|$)/;
+  /\/tillflow\/admin\/(reports|expired-items|low-stock|activity-logs)(\/|$)/;
 
 export const SETTINGS_GENERAL_PATH_RE =
   /\/tillflow\/admin\/settings\/(profile|security|notifications|connected-apps)(\/|$)/;
@@ -20,7 +20,7 @@ export const SETTINGS_WEBSITE_PATH_RE =
 export const SETTINGS_APP_PATH_RE =
   /\/tillflow\/admin\/settings\/(invoice|printer|pos|signatures|custom-fields)(\/|$)/;
 export const SETTINGS_SYSTEM_PATH_RE =
-  /\/tillflow\/admin\/settings\/(system|email|email-templates|sms-gateway|sms-templates|otp|gdpr)(\/|$)/;
+  /\/tillflow\/admin\/settings\/(system|automation|email|email-templates|sms-gateway|sms-templates|otp|gdpr)(\/|$)/;
 export const SETTINGS_FINANCIAL_PATH_RE =
   /\/tillflow\/admin\/settings\/(payment-gateway|bank-accounts|tax-rates|currencies)(\/|$)/;
 export const SETTINGS_OTHER_PATH_RE = /\/tillflow\/admin\/settings\/(storage|ban-ip)(\/|$)/;

@@ -107,6 +107,36 @@ export const recentTxPurchaseRows = [
   }
 ];
 
+export const recentTxProposalRows = [
+  {
+    date: "17 Apr 2026",
+    avatar: customer16,
+    name: "Alex Rivera",
+    ref: "PR-001",
+    statusVariant: "info",
+    statusLabel: "Sent",
+    total: "Ksh 12,500"
+  },
+  {
+    date: "16 Apr 2026",
+    avatar: customer17,
+    name: "Samuel Chen",
+    ref: "PR-002",
+    statusVariant: "success",
+    statusLabel: "Accepted",
+    total: "Ksh 8,200"
+  },
+  {
+    date: "15 Apr 2026",
+    avatar: customer18,
+    name: "Maria Gomez",
+    ref: "PR-003",
+    statusVariant: "secondary",
+    statusLabel: "Draft",
+    total: "Ksh 3,100"
+  }
+];
+
 export const recentTxQuotationRows = [
   {
     date: "17 Apr 2026",

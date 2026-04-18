@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { fetchDashboardRecentTransactions } from "../../../tillflow/api/reports";
+import { fetchDashboardRecentProposals, fetchDashboardRecentTransactions } from "../../../tillflow/api/reports";
 import { TillFlowApiError } from "../../../tillflow/api/errors";
+import { useOptionalAuth } from "../../../tillflow/auth/AuthContext";
 import { resolveMediaUrl } from "../../../tillflow/utils/resolveMediaUrl";
 import { customer11 as defaultCustomerAvatar } from "../../../utils/imagepath";
 import {
@@ -12,6 +13,7 @@ import {
 import {
   recentTxExpenseRows,
   recentTxInvoiceRows,
+  recentTxProposalRows,
   recentTxPurchaseRows,
   recentTxQuotationRows,
   recentTxSaleRows
@@ -101,6 +103,10 @@ export default function DashboardRecentTransactionsWidget({
     canFetch
   } = useDashboardDateFilterParams(initialDatePreset);
 
+  const auth = useOptionalAuth();
+  /** Show Proposals tab: demo (no token) or user can view proposals. */
+  const showProposalsTab = !token || Boolean(auth?.hasPermission?.("sales.proposals.view"));
+
   const [live, setLive] = useState(null);
   const [loading, setLoading] = useState(!!token);
   const [error, setError] = useState(null);
@@ -118,13 +124,22 @@ export default function DashboardRecentTransactionsWidget({
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchDashboardRecentTransactions(token, { limit, ...apiParams });
+      const shouldFetchProposals = Boolean(
+        token && canFetch && auth?.hasPermission?.("sales.proposals.view")
+      );
+      const [data, propData] = await Promise.all([
+        fetchDashboardRecentTransactions(token, { limit, ...apiParams }),
+        shouldFetchProposals
+          ? fetchDashboardRecentProposals(token, { limit, ...apiParams })
+          : Promise.resolve({ proposals: [] })
+      ]);
       setLive({
         sales: Array.isArray(data?.sales) ? data.sales : [],
         purchases: Array.isArray(data?.purchases) ? data.purchases : [],
         quotations: Array.isArray(data?.quotations) ? data.quotations : [],
         expenses: Array.isArray(data?.expenses) ? data.expenses : [],
-        invoices: Array.isArray(data?.invoices) ? data.invoices : []
+        invoices: Array.isArray(data?.invoices) ? data.invoices : [],
+        proposals: shouldFetchProposals ? (Array.isArray(propData?.proposals) ? propData.proposals : []) : []
       });
     } catch (e) {
       setLive(null);
@@ -132,7 +147,7 @@ export default function DashboardRecentTransactionsWidget({
     } finally {
       setLoading(false);
     }
-  }, [token, limit, apiParams, canFetch]);
+  }, [token, limit, apiParams, canFetch, auth]);
 
   useEffect(() => {
     void load();
@@ -143,6 +158,7 @@ export default function DashboardRecentTransactionsWidget({
       sales: recentTxSaleRows,
       purchases: recentTxPurchaseRows,
       quotations: recentTxQuotationRows,
+      proposals: recentTxProposalRows,
       expenses: recentTxExpenseRows,
       invoices: recentTxInvoiceRows
     }),
@@ -244,6 +260,44 @@ export default function DashboardRecentTransactionsWidget({
           ),
           amount: <td className="text-gray-9">{row.total}</td>
         }));
+
+    const proposalRows = !showProposalsTab
+      ? []
+      : useApi
+        ? (data.proposals ?? []).map((r, i) => ({
+            key: `prop-${r.id ?? i}`,
+            date: r.date,
+            cell: (
+              <CustomerCell
+                avatarSrc={resolveMediaUrl(r.avatar_url)}
+                name={r.customer_name || "—"}
+                refCode={r.reference ? String(r.reference) : "—"}
+                nameTo={`/tillflow/admin/proposals/${encodeURIComponent(String(r.id))}/edit`}
+              />
+            ),
+            status: (
+              <TxStatusBadge variant={r.badge_variant}>{r.status_label}</TxStatusBadge>
+            ),
+            amount: (
+              <td className="text-gray-9">{formatMoney(r.total, r.currency)}</td>
+            )
+          }))
+        : (data.proposals ?? []).map((row) => ({
+            key: `${row.date}-${row.ref}-${row.name}`,
+            date: row.date,
+            cell: (
+              <CustomerCell
+                avatarSrc={row.avatar}
+                name={row.name}
+                refCode={row.ref}
+                nameTo="#"
+              />
+            ),
+            status: (
+              <TxStatusBadge variant={row.statusVariant}>{row.statusLabel}</TxStatusBadge>
+            ),
+            amount: <td className="text-gray-9">{row.total}</td>
+          }));
 
     const expenseRows = useApi
       ? data.expenses.map((r) => ({
@@ -412,6 +466,48 @@ export default function DashboardRecentTransactionsWidget({
           </table>
         )
       },
+      ...(showProposalsTab
+        ? [
+            {
+              id: "proposal",
+              label: "Proposal",
+              paneClassName: "tab-pane fade",
+              table: (
+                <table className="table table-borderless custom-table">
+                  <thead className="thead-light">
+                    <tr>
+                      <th>Date</th>
+                      <th>Customer</th>
+                      <th>Status</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proposalRows.length === 0 ? (
+                      <EmptyRow
+                        colSpan={4}
+                        message={
+                          useApi
+                            ? "No recent proposals in this period."
+                            : "No data."
+                        }
+                      />
+                    ) : (
+                      proposalRows.map((r) => (
+                        <tr key={r.key}>
+                          <td>{r.date}</td>
+                          <td>{r.cell}</td>
+                          <td>{r.status}</td>
+                          {r.amount}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )
+            }
+          ]
+        : []),
       {
         id: "expenses",
         label: "Expenses",
@@ -475,7 +571,7 @@ export default function DashboardRecentTransactionsWidget({
         )
       }
     ];
-  }, [data, useApi]);
+  }, [data, useApi, showProposalsTab]);
 
   return (
     <div className="card flex-fill">

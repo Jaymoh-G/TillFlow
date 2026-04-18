@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import CommonDateRangePicker from '../../components/date-range-picker/common-date-range-picker';
 import PrimeDataTable from '../../components/data-table';
 import {
@@ -41,6 +41,7 @@ function statusLabel(st) {
 
 export default function AdminInvoiceReport() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const { from, to, setFrom, setTo, params: dateParams, allDates, setAllDates } = useReportDateRange({
     defaultDays: 30
   });
@@ -53,6 +54,16 @@ export default function AdminInvoiceReport() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    if (!searchParams.has('status')) {
+      return;
+    }
+    const s = searchParams.get('status') ?? '';
+    if (STATUS_OPTIONS.some((o) => o.value === s)) {
+      setStatus(s);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!token) {

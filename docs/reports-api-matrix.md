@@ -22,6 +22,7 @@ All routes require **`Authorization: Bearer`** and tenant context; permission **
 | return-summary | GET | `/reports/return-summary` | `from`, `to`, `store_id?` |
 | employee-sales | GET | `/reports/employee-sales` | `from`, `to`, `store_id?` |
 | returns-by-staff | GET | `/reports/returns-by-staff` | `from`, `to` |
+| proposal-report | GET | `/reports/proposals` | `from`, `to`, `all_dates` (`1` = no date filter) — requires **`sales.proposals.view`** in addition to **`reports.view`** |
 
 Existing: **`/reports/low-stock`**, **`/reports/expired-items`**.
 

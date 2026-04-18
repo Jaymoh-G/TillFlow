@@ -16,6 +16,7 @@ import {
     fetchIncomeSummary,
     fetchPaymentBreakdown,
     fetchProfitLoss,
+    fetchProposalsReport,
     fetchReturnSummary,
     fetchReturnsByStaff,
     fetchStockMovements,
@@ -40,6 +41,21 @@ import { downloadReportCsv } from '../utils/reportExport';
 import { buildKpiItemsForSlug } from '../utils/reportKpiHelpers';
 
 /** Ref column for customer purchase lines: link to POS order or invoice detail. */
+function ProposalRefCell({ row }) {
+  const id = row.id;
+  const ref = row.proposal_ref;
+  if (id == null || ref == null || ref === '') {
+    return '—';
+  }
+  return (
+    <Link
+      to={`/tillflow/admin/proposals/${encodeURIComponent(String(id))}/edit`}
+      className="text-primary">
+      {ref}
+    </Link>
+  );
+}
+
 function CustomerPurchaseLineRefCell({ row }) {
   const ref = row.ref;
   const display = ref == null || ref === '' ? '—' : String(ref);
@@ -77,7 +93,8 @@ const SLUGS = new Set([
   'z-light',
   'return-summary',
   'employee-sales',
-  'returns-by-staff'
+  'returns-by-staff',
+  'proposal-report'
 ]);
 
 const SUBTITLES = {
@@ -95,7 +112,8 @@ const SUBTITLES = {
   'z-light': 'Light Z from transactional data (no cash drawer)',
   'return-summary': 'Sales returns in the selected period',
   'employee-sales': 'Sales by cashier / employee',
-  'returns-by-staff': 'Returns processed by staff'
+  'returns-by-staff': 'Returns processed by staff',
+  'proposal-report': 'Sales proposals in the selected period (by proposed date)'
 };
 
 const TITLES = {
@@ -113,7 +131,8 @@ const TITLES = {
   'z-light': 'End of day (Z — light)',
   'return-summary': 'Return summary',
   'employee-sales': 'Employee sales',
-  'returns-by-staff': 'Returns by staff'
+  'returns-by-staff': 'Returns by staff',
+  'proposal-report': 'Proposal report'
 };
 
 const LINE_COLS = [
@@ -135,7 +154,8 @@ const MONEY_FIELDS_BY_SLUG = {
   'payment-breakdown': ['amount'],
   'return-summary': ['total_amount'],
   'employee-sales': ['total_amount'],
-  'returns-by-staff': ['total_amount']
+  'returns-by-staff': ['total_amount'],
+  'proposal-report': ['total_amount']
 };
 
 const DATE_FIELDS_BY_SLUG = {
@@ -143,7 +163,8 @@ const DATE_FIELDS_BY_SLUG = {
   'supplier-purchases': ['purchase_date'],
   'expense-report': ['expense_date'],
   'return-summary': ['returned_at'],
-  'customer-purchase-lines': ['date']
+  'customer-purchase-lines': ['date'],
+  'proposal-report': ['proposed_at', 'expires_at']
 };
 
 /** @param {string} slug @param {boolean} withCheckbox */
@@ -222,6 +243,17 @@ function baseColumnsForSlug(slug, withCheckbox) {
       { field: 'return_count', header: 'Returns' },
       { field: 'total_amount', header: 'Amount' },
       { field: 'total_qty', header: 'Qty' }
+    ],
+    'proposal-report': [
+      { field: 'proposal_ref', header: 'Ref', body: (row) => <ProposalRefCell row={row} /> },
+      { field: 'proposal_title', header: 'Title' },
+      { field: 'status', header: 'Status' },
+      { field: 'proposed_at', header: 'Proposed' },
+      { field: 'expires_at', header: 'Expires' },
+      { field: 'recipient_name', header: 'Recipient' },
+      { field: 'lead_code', header: 'Lead' },
+      { field: 'biller_name', header: 'Biller' },
+      { field: 'total_amount', header: 'Total' }
     ]
   };
 
@@ -266,7 +298,8 @@ export default function AdminReportRunner() {
   const [meta, setMeta] = useState(() => ({
     pos_tax_total: '',
     returnSummary: null,
-    customerPurchaseSummary: null
+    customerPurchaseSummary: null,
+    proposalSummary: null
   }));
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
@@ -314,7 +347,7 @@ export default function AdminReportRunner() {
     setError('');
     setLoading(true);
     setLeadExtra('');
-    setMeta({ pos_tax_total: '', returnSummary: null, customerPurchaseSummary: null });
+    setMeta({ pos_tax_total: '', returnSummary: null, customerPurchaseSummary: null, proposalSummary: null });
     try {
       if (slug === 'best-sellers') {
         const d = await fetchBestSellers(token, baseParams);
@@ -413,6 +446,23 @@ export default function AdminReportRunner() {
         setRows((d.rows ?? []).map((r, i) => ({ ...r, id: `rs-${i}` })));
         setLines([]);
         setZData(null);
+      } else if (slug === 'proposal-report') {
+        const d = await fetchProposalsReport(token, baseParams);
+        setRows(
+          (d.rows ?? []).map((r, i) => ({
+            ...r,
+            id: r.id != null ? r.id : `pr-${i}`
+          }))
+        );
+        setLines([]);
+        setZData(null);
+        const s = d.summary ?? null;
+        setMeta((m) => ({ ...m, proposalSummary: s }));
+        setLeadExtra(
+          s
+            ? `Proposals: ${s.count ?? 0} · Value: ${formatInvoiceMoneyKes(s.total_amount)} · Accepted: ${s.accepted_count ?? 0}`
+            : ''
+        );
       }
     } catch (e) {
       setRows([]);
@@ -467,7 +517,8 @@ export default function AdminReportRunner() {
         meta: {
           pos_tax_total: meta.pos_tax_total,
           returnSummary: meta.returnSummary,
-          customerPurchaseSummary: meta.customerPurchaseSummary
+          customerPurchaseSummary: meta.customerPurchaseSummary,
+          proposalSummary: meta.proposalSummary
         }
       }),
     [slug, rows, lines, zData, meta]

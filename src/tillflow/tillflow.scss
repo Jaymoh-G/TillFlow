@@ -1392,17 +1392,41 @@
   margin-left: 0.35rem;
 }
 
+/*
+ * Quotations / proposals list: row kebab menus sit under Prime sortable headers and filter
+ * overlays (e.g. Sort CommonSelect panels use z-index 9999). Popper `fixed` + high menu z-index
+ * matches purchase-list.jsx / tillflow purchase tables.
+ */
+.tf-admin .tf-admin__body .page-wrapper.quotation-list-page .table-responsive .edit-delete-action .dropdown-menu,
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .table-responsive .edit-delete-action .dropdown-menu {
+  z-index: 10050;
+}
+
 .tf-admin .tf-admin__body .page-wrapper.pos-orders-page .pos-orders__row-actions-toggle.dropdown-toggle::after,
 .tf-admin .tf-admin__body .page-wrapper.online-orders-page .online-orders__row-actions-toggle.dropdown-toggle::after {
   display: inline-block;
   margin-left: 0.35rem;
 }
 
-/* Invoice list row actions: keep icon + label on one line (match button items; avoid anchor quirks) */
-.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item {
+/*
+ * Invoice list + invoice payments row actions: keep icon + label on one line (match button vs anchor items).
+ * Fixed icon column so labels align when Tabler glyphs differ in width.
+ */
+.tf-admin .tf-admin__body .page-wrapper.invoice-list-page .edit-delete-action .dropdown-menu .dropdown-item,
+.tf-admin .tf-admin__body .page-wrapper.invoice-payments-page .edit-delete-action .dropdown-menu .dropdown-item {
   display: flex;
   align-items: center;
   gap: 0;
+  text-align: start;
+}
+
+.tf-admin .tf-admin__body .page-wrapper.invoice-payments-page .edit-delete-action .dropdown-menu .dropdown-item > .ti {
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline-end: 0.5rem !important;
 }
 
 /* Quotation/Invoice form: catalog quick-add dropdown must stay visible (Prime dropdown trigger height). */
@@ -3879,8 +3903,20 @@ a.tf-admin__user-link:hover {
   overflow: visible;
 }
 
+/*
+ * Invoice payments list: same stacking as quotation + invoice lists (see `.edit-delete-action` + `.table-responsive`).
+ * `!important` beats DreamsPOS `.dropdown-menu { z-index: 10 }` when load order varies.
+ */
+.tf-admin .tf-admin__body .page-wrapper.invoice-payments-page .table-responsive .edit-delete-action .dropdown-menu,
+.tf-admin .tf-admin__body .page-wrapper.invoice-payments-page .dropdown-menu,
+.invoice-payments-page .table-responsive .edit-delete-action .dropdown-menu,
 .invoice-payments-page .dropdown-menu {
-  z-index: 2000;
+  z-index: 10050 !important;
+}
+
+/* Prime DataTable wrapper defaults can clip row overlays; keep horizontal scroll on `.table-responsive` above. */
+.tf-admin .tf-admin__body .page-wrapper.invoice-payments-page .p-datatable .p-datatable-wrapper {
+  overflow: visible !important;
 }
 
 /* Stock transfer: Store from/to (Dropdown) + product search (AutoComplete) share the same TillFlow select shell */

@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom';
 
 export default function AdminSidebarReportsPanel({
+  canReports = true,
+  canActivityLogs = false,
   reportNavGroupsVisible,
   reportSubgroupOpen,
   setReportSubgroupOpen
@@ -10,13 +12,23 @@ export default function AdminSidebarReportsPanel({
       <div className="tf-sidebar-panel__title">Reports</div>
       <div className="tf-nav-settings-nested tf-nav-settings-nested--rail">
         <div className="tf-nav-group__body">
-          <NavLink
-            to="/tillflow/admin/reports"
-            end
-            className={({ isActive }) => (isActive ? 'active' : undefined)}>
-            <i className="feather icon-pie-chart tf-nav__icon" aria-hidden />
-            All reports
-          </NavLink>
+          {canReports ? (
+            <NavLink
+              to="/tillflow/admin/reports"
+              end
+              className={({ isActive }) => (isActive ? 'active' : undefined)}>
+              <i className="feather icon-pie-chart tf-nav__icon" aria-hidden />
+              All reports
+            </NavLink>
+          ) : null}
+          {canActivityLogs ? (
+            <NavLink
+              to="/tillflow/admin/activity-logs"
+              className={({ isActive }) => (isActive ? 'active' : undefined)}>
+              <i className="feather icon-clock tf-nav__icon" aria-hidden />
+              Activity log
+            </NavLink>
+          ) : null}
         </div>
         {reportNavGroupsVisible.map((group) => {
           const subId = `tf-report-sub-${group.id}`;

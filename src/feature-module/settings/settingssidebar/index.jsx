@@ -17,6 +17,9 @@ const SettingsSideBar = (props) => {
   const systemSettingsPath = location.pathname.startsWith("/tillflow/admin")
     ? route.tillflowAdminSystemSettings
     : route.systemsettings;
+  const automationSettingsPath = location.pathname.startsWith("/tillflow/admin")
+    ? route.tillflowAdminAutomationSettings
+    : route.systemsettings;
   const preferenceSettingsPath = location.pathname.startsWith("/tillflow/admin")
     ? route.tillflowAdminPreference
     : route.preference;
@@ -179,7 +182,8 @@ const SettingsSideBar = (props) => {
       p === route.otpsettings ||
       p === route.tillflowAdminOtpSettings ||
       p === route.gdbrsettings ||
-      p === route.tillflowAdminGdprSettings
+      p === route.tillflowAdminGdprSettings ||
+      p === route.tillflowAdminAutomationSettings
     ) {
       setIsSystemSettingsOpen(true);
     }
@@ -507,7 +511,8 @@ const SettingsSideBar = (props) => {
                         location.pathname === route.otpsettings ||
                         location.pathname === route.tillflowAdminOtpSettings ||
                         location.pathname === route.gdbrsettings ||
-                        location.pathname === route.tillflowAdminGdprSettings ?
+                        location.pathname === route.tillflowAdminGdprSettings ||
+                        location.pathname === route.tillflowAdminAutomationSettings ?
                         "active subdrop" :
                         ""
                         }>
@@ -523,6 +528,18 @@ const SettingsSideBar = (props) => {
                           display: isSystemSettingsOpen ? "block" : "none"
                         }}>
 
+                        <li>
+                          <Link
+                            to={automationSettingsPath}
+                            className={
+                            location.pathname === route.tillflowAdminAutomationSettings ?
+                            "active" :
+                            ""
+                            }>
+
+                            Automation
+                          </Link>
+                        </li>
                         <li>
                           <Link
                             to="#"

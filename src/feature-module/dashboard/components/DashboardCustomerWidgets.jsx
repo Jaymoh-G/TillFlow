@@ -277,7 +277,7 @@ export function DashboardPendingPaymentsWidget({
             <span className="title-icon bg-soft-danger fs-16 me-2">
               <i className="ti ti-alert-circle" />
             </span>
-            <h5 className="card-title mb-0">Pending payments</h5>
+            <h5 className="card-title mb-0">Top unpaid</h5>
           </div>
           <DashboardDateFilterControls
             period={period}
