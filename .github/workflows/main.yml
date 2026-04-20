@@ -10,8 +10,8 @@
 #
 # Hosting: point the subdomain document root at Laravel public/ (e.g. .../tillflowpos.breezetech.co.ke/public), not the project root.
 #
-# backend/ is a Git submodule; the workflow initializes it so backend/composer.json exists. If the submodule repo is private,
-# add secret TillFlow_submodule_CI (PAT with read access to that repo).
+# backend/ is a Git submodule pointing at Jaymoh-G/TillFlow. CI checks out that repo at the commit pinned in this repo (git rev-parse HEAD:backend).
+# Secret TillFlow_submodule_CI: PAT with Contents: Read on Jaymoh-G/TillFlow (required if private). If checkout fails with missing ref, push that commit to TillFlow or run git submodule update in the parent and commit a new pointer.
 #
 # Optional repository VARIABLES (Settings → Variables → Actions):
 #   FTP_PROTOCOL      — ftp (default) or ftps
@@ -37,17 +37,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Initialize backend submodule
-        env:
-          SUBMODULE_TOKEN: ${{ secrets.TillFlow_submodule_CI }}
+      - name: Resolve pinned backend commit
+        id: backend_sha
         run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          if [ -n "$SUBMODULE_TOKEN" ]; then
-            git config --global url."https://x-access-token:${SUBMODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
-          fi
-          git submodule sync --recursive
-          # Do not use --depth 1: the parent repo pins a specific submodule SHA; shallow fetch often cannot fetch that commit.
-          git submodule update --init --recursive
+          set -e
+          sha=$(git rev-parse HEAD:backend)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Pinned backend submodule commit: $sha"
+
+      - name: Checkout backend (Jaymoh-G/TillFlow at pinned commit)
+        uses: actions/checkout@v4
+        with:
+          repository: Jaymoh-G/TillFlow
+          ref: ${{ steps.backend_sha.outputs.sha }}
+          path: backend
+          token: ${{ secrets.TillFlow_submodule_CI || github.token }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
