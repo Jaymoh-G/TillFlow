@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\StoreManager;
 use App\Models\Tenant;
+use App\Services\Billing\PlanEntitlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,8 @@ class StoreManagerController extends Controller
     {
         /** @var Tenant $tenant */
         $tenant = $request->attributes->get('tenant');
+
+        app(PlanEntitlementService::class)->assertCanAddStore($tenant);
 
         $storeName = trim((string) ($request->input('store_name') ?: $request->input('name') ?: ''));
         if ($storeName === '') {

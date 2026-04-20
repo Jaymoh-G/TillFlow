@@ -51,6 +51,13 @@ class Invoice extends Model
         'notes',
         'terms_and_conditions',
         'sent_to_customer_at',
+        'customer_viewed_at',
+        'due_reminder_email_sent_at',
+        'due_reminder_sms_sent_at',
+        'overdue_notice_email_sent_at',
+        'overdue_notice_sms_sent_at',
+        'overdue_last_resent_email_at',
+        'overdue_last_resent_sms_at',
     ];
 
     protected function casts(): array
@@ -59,6 +66,13 @@ class Invoice extends Model
             'issued_at' => 'date',
             'due_at' => 'date',
             'sent_to_customer_at' => 'datetime',
+            'customer_viewed_at' => 'datetime',
+            'due_reminder_email_sent_at' => 'datetime',
+            'due_reminder_sms_sent_at' => 'datetime',
+            'overdue_notice_email_sent_at' => 'datetime',
+            'overdue_notice_sms_sent_at' => 'datetime',
+            'overdue_last_resent_email_at' => 'datetime',
+            'overdue_last_resent_sms_at' => 'datetime',
             'total_amount' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'discount_value' => 'decimal:2',

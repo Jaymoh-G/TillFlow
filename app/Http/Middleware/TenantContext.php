@@ -30,6 +30,16 @@ class TenantContext
             ], 403);
         }
 
+        if ($tenant->status !== Tenant::STATUS_ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This tenant account is suspended.',
+                'data' => ['reason' => $tenant->suspended_reason],
+            ], 403);
+        }
+
+        $tenant->forceFill(['last_active_at' => now()])->saveQuietly();
+
         $request->attributes->set('tenant', $tenant);
 
         return $next($request);

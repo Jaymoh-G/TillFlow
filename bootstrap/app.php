@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Middleware\EnsurePlatformOwner;
 use App\Http\Middleware\EnsureUserHasPermission;
 use App\Http\Middleware\TenantContext;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,7 +19,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission' => EnsureUserHasPermission::class,
             'tenant.context' => TenantContext::class,
+            'platform.owner' => EnsurePlatformOwner::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('automation:run')->everyMinute();
+        $schedule->command('activity-logs:prune')->dailyAt('02:00');
+
+        if (config('backup.enabled', true)) {
+            $schedule->command('backup:run')->dailyAt('01:15');
+            $schedule->command('backup:clean')->dailyAt('01:45');
+            $schedule->command('backup:monitor')->dailyAt('04:00');
+        }
+
+        if (config('tenant_backup.email.enabled', false)) {
+            $schedule->command('tenant:backup-email')->weeklyOn(1, '06:00');
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

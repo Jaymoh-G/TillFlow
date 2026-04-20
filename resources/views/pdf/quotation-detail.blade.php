@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Quotation {{ $q->quote_ref }}</title>
+    <title>{{ $pdfHeading ?? 'QUOTATION' }} {{ $pdfRef ?? ($q->quote_ref ?? $q->proposal_ref ?? '') }}</title>
     <style>
         @page {
             margin: 12mm 12mm 18mm 12mm;
@@ -180,6 +180,13 @@
     </style>
 </head>
 <body>
+@php
+    $pdfHeading = $pdfHeading ?? 'QUOTATION';
+    $pdfRef = $pdfRef ?? ($q->quote_ref ?? $q->proposal_ref ?? '—');
+    $pdfRecipientName = $pdfRecipientName ?? ($q->customer_name ?? $q->recipient_name ?? '—');
+    $pdfSubjectLabel = $pdfSubjectLabel ?? 'Quotation for';
+    $pdfQuoteTitle = trim((string) ($q->quote_title ?? $q->proposal_title ?? '')) ?: '—';
+@endphp
 <div class="card">
     {{-- Match modal: logo column (spacer) + QUOTATION meta right; company/customer on second row only --}}
     <div class="row quotation-pdf-row--tight">
@@ -205,8 +212,8 @@
                     };
                     $pdfStatusLabel = strtoupper(trim((string) ($q->status ?? 'Draft')) ?: 'DRAFT');
                 @endphp
-                <p class="quote-doc-title">QUOTATION</p>
-                <p class="quote-doc-ref"># {{ $q->quote_ref }}</p>
+                <p class="quote-doc-title">{{ $pdfHeading }}</p>
+                <p class="quote-doc-ref"># {{ $pdfRef }}</p>
                 <p class="quote-doc-status {{ $pdfStatusClass }}">{{ $pdfStatusLabel }}</p>
             </div>
         </div>
@@ -226,7 +233,7 @@
         </div>
         <div class="col-6 text-end">
             <p class="fw-semibold mb-2">To</p>
-            <h4 class="pdf-company-h">{{ $q->customer_name ?: '—' }}</h4>
+            <h4 class="pdf-company-h">{{ $pdfRecipientName ?: '—' }}</h4>
             @if ($customerAddr !== '')
             <p class="text-muted small mb-1">{{ $customerAddr }}</p>
             @endif
@@ -241,7 +248,7 @@
     </div>
 
     <div class="quotation-title-block">
-        <h4>Quotation for : {{ trim($q->quote_title ?? '') ?: '—' }}</h4>
+        <h4>{{ $pdfSubjectLabel }} : {{ $pdfQuoteTitle }}</h4>
     </div>
 
     <table class="items">

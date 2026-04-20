@@ -42,6 +42,12 @@
             <td style="padding: 0.35rem 0;text-align: right;">Ksh {{ number_format((float) $invoice->total_amount, 2) }}</td>
         </tr>
     </table>
+    @if(!empty($viewUrl))
+    <p style="margin-top: 1rem;">
+        <a href="{{ $viewUrl }}" style="color: #2563eb; font-weight: 600;">View online</a>
+        <span style="font-size: 0.85rem; color: #666;"> — confirm we know you opened this invoice.</span>
+    </p>
+    @endif
     @if($invoice->terms_and_conditions)
     <p style="font-size: 0.9rem; color: #444;"><strong>Terms</strong><br>{!! nl2br(e($invoice->terms_and_conditions)) !!}</p>
     @endif

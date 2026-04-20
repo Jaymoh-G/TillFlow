@@ -8,6 +8,7 @@ return [
     'slugs' => [
         'tenant.manage',
         'users.manage',
+        'system.activity_logs.view',
         'reports.view',
 
         'catalog.masters.view',
@@ -41,6 +42,10 @@ return [
         'sales.customers.manage',
         'sales.billers.view',
         'sales.billers.manage',
+        'sales.leads.view',
+        'sales.leads.manage',
+        'sales.proposals.view',
+        'sales.proposals.manage',
 
         'procurement.suppliers.view',
         'procurement.suppliers.manage',

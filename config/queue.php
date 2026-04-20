@@ -13,6 +13,7 @@ return [
     |
     */
 
+    // Local/dev (no worker): QUEUE_CONNECTION=sync. Staging/prod: database or redis + `php artisan queue:work`.
     'default' => env('QUEUE_CONNECTION', 'database'),
 
     /*

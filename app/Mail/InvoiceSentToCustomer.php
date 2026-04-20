@@ -21,6 +21,7 @@ class InvoiceSentToCustomer extends Mailable
         public string $pdfFilename,
         public ?string $subjectOverride = null,
         public ?string $customMessage = null,
+        public ?string $viewUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -40,6 +41,7 @@ class InvoiceSentToCustomer extends Mailable
             view: 'mail.invoice-sent',
             with: [
                 'customMessage' => trim((string) ($this->customMessage ?? '')) ?: null,
+                'viewUrl' => $this->viewUrl !== null && trim($this->viewUrl) !== '' ? trim($this->viewUrl) : null,
             ],
         );
     }

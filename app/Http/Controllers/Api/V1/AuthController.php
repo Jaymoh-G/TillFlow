@@ -34,7 +34,7 @@ class AuthController extends Controller
                     $plainToken = Password::broker()->createToken($user);
                     $actionUrl = $this->tillflowPasswordSetupUrl($user->email, $plainToken);
                     Mail::to($user->email)->send(new TillFlowPasswordSetupMail($user, $tenant, $actionUrl, 'reset'));
-                } else {
+                } elseif (! $user->isPlatformOwner()) {
                     report(new \RuntimeException('Password reset: user '.$user->id.' has no tenant.'));
                 }
             } catch (\Throwable $e) {
@@ -290,6 +290,7 @@ class AuthController extends Controller
         return [
             'id' => $user->id,
             'tenant_id' => $user->tenant_id,
+            'is_platform_owner' => $user->isPlatformOwner(),
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,

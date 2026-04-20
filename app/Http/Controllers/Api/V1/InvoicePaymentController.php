@@ -7,6 +7,8 @@ use App\Mail\InvoicePaymentReceiptSentToCustomer;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Tenant;
+use App\Services\ActivityLogWriter;
+use App\Support\ActivityLogProperties;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,6 +19,10 @@ use Illuminate\Validation\Rule;
 
 class InvoicePaymentController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogWriter $activityLogWriter
+    ) {}
+
     /** @var list<string> */
     private const USER_PAYMENT_METHODS = [
         InvoicePayment::METHOD_CASH,
@@ -115,7 +121,7 @@ class InvoicePaymentController extends Controller
             ], 422);
         }
 
-        $payment = DB::transaction(function () use ($tenant, $model, $validated, $amount): InvoicePayment {
+        $payment = DB::transaction(function () use ($tenant, $model, $validated, $amount, $request): InvoicePayment {
             $paidAt = isset($validated['paid_at']) ? Carbon::parse($validated['paid_at']) : now();
 
             $tid = isset($validated['transaction_id']) ? trim((string) $validated['transaction_id']) : '';
@@ -133,6 +139,11 @@ class InvoicePaymentController extends Controller
             $model->refresh();
             $model->recalculateAmountPaidAndStatus();
 
+            $user = $request->user();
+            $payProps = ActivityLogProperties::invoicePayment($row, $model);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.recorded', $row, $payProps, $request);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.recorded', $model, $payProps, $request);
+
             return $row->fresh();
         });
 
@@ -145,6 +156,8 @@ class InvoicePaymentController extends Controller
 
     public function update(Request $request, string $invoice, string $payment): JsonResponse
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
         $model = $this->resolveInvoice($request, $invoice);
         $pay = $this->resolvePayment($model, $payment);
 
@@ -176,7 +189,7 @@ class InvoicePaymentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($model, $pay, $validated): void {
+        DB::transaction(function () use ($model, $pay, $validated, $tenant, $request): void {
             if (array_key_exists('amount', $validated) && $validated['amount'] !== null) {
                 $pay->amount = number_format(round((float) $validated['amount'], 2), 2, '.', '');
             }
@@ -197,6 +210,12 @@ class InvoicePaymentController extends Controller
 
             $model->refresh();
             $model->recalculateAmountPaidAndStatus();
+
+            $user = $request->user();
+            $pay->refresh();
+            $props = ActivityLogProperties::invoicePayment($pay, $model);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.updated', $pay, $props, $request);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.updated', $model, $props, $request);
         });
 
         $pay->refresh();
@@ -210,6 +229,8 @@ class InvoicePaymentController extends Controller
 
     public function destroy(Request $request, string $invoice, string $payment): JsonResponse
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
         $model = $this->resolveInvoice($request, $invoice);
         $pay = $this->resolvePayment($model, $payment);
 
@@ -219,7 +240,12 @@ class InvoicePaymentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($model, $pay): void {
+        DB::transaction(function () use ($tenant, $request, $model, $pay): void {
+            $user = $request->user();
+            $props = ActivityLogProperties::invoicePayment($pay, $model);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.deleted', $pay, $props, $request);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.deleted', $model, $props, $request);
+
             $pay->delete();
             $model->refresh();
             $model->recalculateAmountPaidAndStatus();

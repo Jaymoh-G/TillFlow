@@ -9,7 +9,12 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Services\ActivityLogWriter;
+use App\Support\ActivityLogProperties;
+use App\Support\CustomerViewUrl;
+use App\Support\TenantAutomationSettings;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +27,10 @@ use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogWriter $activityLogWriter
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         /** @var Tenant $tenant */
@@ -134,6 +143,13 @@ class InvoiceController extends Controller
 
         $initialMethod = $validated['initial_payment_method'] ?? InvoicePayment::METHOD_CASH;
 
+        $dueAt = $validated['due_at'] ?? null;
+        if ($dueAt === null || $dueAt === '') {
+            $auto = TenantAutomationSettings::forTenant($tenant);
+            $days = max(1, (int) ($auto['invoiceDefaultDueDays'] ?? 21));
+            $dueAt = Carbon::parse($validated['issued_at'])->startOfDay()->addDays($days)->toDateString();
+        }
+
         $invoice = DB::transaction(function () use (
             $tenant,
             $validated,
@@ -144,7 +160,8 @@ class InvoiceController extends Controller
             $discType,
             $discBasis,
             $discVal,
-            $initialMethod
+            $initialMethod,
+            $dueAt
         ) {
             $built = $this->buildInvoiceItemRows($tenant, $validated['items'], $discType, $discBasis, $discVal);
 
@@ -156,7 +173,7 @@ class InvoiceController extends Controller
                 'invoice_ref' => $invoiceRef,
                 'invoice_title' => $invoiceTitle,
                 'issued_at' => $validated['issued_at'],
-                'due_at' => $validated['due_at'] ?? null,
+                'due_at' => $dueAt,
                 'customer_id' => $customer->id,
                 'customer_name' => $customer->name,
                 'customer_image_url' => $customer->avatar_url,
@@ -195,6 +212,22 @@ class InvoiceController extends Controller
                 'payments',
             ]);
         });
+
+        $user = $request->user();
+        $this->activityLogWriter->record(
+            $tenant,
+            $user,
+            'invoice.created',
+            $invoice,
+            ActivityLogProperties::invoice($invoice),
+            $request
+        );
+        $invoice->load('payments');
+        foreach ($invoice->payments as $pay) {
+            $props = ActivityLogProperties::invoicePayment($pay, $invoice);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.recorded', $pay, $props, $request);
+            $this->activityLogWriter->record($tenant, $user, 'invoice_payment.recorded', $invoice, $props, $request);
+        }
 
         return response()->json([
             'message' => 'Invoice created.',
@@ -401,6 +434,15 @@ class InvoiceController extends Controller
             ]);
         });
 
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'invoice.updated',
+            $invoiceOut,
+            ActivityLogProperties::invoice($invoiceOut),
+            $request
+        );
+
         return response()->json([
             'message' => 'Invoice updated.',
             'invoice' => $this->serializeInvoice($invoiceOut),
@@ -444,6 +486,7 @@ class InvoiceController extends Controller
 
         $subjectOverride = isset($validated['subject']) ? trim((string) $validated['subject']) : null;
         $messageOverride = isset($validated['message']) ? (string) $validated['message'] : null;
+        $viewUrl = CustomerViewUrl::forInvoice($tenant->id, (int) $model->id);
 
         try {
             if ($isDraft) {
@@ -468,7 +511,7 @@ class InvoiceController extends Controller
 
                 $pdfBinary = $this->resolveInvoiceEmailPdfAttachment($request, $tenant, $fresh, true);
                 $pdfFilename = $this->invoicePdfAttachmentFilename($fresh);
-                Mail::to($email)->send(new InvoiceSentToCustomer($fresh, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride));
+                Mail::to($email)->send(new InvoiceSentToCustomer($fresh, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl));
 
                 $fresh->sent_to_customer_at = now();
                 $fresh->save();
@@ -487,7 +530,7 @@ class InvoiceController extends Controller
                     ]);
                     $pdfBinary = $this->resolveInvoiceEmailPdfAttachment($request, $tenant, $model, false);
                     $pdfFilename = $this->invoicePdfAttachmentFilename($model);
-                    Mail::to($email)->send(new InvoiceSentToCustomer($model, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride));
+                    Mail::to($email)->send(new InvoiceSentToCustomer($model, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl));
                     $model->sent_to_customer_at = now();
                     $model->save();
 
@@ -505,6 +548,15 @@ class InvoiceController extends Controller
                 'message' => 'Could not send the invoice email. Check mail configuration (MAIL_*) or try again.',
             ], 500);
         }
+
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'invoice.sent_to_customer',
+            $out,
+            array_merge(ActivityLogProperties::invoice($out), ['recipient_email' => $email]),
+            $request
+        );
 
         return response()->json([
             'message' => $isDraft ? 'Invoice sent to the customer.' : 'Invoice email resent to the customer.',
@@ -527,7 +579,11 @@ class InvoiceController extends Controller
 
         $model->loadMissing('customer');
 
-        $html = View::make('mail.invoice-sent', ['invoice' => $model])->render();
+        $html = View::make('mail.invoice-sent', [
+            'invoice' => $model,
+            'customMessage' => null,
+            'viewUrl' => null,
+        ])->render();
         $ref = trim((string) $model->invoice_ref);
         $subject = ($ref !== '' ? 'Invoice '.$ref : 'Invoice (draft)').' — '.$model->customer_name;
         $toEmail = strtolower(trim((string) ($model->customer?->email ?? '')));
@@ -544,6 +600,8 @@ class InvoiceController extends Controller
 
     public function cancel(Request $request, string $invoice): JsonResponse
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
         $model = $this->resolveInvoice($request, $invoice);
         if (strcasecmp((string) $model->status, Invoice::STATUS_CANCELLED) === 0) {
             return response()->json([
@@ -564,6 +622,15 @@ class InvoiceController extends Controller
             'payments',
         ]);
 
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'invoice.cancelled',
+            $model,
+            ActivityLogProperties::invoice($model),
+            $request
+        );
+
         return response()->json([
             'message' => 'Invoice cancelled.',
             'invoice' => $this->serializeInvoice($model),
@@ -572,6 +639,8 @@ class InvoiceController extends Controller
 
     public function restore(Request $request, string $invoice): JsonResponse
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
         $model = $this->resolveInvoice($request, $invoice);
 
         if (strcasecmp((string) $model->status, Invoice::STATUS_CANCELLED) !== 0) {
@@ -586,6 +655,15 @@ class InvoiceController extends Controller
             'payments',
             'customer',
         ]);
+
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'invoice.restored',
+            $model,
+            ActivityLogProperties::invoice($model),
+            $request
+        );
 
         return response()->json([
             'message' => 'Invoice restored.',

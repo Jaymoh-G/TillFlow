@@ -7,8 +7,10 @@ use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements CanResetPasswordContract
@@ -20,6 +22,7 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     protected $fillable = [
         'tenant_id',
+        'is_platform_owner',
         'name',
         'email',
         'password',
@@ -44,7 +47,13 @@ class User extends Authenticatable implements CanResetPasswordContract
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'allowed_store_ids' => 'array',
+            'is_platform_owner' => 'boolean',
         ];
+    }
+
+    public function isPlatformOwner(): bool
+    {
+        return (bool) $this->is_platform_owner;
     }
 
     public function tenant(): BelongsTo
@@ -55,6 +64,11 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     /**
@@ -96,9 +110,9 @@ class User extends Authenticatable implements CanResetPasswordContract
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, string>
+     * @return Collection<int, string>
      */
-    private function flattenAssignedPermissionSlugs(): \Illuminate\Support\Collection
+    private function flattenAssignedPermissionSlugs(): Collection
     {
         $this->loadMissing('roles.permissions');
 

@@ -29,6 +29,9 @@ class Quotation extends Model
         'customer_image_url',
         'client_note',
         'terms_and_conditions',
+        'customer_viewed_at',
+        'expiry_reminder_email_sent_at',
+        'expiry_reminder_sms_sent_at',
     ];
 
     protected function casts(): array
@@ -36,6 +39,9 @@ class Quotation extends Model
         return [
             'quoted_at' => 'date',
             'expires_at' => 'date',
+            'customer_viewed_at' => 'datetime',
+            'expiry_reminder_email_sent_at' => 'datetime',
+            'expiry_reminder_sms_sent_at' => 'datetime',
             'total_amount' => 'decimal:2',
             'discount_value' => 'decimal:2',
         ];

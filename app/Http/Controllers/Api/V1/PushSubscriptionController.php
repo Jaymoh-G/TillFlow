@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Models\PushSubscription;
+use App\Models\Tenant;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class PushSubscriptionController extends Controller
+{
+    public function vapidPublicKey(): JsonResponse
+    {
+        $key = config('push.vapid.public_key');
+        if (! is_string($key) || $key === '') {
+            return response()->json([
+                'message' => 'Web Push is not configured on the server.',
+            ], 503);
+        }
+
+        return response()->json([
+            'message' => 'VAPID public key.',
+            'public_key' => $key,
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
+        $user = $request->user();
+        if ($user === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'endpoint' => ['required', 'string'],
+            'keys' => ['required', 'array'],
+            'keys.p256dh' => ['required', 'string', 'max:2048'],
+            'keys.auth' => ['required', 'string', 'max:512'],
+            'content_encoding' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $encoding = isset($validated['content_encoding']) && is_string($validated['content_encoding']) && $validated['content_encoding'] !== ''
+            ? $validated['content_encoding']
+            : 'aes128gcm';
+
+        PushSubscription::query()->updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'endpoint' => $validated['endpoint'],
+            ],
+            [
+                'tenant_id' => $tenant->id,
+                'public_key' => $validated['keys']['p256dh'],
+                'auth_secret' => $validated['keys']['auth'],
+                'content_encoding' => $encoding,
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Push subscription saved.',
+        ]);
+    }
+
+    public function destroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'endpoint' => ['required', 'string'],
+        ]);
+
+        PushSubscription::query()
+            ->where('user_id', $user->id)
+            ->where('endpoint', $validated['endpoint'])
+            ->delete();
+
+        return response()->json([
+            'message' => 'Push subscription removed.',
+        ]);
+    }
+}

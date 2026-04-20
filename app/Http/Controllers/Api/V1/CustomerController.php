@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Tenant;
+use App\Services\ActivityLogWriter;
+use App\Support\ActivityLogProperties;
+use App\Support\CustomerCodeGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -13,6 +16,10 @@ use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
+    public function __construct(
+        private readonly ActivityLogWriter $activityLogWriter
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         /** @var Tenant $tenant */
@@ -84,7 +91,7 @@ class CustomerController extends Controller
             $avatarUrl = $path ? Storage::disk('public')->url($path) : $avatarUrl;
         }
 
-        $code = $this->nextCustomerCode($tenant->id);
+        $code = CustomerCodeGenerator::next($tenant->id);
 
         $customer = Customer::query()->create([
             'tenant_id' => $tenant->id,
@@ -97,6 +104,15 @@ class CustomerController extends Controller
             'status' => $validated['status'],
             'avatar_url' => $avatarUrl,
         ]);
+
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'customer.created',
+            $customer,
+            ActivityLogProperties::customer($customer),
+            $request
+        );
 
         return response()->json([
             'message' => 'Customer created.',
@@ -202,6 +218,15 @@ class CustomerController extends Controller
         $model->fill($validated);
         $model->save();
 
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'customer.updated',
+            $model,
+            ActivityLogProperties::customer($model),
+            $request
+        );
+
         return response()->json([
             'message' => 'Customer updated.',
             'customer' => $model->only([
@@ -223,7 +248,19 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, string $customer): JsonResponse
     {
+        /** @var Tenant $tenant */
+        $tenant = $request->attributes->get('tenant');
         $model = $this->resolveCustomer($request, $customer);
+
+        $this->activityLogWriter->record(
+            $tenant,
+            $request->user(),
+            'customer.deleted',
+            $model,
+            ActivityLogProperties::customer($model),
+            $request
+        );
+
         $model->delete();
 
         return response()->json([
@@ -240,23 +277,6 @@ class CustomerController extends Controller
             ->where('tenant_id', $tenant->id)
             ->whereKey($customerId)
             ->firstOrFail();
-    }
-
-    private function nextCustomerCode(int $tenantId): string
-    {
-        // Include soft-deleted rows so codes never collide with trashed customers (unique on tenant_id + code).
-        $codes = Customer::withTrashed()
-            ->where('tenant_id', $tenantId)
-            ->pluck('code');
-
-        $max = 0;
-        foreach ($codes as $code) {
-            if (preg_match('/^CU(\d+)$/i', (string) $code, $m)) {
-                $max = max($max, (int) $m[1]);
-            }
-        }
-
-        return 'CU'.str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
     }
 
     private function normalizeOptionalString(?string $value): ?string

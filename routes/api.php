@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ActivityLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillerController;
 use App\Http\Controllers\Api\V1\BrandController;
@@ -11,18 +12,31 @@ use App\Http\Controllers\Api\V1\ExpenseCategoryController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\ExpenseRecurringController;
 use App\Http\Controllers\Api\V1\ExpiredItemsReportController;
-use App\Http\Controllers\Api\V1\ReportsModuleController;
 use App\Http\Controllers\Api\V1\InvoiceController;
 use App\Http\Controllers\Api\V1\InvoicePaymentController;
+use App\Http\Controllers\Api\V1\LeadController;
 use App\Http\Controllers\Api\V1\LowStockReportController;
+use App\Http\Controllers\Api\V1\MpesaWebhookController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\Platform\PlatformDashboardController;
+use App\Http\Controllers\Api\V1\Platform\PlatformMetaController;
+use App\Http\Controllers\Api\V1\Platform\PlatformMpesaController;
+use App\Http\Controllers\Api\V1\Platform\PlatformPlanController;
+use App\Http\Controllers\Api\V1\Platform\PlatformSubscriptionPaymentController;
+use App\Http\Controllers\Api\V1\Platform\PlatformTenantController;
+use App\Http\Controllers\Api\V1\Platform\PlatformTenantSubscriptionController;
 use App\Http\Controllers\Api\V1\PosOrderController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProposalController;
+use App\Http\Controllers\Api\V1\ProposalReportController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\PurchaseReturnController;
+use App\Http\Controllers\Api\V1\PushSubscriptionController;
 use App\Http\Controllers\Api\V1\QuotationController;
+use App\Http\Controllers\Api\V1\ReportsModuleController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\SalesReturnController;
+use App\Http\Controllers\Api\V1\SmsTestController;
 use App\Http\Controllers\Api\V1\StockAdjustmentController;
 use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\StoreManagerController;
@@ -53,6 +67,23 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/auth/sessions/{session}', [AuthController::class, 'revokeSession'])->whereNumber('session');
     });
 
+    Route::post('/webhooks/mpesa/stk-callback', [MpesaWebhookController::class, 'stkCallback']);
+    Route::post('/webhooks/mpesa/stk-timeout', [MpesaWebhookController::class, 'stkTimeout']);
+
+    Route::middleware(['auth:sanctum', 'platform.owner'])->prefix('platform')->group(function (): void {
+        Route::get('/dashboard', PlatformDashboardController::class);
+        Route::get('/meta', PlatformMetaController::class);
+        Route::apiResource('plans', PlatformPlanController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::get('/tenants', [PlatformTenantController::class, 'index']);
+        Route::get('/tenants/{tenant}', [PlatformTenantController::class, 'show'])->whereNumber('tenant');
+        Route::patch('/tenants/{tenant}', [PlatformTenantController::class, 'update'])->whereNumber('tenant');
+        Route::get('/subscriptions', [PlatformTenantSubscriptionController::class, 'index']);
+        Route::post('/subscriptions', [PlatformTenantSubscriptionController::class, 'store']);
+        Route::patch('/subscriptions/{subscription}', [PlatformTenantSubscriptionController::class, 'update'])->whereNumber('subscription');
+        Route::post('/subscription-payments', [PlatformSubscriptionPaymentController::class, 'store']);
+        Route::post('/mpesa/stk-push', [PlatformMpesaController::class, 'stkPush']);
+    });
+
     Route::middleware(['auth:sanctum', 'tenant.context'])->group(function (): void {
         Route::get('/tenant/company-profile', [TenantCompanyProfileController::class, 'show']);
         Route::patch('/tenant/company-profile', [TenantCompanyProfileController::class, 'update'])
@@ -60,6 +91,13 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/tenant/ui-settings', [TenantUiSettingsController::class, 'show']);
         Route::patch('/tenant/ui-settings', [TenantUiSettingsController::class, 'update'])
+            ->middleware('permission:tenant.manage');
+
+        Route::get('/push/vapid-public-key', [PushSubscriptionController::class, 'vapidPublicKey']);
+        Route::post('/push/subscriptions', [PushSubscriptionController::class, 'store']);
+        Route::delete('/push/subscriptions', [PushSubscriptionController::class, 'destroy']);
+
+        Route::post('/sms/test', [SmsTestController::class, 'sendTest'])
             ->middleware('permission:tenant.manage');
 
         /* --- Catalog masters (categories, brands, units, variants, warranties) --- */
@@ -238,6 +276,36 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/billers/{biller}', [BillerController::class, 'destroy'])->whereNumber('biller');
         });
 
+        Route::middleware(['permission:sales.leads.view'])->group(function (): void {
+            Route::get('/leads', [LeadController::class, 'index']);
+            Route::get('/leads/{lead}', [LeadController::class, 'show'])->whereNumber('lead');
+        });
+        Route::middleware(['permission:sales.leads.view', 'permission:sales.proposals.view'])->group(function (): void {
+            Route::get('/leads/{lead}/proposals', [LeadController::class, 'proposalsForLead'])->whereNumber('lead');
+        });
+        Route::middleware(['permission:sales.leads.manage'])->group(function (): void {
+            Route::post('/leads', [LeadController::class, 'store']);
+            Route::put('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead');
+            Route::patch('/leads/{lead}', [LeadController::class, 'update'])->whereNumber('lead');
+            Route::delete('/leads/{lead}', [LeadController::class, 'destroy'])->whereNumber('lead');
+        });
+        Route::middleware(['permission:sales.leads.manage', 'permission:sales.customers.manage'])->group(function (): void {
+            Route::post('/leads/{lead}/convert-to-customer', [LeadController::class, 'convertToCustomer'])->whereNumber('lead');
+        });
+
+        Route::middleware(['permission:sales.proposals.view'])->group(function (): void {
+            Route::get('/proposals', [ProposalController::class, 'index']);
+            Route::get('/proposals/{proposal}', [ProposalController::class, 'show'])->whereNumber('proposal');
+        });
+        Route::middleware(['permission:sales.proposals.manage'])->group(function (): void {
+            Route::post('/proposals', [ProposalController::class, 'store']);
+            Route::put('/proposals/{proposal}', [ProposalController::class, 'update'])->whereNumber('proposal');
+            Route::patch('/proposals/{proposal}', [ProposalController::class, 'update'])->whereNumber('proposal');
+            Route::delete('/proposals/{proposal}', [ProposalController::class, 'destroy'])->whereNumber('proposal');
+            Route::post('/proposals/{proposal}/send-to-recipient', [ProposalController::class, 'sendToRecipient'])->whereNumber('proposal');
+            Route::post('/proposals/{proposal}/accept', [ProposalController::class, 'accept'])->whereNumber('proposal');
+        });
+
         Route::middleware(['permission:sales.quotations.view'])->group(function (): void {
             Route::get('/quotations', [QuotationController::class, 'index']);
             Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->whereNumber('quotation');
@@ -375,6 +443,15 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/reports/customer-purchase-lines', [ReportsModuleController::class, 'purchaseLines']);
             Route::get('/reports/store-options', [ReportsModuleController::class, 'storeOptions']);
             Route::get('/reports/customer-options', [ReportsModuleController::class, 'customerOptions']);
+        });
+
+        Route::middleware(['permission:reports.view', 'permission:sales.proposals.view'])->group(function (): void {
+            Route::get('/reports/proposals', [ProposalReportController::class, 'index']);
+            Route::get('/reports/dashboard-recent-proposals', [ProposalReportController::class, 'dashboardRecentProposals']);
+        });
+
+        Route::middleware(['permission:system.activity_logs.view'])->group(function (): void {
+            Route::get('/activity-logs', [ActivityLogController::class, 'index']);
         });
     });
 });
