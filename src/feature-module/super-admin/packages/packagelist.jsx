@@ -276,7 +276,7 @@ export default function Packages() {
   }
 
   if (!allowed) {
-    return <Navigate to="/tillflow/login" replace state={{ from: '/platform-owner/packages' }} />;
+    return <Navigate to="/tillflow/login" replace state={{ from: '/tillflow/platform-owner/packages' }} />;
   }
 
   return (
@@ -343,7 +343,7 @@ export default function Packages() {
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
               <h5>Plan List</h5>
-              <button type="button" className="btn btn-sm btn-light" onClick={() => navigate('/platform-owner/subscription')}>
+              <button type="button" className="btn btn-sm btn-light" onClick={() => navigate('/tillflow/platform-owner/subscription')}>
                 View subscriptions
               </button>
             </div>

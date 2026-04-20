@@ -30,8 +30,8 @@ export const SidebarData = [
         submenuItems: [
           { label: 'Dashboard', link: '/dashboard' },
           { label: 'Companies', link: '/companies' },
-          { label: 'Subscriptions', link: '/platform-owner/subscription' },
-          { label: 'Packages', link: '/platform-owner/packages' },
+          { label: 'Subscriptions', link: '/tillflow/platform-owner/subscription' },
+          { label: 'Packages', link: '/tillflow/platform-owner/packages' },
           { label: 'Domain', link: '/domain' },
           { label: 'Purchase Transaction', link: route.purchasetransaction },
         ],

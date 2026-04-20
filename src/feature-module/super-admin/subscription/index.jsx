@@ -156,7 +156,7 @@ export default function Subscription() {
   }
 
   if (!allowed) {
-    return <Navigate to="/tillflow/login" replace state={{ from: '/platform-owner/subscription' }} />;
+    return <Navigate to="/tillflow/login" replace state={{ from: '/tillflow/platform-owner/subscription' }} />;
   }
 
   return (
@@ -207,7 +207,7 @@ export default function Subscription() {
               </button>
             </div>
             <div className="col text-end">
-              <Link to="/platform-owner/packages" className="btn btn-outline-primary">
+              <Link to="/tillflow/platform-owner/packages" className="btn btn-outline-primary">
                 Plans / packages
               </Link>
             </div>

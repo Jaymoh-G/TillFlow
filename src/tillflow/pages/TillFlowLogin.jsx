@@ -18,7 +18,7 @@ export default function TillFlowLogin() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!bootstrapping && token) {
-    const alreadyIn = user?.is_platform_owner ? '/platform-owner/packages' : from;
+    const alreadyIn = user?.is_platform_owner ? '/tillflow/platform-owner/packages' : from;
     return <Navigate to={alreadyIn} replace />;
   }
 
@@ -29,7 +29,7 @@ export default function TillFlowLogin() {
     setSubmitting(true);
     try {
       const loginData = await login({ email, password });
-      const dest = loginData?.user?.is_platform_owner ? '/platform-owner/packages' : from;
+      const dest = loginData?.user?.is_platform_owner ? '/tillflow/platform-owner/packages' : from;
       navigate(dest, { replace: true });
     } catch (err) {
       if (err instanceof TillFlowApiError) {

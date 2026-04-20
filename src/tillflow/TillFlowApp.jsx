@@ -39,6 +39,8 @@ import AutomationSettings from '../feature-module/settings/systemsettings/automa
 import StockAdjustment from '../feature-module/stock/stock-adjustment';
 import StockTransfer from '../feature-module/stock/stock-transfer';
 import ManageStores from '../feature-module/stores/manage-stores';
+import Packages from '../feature-module/super-admin/packages/packagelist';
+import Subscription from '../feature-module/super-admin/subscription';
 import { AuthProvider } from './auth/AuthContext';
 import { M, PERMISSION, vm } from './auth/permissions';
 import RequireAuth from './auth/RequireAuth';
@@ -105,6 +107,8 @@ export default function TillFlowApp() {
             <Route path="forgot-password" element={<TillFlowForgotPassword />} />
             <Route path="invite/accept" element={<TillFlowInviteAccept />} />
             <Route element={<RequireAuth />}>
+              <Route path="platform-owner/packages" element={<Packages />} />
+              <Route path="platform-owner/subscription" element={<Subscription />} />
               <Route path="admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
 

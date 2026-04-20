@@ -394,10 +394,6 @@ const SuperAdminDashboard = lazy(
   () => import("../feature-module/super-admin/dashboard")
 );
 const Companies = lazy(() => import("../feature-module/super-admin/companies"));
-const Subscription = lazy(() => import("../feature-module/super-admin/subscription"));
-const Packages = lazy(
-  () => import("../feature-module/super-admin/packages/packagelist")
-);
 const Domain = lazy(() => import("../feature-module/super-admin/domin"));
 const PurchaseTransaction = lazy(
   () => import("../feature-module/super-admin/purchase-transaction")
@@ -1421,20 +1417,6 @@ export const authRoutes = [
   path: routes.companies,
   name: "companies",
   element: <Companies />,
-  route: Route
-},
-{
-  id: 145,
-  path: routes.subscription,
-  name: "subscription",
-  element: <Subscription />,
-  route: Route
-},
-{
-  id: 146,
-  path: routes.packagelist,
-  name: "packages",
-  element: <Packages />,
   route: Route
 },
 {

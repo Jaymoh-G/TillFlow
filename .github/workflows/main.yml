@@ -11,7 +11,7 @@
 # Hosting: point the subdomain document root at Laravel public/ (e.g. .../tillflowpos.breezetech.co.ke/public), not the project root.
 #
 # backend/ is a Git submodule; the workflow initializes it so backend/composer.json exists. If the submodule repo is private,
-# add secret SUBMODULE_PERSONAL_ACCESS_TOKEN (repo read access to that repo).
+# add secret TillFlow_submodule_CI (PAT with read access to that repo).
 #
 # Optional repository VARIABLES (Settings → Variables → Actions):
 #   FTP_PROTOCOL      — ftp (default) or ftps
@@ -39,7 +39,7 @@ jobs:
 
       - name: Initialize backend submodule
         env:
-          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_PERSONAL_ACCESS_TOKEN }}
+          SUBMODULE_TOKEN: ${{ secrets.TillFlow_submodule_CI }}
         run: |
           git config --global url."https://github.com/".insteadOf "git@github.com:"
           if [ -n "$SUBMODULE_TOKEN" ]; then
