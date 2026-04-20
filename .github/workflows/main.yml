@@ -46,7 +46,8 @@ jobs:
             git config --global url."https://x-access-token:${SUBMODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
           fi
           git submodule sync --recursive
-          git submodule update --init --recursive --depth 1
+          # Do not use --depth 1: the parent repo pins a specific submodule SHA; shallow fetch often cannot fetch that commit.
+          git submodule update --init --recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
