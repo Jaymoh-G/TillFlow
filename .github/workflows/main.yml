@@ -10,6 +10,9 @@
 #
 # Hosting: point the subdomain document root at Laravel public/ (e.g. .../tillflowpos.breezetech.co.ke/public), not the project root.
 #
+# backend/ is a Git submodule; the workflow initializes it so backend/composer.json exists. If the submodule repo is private,
+# add secret SUBMODULE_PERSONAL_ACCESS_TOKEN (repo read access to that repo).
+#
 # Optional repository VARIABLES (Settings → Variables → Actions):
 #   FTP_PROTOCOL      — ftp (default) or ftps
 #   FTP_PORT          — port number (default 21; use your host’s FTPS port if needed)
@@ -33,6 +36,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Initialize backend submodule
+        env:
+          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_PERSONAL_ACCESS_TOKEN }}
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          if [ -n "$SUBMODULE_TOKEN" ]; then
+            git config --global url."https://x-access-token:${SUBMODULE_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

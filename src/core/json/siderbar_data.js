@@ -30,7 +30,7 @@ export const SidebarData = [
         submenuItems: [
           { label: 'Dashboard', link: '/dashboard' },
           { label: 'Companies', link: '/companies' },
-          { label: 'Subscriptions', link: '/subscription' },
+          { label: 'Subscriptions', link: '/platform-owner/subscription' },
           { label: 'Packages', link: '/platform-owner/packages' },
           { label: 'Domain', link: '/domain' },
           { label: 'Purchase Transaction', link: route.purchasetransaction },

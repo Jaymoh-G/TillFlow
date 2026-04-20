@@ -156,7 +156,7 @@ export default function Subscription() {
   }
 
   if (!allowed) {
-    return <Navigate to="/tillflow/login" replace state={{ from: '/subscription' }} />;
+    return <Navigate to="/tillflow/login" replace state={{ from: '/platform-owner/subscription' }} />;
   }
 
   return (

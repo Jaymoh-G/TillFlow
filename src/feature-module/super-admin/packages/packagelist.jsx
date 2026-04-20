@@ -343,7 +343,7 @@ export default function Packages() {
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
               <h5>Plan List</h5>
-              <button type="button" className="btn btn-sm btn-light" onClick={() => navigate('/subscription')}>
+              <button type="button" className="btn btn-sm btn-light" onClick={() => navigate('/platform-owner/subscription')}>
                 View subscriptions
               </button>
             </div>

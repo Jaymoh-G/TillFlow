@@ -58,7 +58,7 @@ export const SidebarData1 = [
             tittle: 'Subscriptions',
             hasSubRoute: false,
             showSubRoute: false,
-            route: '/subscription',
+            route: '/platform-owner/subscription',
             subRoutes: [],
           },
           {
