@@ -22,12 +22,20 @@ export default function AdminSidebarReportsPanel({
             </NavLink>
           ) : null}
           {canActivityLogs ? (
-            <NavLink
-              to="/tillflow/admin/activity-logs"
-              className={({ isActive }) => (isActive ? 'active' : undefined)}>
-              <i className="feather icon-clock tf-nav__icon" aria-hidden />
-              Activity log
-            </NavLink>
+            <>
+              <NavLink
+                to="/tillflow/admin/notifications"
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <i className="feather icon-bell tf-nav__icon" aria-hidden />
+                Notifications
+              </NavLink>
+              <NavLink
+                to="/tillflow/admin/activity-logs"
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <i className="feather icon-clock tf-nav__icon" aria-hidden />
+                Activity log
+              </NavLink>
+            </>
           ) : null}
         </div>
         {reportNavGroupsVisible.map((group) => {

@@ -4739,3 +4739,43 @@ body.modal-open .p-autocomplete-panel {
   flex: 0 0 auto;
   align-self: flex-start;
 }
+
+/* —— Notifications bell (activity feed preview) —— */
+.tf-notif-menu {
+  position: relative;
+}
+
+.tf-notif-menu__toggle {
+  position: relative;
+  color: inherit;
+  line-height: 1;
+}
+
+.tf-admin__topbar .tf-notif-menu__toggle {
+  color: var(--tf-text, inherit);
+}
+
+.tf-notif-menu__badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 4px;
+  font-size: 0.65rem;
+  line-height: 1rem;
+  text-align: center;
+  background: var(--tf-danger, #dc3545);
+  color: #fff;
+}
+
+.tf-notif-menu__panel {
+  min-width: 320px;
+  max-width: min(100vw - 2rem, 380px);
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.tf-pos-shell .tf-notif-menu__toggle {
+  color: #212529;
+}

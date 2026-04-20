@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { loginRequest, logoutRequest, meRequest } from '../api/auth';
+import { unregisterTillflowWebPush } from '../push/webPush';
 
 const TOKEN_KEY = 'tillflow_sanctum_token';
 const LEGACY_SESSION_TOKEN_KEY = TOKEN_KEY;
@@ -89,6 +90,11 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     const current = readStoredToken();
     if (current) {
+      try {
+        await unregisterTillflowWebPush(current);
+      } catch {
+        /* ignore */
+      }
       try {
         await logoutRequest(current);
       } catch {

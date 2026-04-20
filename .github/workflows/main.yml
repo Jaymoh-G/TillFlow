@@ -1,0 +1,92 @@
+# Deploy Laravel backend + Vite build to shared hosting over FTP.
+#
+# Required repository SECRETS (Settings → Secrets and variables → Actions):
+#   FTP_HOST          — FTP server hostname (e.g. ftp.example.com)
+#   FTP_USERNAME      — FTP user
+#   FTP_PASSWORD      — FTP password
+#   VITE_TILLFLOW_API_URL — Production API base, e.g. https://tillflowpos.breezetech.co.ke/api/v1
+#
+# server-dir is fixed in this workflow to /tillflowpos.breezetech.co.ke/ (Laravel project root on the FTP host; must mirror local backend/).
+#
+# Hosting: point the subdomain document root at Laravel public/ (e.g. .../tillflowpos.breezetech.co.ke/public), not the project root.
+#
+# Optional repository VARIABLES (Settings → Variables → Actions):
+#   FTP_PROTOCOL      — ftp (default) or ftps
+#   FTP_PORT          — port number (default 21; use your host’s FTPS port if needed)
+
+name: Build and deploy (FTP)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ftp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mbstring, openssl, pdo, tokenizer, xml, ctype, curl, fileinfo, bcmath
+          coverage: none
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        env:
+          VITE_TILLFLOW_API_URL: ${{ secrets.VITE_TILLFLOW_API_URL }}
+        run: npm run build
+
+      - name: Copy Vite output for root SPA (assets under public/; shell HTML under public/spa/)
+        run: |
+          mkdir -p backend/public/spa backend/public/assets
+          rm -rf backend/public/spa/* backend/public/assets/*
+          cp -r dist/assets/. backend/public/assets/
+          cp dist/index.html backend/public/spa/index.html
+          for f in favicon.ico robots.txt manifest.json manifest.webmanifest sw.js; do
+            if [ -f "dist/$f" ]; then cp "dist/$f" "backend/public/$f"; fi
+          done
+
+      - name: Composer install (production)
+        working-directory: backend
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Deploy backend over FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftp' }}
+          port: ${{ vars.FTP_PORT || '21' }}
+          local-dir: ./backend/
+          server-dir: /tillflowpos.breezetech.co.ke/
+          log-level: standard
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env*
+            **/.env.*
+            **/.ftp-deploy-sync-state.json
+            **/tests/**
+            **/phpunit.xml
+            **/phpunit.xml.dist

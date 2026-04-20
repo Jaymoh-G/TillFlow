@@ -12,6 +12,7 @@ import {
   logOut
 } from "../../utils/imagepath";
 import { resolveMediaUrl } from "../utils/resolveMediaUrl";
+import TillflowNotificationMenu from "../components/TillflowNotificationMenu";
 
 function formatClock(d) {
   return d.toLocaleTimeString("en-GB", { hour12: false });
@@ -125,6 +126,9 @@ export default function PosLayout() {
               <img src={clockIcon} alt="" className="me-2" aria-hidden />
               <time dateTime={now.toISOString()}>{formatClock(now)}</time>
             </span>
+          </li>
+          <li className="nav-item nav-item-box d-flex align-items-center">
+            <TillflowNotificationMenu />
           </li>
           <li className="nav-item pos-nav">
             <Link to="/tillflow/admin" className="btn btn-purple btn-md d-inline-flex align-items-center">

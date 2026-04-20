@@ -268,7 +268,7 @@ export const all_routes = {
   superadmindashboard: "/dashboard",
   companies: "/companies",
   subscription: "/subscription",
-  packagelist: "/packages",
+  packagelist: "/platform-owner/packages",
   domain: "/domain",
   purchasetransaction: "/purchase-transaction",
   emailreply: "/email-replay",

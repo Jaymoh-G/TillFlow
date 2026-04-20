@@ -1,426 +1,166 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import ReactApexChart from "react-apexcharts";
-import PrimeDataTable from "../../../components/data-table";
+import { useCallback, useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import PrimeDataTable from '../../../components/data-table';
 import CommonFooter from '../../../components/footer/commonFooter';
 import TooltipIcons from '../../../components/tooltip-content/tooltipIcons';
 import RefreshIcon from '../../../components/tooltip-content/refresh';
 import CollapesIcon from '../../../components/tooltip-content/collapes';
-
 import CommonDateRangePicker from '../../../components/date-range-picker/common-date-range-picker';
-import { subscription_details } from '../../../core/json/subscriptiondetails';
+import { fetchPlatformDashboard, fetchPlatformSubscriptions } from '../../../core/api/platformAdminApi';
+import { tillflowFetch } from '../../../tillflow/api/client';
+import { TillFlowApiError } from '../../../tillflow/api/errors';
 
-const Subscription = () => {
-  const data = subscription_details;
-  const [rows, setRows] = useState(10);
+function readToken() {
+  return localStorage.getItem('tillflow_sanctum_token');
+}
+
+export default function Subscription() {
+  const [booting, setBooting] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [rows, setRows] = useState([]);
+  const [dash, setDash] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [pageRows, setPageRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalRecords] = useState(data.length);
   const [selectedSubscriptions, setSelectedSubscriptions] = useState([]);
 
+  const load = useCallback(async () => {
+    setLoadError('');
+    try {
+      const q = {};
+      if (dateFrom) {
+        q.date_from = dateFrom;
+      }
+      if (dateTo) {
+        q.date_to = dateTo;
+      }
+      const [subData, dashData] = await Promise.all([
+        fetchPlatformSubscriptions(q),
+        fetchPlatformDashboard(),
+      ]);
+      setRows((subData.subscriptions || []).map((r) => ({ ...r, id: String(r.id) })));
+      setDash(dashData);
+    } catch (e) {
+      setLoadError(e instanceof TillFlowApiError ? e.message : 'Failed to load subscriptions.');
+    }
+  }, [dateFrom, dateTo]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const tok = readToken();
+      if (!tok) {
+        setAllowed(false);
+        setBooting(false);
+        return;
+      }
+      try {
+        const me = await tillflowFetch('/auth/me', { token: tok });
+        if (cancelled) {
+          return;
+        }
+        if (!me.user?.is_platform_owner) {
+          setAllowed(false);
+        } else {
+          setAllowed(true);
+          await load();
+        }
+      } catch {
+        if (!cancelled) {
+          setAllowed(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setBooting(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [load]);
+
+  const totalRecords = rows.length;
+
   const columns = [
-  {
-    header: "Company Name",
-    field: "CompanyName",
-    body: (rowData) =>
-    <div className="d-flex align-items-center file-name-icon">
-          <Link to="#" className="avatar avatar-md border rounded-circle">
-            <img
-          src={`src/assets/img/company/${rowData.Image}`}
-          className="img-fluid"
-          alt="img" />
-        
-          </Link>
-          <div className="ms-2">
-            <h6 className="fw-medium">
-              <Link to="#">{rowData.CompanyName}</Link>
-            </h6>
-          </div>
-        </div>,
-
-    sortable: true
-  },
-  {
-    header: "Plan",
-    field: "Plan",
-    sortable: true
-  },
-  {
-    header: "Billing Cycle",
-    field: "BillCycle",
-    body: (rowData) =>
-    <span>{rowData.BillCycle} Days</span>,
-
-    sortable: true
-  },
-  {
-    header: "Payment Method",
-    field: "PaymentMethod",
-    sortable: true
-  },
-  {
-    header: "Amount",
-    field: "Amount",
-    sortable: true
-  },
-  {
-    header: "Created Date",
-    field: "CreatedDate",
-    sortable: true
-  },
-  {
-    header: "Expired On",
-    field: "ExpiringDate",
-    sortable: true
-  },
-  {
-    header: "Status",
-    field: "Status",
-    body: (rowData) =>
-    <span className={`badge ${rowData.Status === 'Paid' ? 'badge-success' : 'badge-danger'} d-inline-flex align-items-center badge-xs`}>
+    {
+      header: 'Tenant',
+      field: 'tenant_name',
+      body: (rowData) => <h6 className="fw-medium mb-0">{rowData.tenant_name || '—'}</h6>,
+      sortable: true,
+    },
+    {
+      header: 'Plan',
+      field: 'plan_name',
+      sortable: true,
+    },
+    {
+      header: 'Billing',
+      field: 'billing_interval',
+      body: (rowData) => (
+        <span>
+          {rowData.billing_interval ? `${rowData.billing_interval}` : '—'}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      header: 'Amount',
+      field: 'amount',
+      body: (rowData) => (
+        <span>
+          {rowData.currency || ''}{' '}
+          {rowData.amount != null ? Number(rowData.amount).toFixed(2) : '—'}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      header: 'Starts',
+      field: 'starts_at',
+      sortable: true,
+    },
+    {
+      header: 'Ends',
+      field: 'ends_at',
+      body: (rowData) => <span>{rowData.ends_at || '—'}</span>,
+      sortable: true,
+    },
+    {
+      header: 'Status',
+      field: 'status',
+      body: (rowData) => (
+        <span
+          className={`badge ${
+            rowData.status === 'active' ? 'badge-success' : 'badge-danger'
+          } d-inline-flex align-items-center badge-xs`}
+        >
           <i className="ti ti-point-filled me-1" />
-          {rowData.Status}
-        </span>,
+          {rowData.status}
+        </span>
+      ),
+      sortable: true,
+    },
+  ];
 
-    sortable: true
-  },
-  {
-    header: "",
-    field: "actions",
-    body: () =>
-    <div className="action-icon d-inline-flex">
-          <Link
-        to="#"
-        className="me-2 p-2 d-flex align-items-center border rounded"
-        data-bs-toggle="modal"
-        data-bs-target="#view_invoice">
-        
-            <i className="ti ti-file-invoice" />
-          </Link>
-          <Link to="#" className="me-2 d-flex align-items-center border rounded p-2">
-            <i className="ti ti-download" />
-          </Link>
-          <Link
-        to="#"
-        data-bs-toggle="modal"
-        data-bs-target="#delete_modal"
-        className="d-flex align-items-center p-2 border rounded">
-        
-            <i className="ti ti-trash" />
-          </Link>
-        </div>,
+  if (booting) {
+    return (
+      <div className="page-wrapper">
+        <div className="content p-4">Loading…</div>
+      </div>
+    );
+  }
 
-    sortable: false
-  }];
-
-
-  const [totalTransaction] = useState({
-    series: [{
-      name: "",
-      data: [6, 2, 8, 4, 3, 8, 1, 3, 6, 5, 9, 2, 8, 1, 4, 8, 9, 8, 2, 1]
-    }],
-    fill: {
-      type: 'solid',
-      opacity: 1
-    },
-    chart: {
-      foreColor: '#fff',
-      type: "area",
-      width: 80,
-      toolbar: {
-        show: !1
-      },
-      zoom: {
-        enabled: !1
-      },
-      dropShadow: {
-        top: 3,
-        left: 14,
-        blur: 4,
-        opacity: .12,
-        color: "#fff"
-      },
-      sparkline: {
-        enabled: !0
-      }
-    },
-    markers: {
-      size: 0,
-      colors: ["#F7A37A"],
-      strokeColors: "#fff",
-      strokeWidth: 0,
-      hover: {
-        size: 7
-      }
-    },
-    plotOptions: {
-      bar: {
-        horizontal: !1,
-        columnWidth: "35%",
-        borderRadius: 4
-      }
-    },
-    dataLabels: {
-      enabled: !1
-    },
-    // stroke: {
-    //   show: !0,
-    //   width: 2.5,
-    //   curve: "smooth"
-    // },
-    stroke: {
-      width: 0,
-      curve: 'monotoneCubic'
-    },
-    colors: ["#F7A37A"],
-    xaxis: {
-      categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    },
-    tooltip: {
-      theme: "dark",
-      fixed: {
-        enabled: !1
-      },
-      x: {
-        show: !1
-      },
-
-      marker: {
-        show: !1
-      }
-    }
-  });
-  const [totalSubscription] = useState({
-    series: [{
-      name: "",
-      data: [6, 2, 8, 4, 3, 8, 1, 3, 6, 5, 9, 2, 8, 1, 4, 8, 9, 8, 2, 1]
-    }],
-    fill: {
-      type: 'solid',
-      opacity: 1
-    },
-    chart: {
-      foreColor: '#fff',
-      type: "area",
-      width: 80,
-      toolbar: {
-        show: !1
-      },
-      zoom: {
-        enabled: !1
-      },
-      dropShadow: {
-        top: 3,
-        left: 14,
-        blur: 4,
-        opacity: .12,
-        color: "#fff"
-      },
-      sparkline: {
-        enabled: !0
-      }
-    },
-    markers: {
-      size: 0,
-      colors: ["#70B1FF"],
-      strokeColors: "#fff",
-      strokeWidth: 0,
-      hover: {
-        size: 7
-      }
-    },
-    plotOptions: {
-      bar: {
-        horizontal: !1,
-        columnWidth: "35%",
-        borderRadius: 4
-      }
-    },
-    dataLabels: {
-      enabled: !1
-    },
-    // stroke: {
-    //   show: !0,
-    //   width: 2.5,
-    //   curve: "smooth"
-    // },
-    stroke: {
-      width: 0,
-      curve: 'monotoneCubic'
-    },
-    colors: ["#70B1FF"],
-    xaxis: {
-      categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    },
-    tooltip: {
-      theme: "dark",
-      fixed: {
-        enabled: !1
-      },
-      x: {
-        show: !1
-      },
-
-      marker: {
-        show: !1
-      }
-    }
-  });
-  const [activeSubscription] = useState({
-    series: [{
-      name: "",
-      data: [6, 2, 8, 4, 3, 8, 1, 3, 6, 5, 9, 2, 8, 1, 4, 8, 9, 8, 2, 1]
-    }],
-    fill: {
-      type: 'solid',
-      opacity: 1
-    },
-    chart: {
-      foreColor: '#fff',
-      type: "area",
-      width: 80,
-      toolbar: {
-        show: !1
-      },
-      zoom: {
-        enabled: !1
-      },
-      dropShadow: {
-        top: 3,
-        left: 14,
-        blur: 4,
-        opacity: .12,
-        color: "#fff"
-      },
-      sparkline: {
-        enabled: !0
-      }
-    },
-    markers: {
-      size: 0,
-      colors: ["#60DD97"],
-      strokeColors: "#fff",
-      strokeWidth: 0,
-      hover: {
-        size: 7
-      }
-    },
-    plotOptions: {
-      bar: {
-        horizontal: !1,
-        columnWidth: "35%",
-        borderRadius: 4
-      }
-    },
-    dataLabels: {
-      enabled: !1
-    },
-    // stroke: {
-    //   show: !0,
-    //   width: 2.5,
-    //   curve: "smooth"
-    // },
-    stroke: {
-      width: 0,
-      curve: 'monotoneCubic'
-    },
-    colors: ["#60DD97"],
-    xaxis: {
-      categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    },
-    tooltip: {
-      theme: "dark",
-      fixed: {
-        enabled: !1
-      },
-      x: {
-        show: !1
-      },
-
-      marker: {
-        show: !1
-      }
-    }
-  });
-  const [expiredSubscription] = useState({
-    series: [{
-      name: "",
-      data: [6, 2, 8, 4, 3, 8, 1, 3, 6, 5, 9, 2, 8, 1, 4, 8, 9, 8, 2, 1]
-    }],
-    fill: {
-      type: 'solid',
-      opacity: 1
-    },
-    chart: {
-      foreColor: '#fff',
-      type: "area",
-      width: 80,
-      toolbar: {
-        show: !1
-      },
-      zoom: {
-        enabled: !1
-      },
-      dropShadow: {
-        top: 3,
-        left: 14,
-        blur: 4,
-        opacity: .12,
-        color: "#fff"
-      },
-      sparkline: {
-        enabled: !0
-      }
-    },
-    markers: {
-      size: 0,
-      colors: ["#DE5555"],
-      strokeColors: "#fff",
-      strokeWidth: 0,
-      hover: {
-        size: 7
-      }
-    },
-    plotOptions: {
-      bar: {
-        horizontal: !1,
-        columnWidth: "35%",
-        borderRadius: 4
-      }
-    },
-    dataLabels: {
-      enabled: !1
-    },
-    // stroke: {
-    //   show: !0,
-    //   width: 2.5,
-    //   curve: "smooth"
-    // },
-    stroke: {
-      width: 0,
-      curve: 'monotoneCubic'
-    },
-    colors: ["#DE5555"],
-    xaxis: {
-      categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-    },
-    tooltip: {
-      theme: "dark",
-      fixed: {
-        enabled: !1
-      },
-      x: {
-        show: !1
-      },
-
-      marker: {
-        show: !1
-      }
-    }
-  });
+  if (!allowed) {
+    return <Navigate to="/tillflow/login" replace state={{ from: '/subscription' }} />;
+  }
 
   return (
     <>
-      {/* Page Wrapper */}
       <div className="page-wrapper">
         <div className="content">
           <div className="page-header">
@@ -437,464 +177,102 @@ const Subscription = () => {
             </ul>
           </div>
 
+          {loadError ? <div className="alert alert-danger">{loadError}</div> : null}
+
+          <div className="row align-items-end mb-3">
+            <div className="col-md-auto">
+              <CommonDateRangePicker />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label fs-12">From</label>
+              <input
+                type="date"
+                className="form-control"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label fs-12">To</label>
+              <input
+                type="date"
+                className="form-control"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+            <div className="col-md-2">
+              <button type="button" className="btn btn-primary mt-4" onClick={() => load()}>
+                Apply
+              </button>
+            </div>
+            <div className="col text-end">
+              <Link to="/platform-owner/packages" className="btn btn-outline-primary">
+                Plans / packages
+              </Link>
+            </div>
+          </div>
+
           <div className="row">
             <div className="col-xl-3 col-md-6 d-flex">
               <div className="card flex-fill">
-                <div className="card-body ">
-                  <div className="border-bottom pb-3 mb-3">
-                    <div className="row align-items-center">
-                      <div className="col-7">
-                        <div>
-                          <span className="fs-14 fw-normal text-truncate mb-1">
-                            Total Transaction
-                          </span>
-                          <h5>$5,340</h5>
-                        </div>
-                      </div>
-                      <div className="col-5">
-                        <ReactApexChart
-                          options={totalTransaction}
-                          series={totalTransaction.series}
-                          type="area"
-                          width={60}
-                          height={35} />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex">
-                    <p className="fs-12 fw-normal d-flex align-items-center text-truncate">
-                      <span className="text-primary fs-12 d-flex align-items-center me-1">
-                        <i className="ti ti-arrow-wave-right-up me-1" />
-                        +19.01%
-                      </span>
-                      from last week
-                    </p>
-                  </div>
+                <div className="card-body">
+                  <span className="fs-14 fw-normal text-truncate mb-1 d-block">Total tenants</span>
+                  <h5>{dash?.tenant_total ?? '—'}</h5>
                 </div>
               </div>
             </div>
             <div className="col-xl-3 col-md-6 d-flex">
               <div className="card flex-fill">
-                <div className="card-body ">
-                  <div className="border-bottom pb-3 mb-3">
-                    <div className="row align-items-center">
-                      <div className="col-7">
-                        <div>
-                          <span className="fs-14 fw-normal text-truncate mb-1">
-                            Total Subscribers
-                          </span>
-                          <h5>600</h5>
-                        </div>
-                      </div>
-                      <div className="col-5">
-                        <ReactApexChart
-                          options={totalSubscription}
-                          series={totalSubscription.series}
-                          type="area"
-                          width={60}
-                          height={35} />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex">
-                    <p className="fs-12 fw-normal d-flex align-items-center text-truncate">
-                      <span className="text-primary fs-12 d-flex align-items-center me-1">
-                        <i className="ti ti-arrow-wave-right-up me-1" />
-                        +19.01%
-                      </span>
-                      from last week
-                    </p>
-                  </div>
+                <div className="card-body">
+                  <span className="fs-14 fw-normal text-truncate mb-1 d-block">Active subscriptions</span>
+                  <h5>{dash?.active_subscriptions ?? '—'}</h5>
                 </div>
               </div>
             </div>
             <div className="col-xl-3 col-md-6 d-flex">
               <div className="card flex-fill">
-                <div className="card-body ">
-                  <div className="border-bottom pb-3 mb-3">
-                    <div className="row align-items-center">
-                      <div className="col-7">
-                        <div>
-                          <span className="fs-14 fw-normal text-truncate mb-1">
-                            Active Subscribers
-                          </span>
-                          <h5>560</h5>
-                        </div>
-                      </div>
-                      <div className="col-5">
-                        <ReactApexChart
-                          options={activeSubscription}
-                          series={activeSubscription.series}
-                          type="area"
-                          width={60}
-                          height={35} />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex">
-                    <p className="fs-12 fw-normal d-flex align-items-center text-truncate">
-                      <span className="text-primary fs-12 d-flex align-items-center me-1">
-                        <i className="ti ti-arrow-wave-right-up me-1" />
-                        +19.01%
-                      </span>
-                      from last week
-                    </p>
-                  </div>
+                <div className="card-body">
+                  <span className="fs-14 fw-normal text-truncate mb-1 d-block">Tenants active (7d)</span>
+                  <h5>{dash?.tenants_active_last_7_days ?? '—'}</h5>
                 </div>
               </div>
             </div>
             <div className="col-xl-3 col-md-6 d-flex">
               <div className="card flex-fill">
-                <div className="card-body ">
-                  <div className="border-bottom pb-3 mb-3">
-                    <div className="row align-items-center">
-                      <div className="col-7">
-                        <div>
-                          <span className="fs-14 fw-normal text-truncate mb-1">
-                            Expired Subscribers
-                          </span>
-                          <h5>40</h5>
-                        </div>
-                      </div>
-                      <div className="col-5">
-                        <ReactApexChart
-                          options={expiredSubscription}
-                          series={expiredSubscription.series}
-                          type="area"
-                          width={60}
-                          height={35} />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="d-flex">
-                    <p className="fs-12 fw-normal d-flex align-items-center text-truncate">
-                      <span className="text-primary fs-12 d-flex align-items-center me-1">
-                        <i className="ti ti-arrow-wave-right-up me-1" />
-                        +19.01%
-                      </span>
-                      from last week
-                    </p>
-                  </div>
+                <div className="card-body">
+                  <span className="fs-14 fw-normal text-truncate mb-1 d-block">Approx. MRR (month plans)</span>
+                  <h5>{dash?.mrr_approx_monthly_kes != null ? `KES ${dash.mrr_approx_monthly_kes}` : '—'}</h5>
                 </div>
               </div>
             </div>
           </div>
+
           <div className="card">
-            <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+            <div className="card-header">
               <h5>Subscription List</h5>
-              <div className="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-                <div className="me-3">
-                  <div className="input-icon-end position-relative">
-                    <CommonDateRangePicker />
-                    <span className="input-icon-addon">
-                      <i className="ti ti-chevron-down" />
-                    </span>
-                  </div>
-                </div>
-                <div className="dropdown me-3">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown">
-                    
-                    Select Plan
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Advanced (Monthly)
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Basic (Yearly)
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Enterprise (Monthly)
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="dropdown me-3">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown">
-                    
-                    Select Status
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Paid
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Unpaid
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="dropdown">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown">
-                    
-                    Sort By : Last 7 Days
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Recently Added
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Ascending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Desending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Last Month
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Last 7 Days
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
             </div>
             <div className="card-body p-0">
               <div className="table-responsive">
                 <PrimeDataTable
                   column={columns}
-                  data={data}
-                  rows={rows}
-                  setRows={setRows}
+                  data={rows}
+                  totalRecords={totalRecords}
                   currentPage={currentPage}
                   setCurrentPage={setCurrentPage}
-                  totalRecords={totalRecords}
+                  rows={pageRows}
+                  setRows={setPageRows}
                   selectionMode="checkbox"
                   selection={selectedSubscriptions}
                   onSelectionChange={(e) => setSelectedSubscriptions(e.value)}
-                  dataKey="key" />
+                  dataKey="id"
+                />
               </div>
             </div>
           </div>
         </div>
         <CommonFooter />
       </div>
-      {/* /Page Wrapper */}
-      {/* View Invoice */}
-      <div className="modal fade" id="view_invoice">
-        <div className="modal-dialog modal-dialog-centered modal-lg">
-          <div className="modal-content">
-            <div className="modal-body p-5">
-              <div className="row justify-content-between align-items-center mb-3">
-                <div className="col-md-6">
-                  <div className="mb-4">
-                    <img
-                      src="/branding/breezetech-logo.png"
-                      className="img-fluid"
-                      alt="logo" />
-                    
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className=" text-end mb-3">
-                    <h5 className="text-dark mb-1">Invoice</h5>
-                    <p className="mb-1 fw-normal">
-                      <i className="ti ti-file-invoice me-1" />
-                      INV0287
-                    </p>
-                    <p className="mb-1 fw-normal">
-                      <i className="ti ti-calendar me-1" />
-                      Issue date : 12 Sep 2024{" "}
-                    </p>
-                    <p className="fw-normal">
-                      <i className="ti ti-calendar me-1" />
-                      Due date : 12 Oct 2024{" "}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="row mb-3 d-flex justify-content-between">
-                <div className="col-md-7">
-                  <p className="text-dark mb-2 fw-medium fs-16">Invoice From :</p>
-                  <div>
-                    <p className="mb-1">SmartHR</p>
-                    <p className="mb-1">
-                      367 Hillcrest Lane, Irvine, California, United States
-                    </p>
-                    <p className="mb-1">smarthr@example.com</p>
-                  </div>
-                </div>
-                <div className="col-md-5">
-                  <p className="text-dark mb-2 fw-medium fs-16">Invoice To :</p>
-                  <div>
-                    <p className="mb-1">BrightWave Innovations</p>
-                    <p className="mb-1">
-                      367 Hillcrest Lane, Irvine, California, United States
-                    </p>
-                    <p className="mb-1">michael@example.com</p>
-                  </div>
-                </div>
-              </div>
-              <div className="mb-4">
-                <div className="table-responsive mb-3">
-                  <table className="table">
-                    <thead className="thead-light">
-                      <tr>
-                        <th>Plan</th>
-                        <th>Billing Cycle</th>
-                        <th>Created Date</th>
-                        <th>Expiring On</th>
-                        <th>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>Advanced (Monthly)</td>
-                        <td>30 Days</td>
-                        <td>12 Sep 2024</td>
-                        <td>12 Oct 2024</td>
-                        <td>$200</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="row mb-3 d-flex justify-content-between">
-                <div className="col-md-4">
-                  <div>
-                    <h6 className="mb-4">Payment info:</h6>
-                    <p className="mb-0">Credit Card - 123***********789</p>
-                    <div className="d-flex justify-content-between align-items-center mb-2 pe-3">
-                      <p className="mb-0">Amount</p>
-                      <p className="text-dark fw-medium mb-2">$200.00</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="d-flex justify-content-between align-items-center pe-3">
-                    <p className="text-dark fw-medium mb-0">Sub Total</p>
-                    <p className="mb-2">$200.00</p>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center pe-3">
-                    <p className="text-dark fw-medium mb-0">Tax </p>
-                    <p className="mb-2">$0.00</p>
-                  </div>
-                  <div className="d-flex justify-content-between align-items-center pe-3">
-                    <p className="text-dark fw-medium mb-0">Total</p>
-                    <p className="text-dark fw-medium mb-2">$200.00</p>
-                  </div>
-                </div>
-              </div>
-              <div className="card border mb-0">
-                <div className="card-body">
-                  <p className="text-dark fw-medium mb-2">
-                    Terms &amp; Conditions:
-                  </p>
-                  <p className="fs-12 fw-normal d-flex align-items-baseline mb-2">
-                    <i className="ti ti-point-filled text-primary me-1" />
-                    All payments must be made according to the agreed schedule. Late
-                    payments may incur additional fees.
-                  </p>
-                  <p className="fs-12 fw-normal d-flex align-items-baseline">
-                    <i className="ti ti-point-filled text-primary me-1" />
-                    We are not liable for any indirect, incidental, or consequential
-                    damages, including loss of profits, revenue, or data.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* /View Invoice */}
-      <>
-        {/* Delete Modal */}
-        <div className="modal fade" id="delete_modal">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-body text-center">
-                <span className="avatar avatar-xl bg-danger-transparent rounded-circle text-danger mb-3">
-                  <i className="ti ti-trash-x fs-36" />
-                </span>
-                <h4 className="mb-1">Confirm Delete</h4>
-                <p className="mb-3">
-                  You want to delete all the marked items, this cant be undone once
-                  you delete.
-                </p>
-                <div className="d-flex justify-content-center">
-                  <Link
-                    to="#"
-                    className="btn btn-secondary me-3"
-                    data-bs-dismiss="modal">
-                    
-                    Cancel
-                  </Link>
-                  <Link to="#" className="btn btn-primary" data-bs-dismiss="modal">
-                    Yes, Delete
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* /Delete Modal */}
-      </>
-
-    </>);
-
-
-
-};
-
-export default Subscription;
+    </>
+  );
+}

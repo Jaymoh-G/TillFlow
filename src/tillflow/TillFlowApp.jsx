@@ -54,6 +54,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
 import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
 import AdminActivityLogs from './pages/AdminActivityLogs';
+import AdminNotifications from './pages/AdminNotifications';
 import AdminExpiredItems from './pages/AdminExpiredItems';
 import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
 import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
@@ -78,6 +79,7 @@ import TillFlowForgotPassword from './pages/TillFlowForgotPassword';
 import TillFlowInviteAccept from './pages/TillFlowInviteAccept';
 import TillFlowLanding from './pages/TillFlowLanding';
 import TillFlowLogin from './pages/TillFlowLogin';
+import TillflowPushBootstrap from './components/TillflowPushBootstrap';
 import TenantUiSettingsBridge from './tenantUiSettings/TenantUiSettingsBridge';
 import TenantUiSettingsSyncBanner from './tenantUiSettings/TenantUiSettingsSyncBanner';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -94,6 +96,7 @@ export default function TillFlowApp() {
     <ThemeProvider>
       <AuthProvider>
         <TenantUiSettingsBridge />
+        <TillflowPushBootstrap />
         <TenantUiSettingsSyncBanner />
         <TillFlowRoot>
           <Routes>
@@ -178,6 +181,7 @@ export default function TillFlowApp() {
 
                 <Route element={<RequirePermission anyOf={[PERMISSION.ACTIVITY_LOGS_VIEW]} />}>
                   <Route path="activity-logs" element={<AdminActivityLogs />} />
+                  <Route path="notifications" element={<AdminNotifications />} />
                 </Route>
 
                 <Route element={<RequirePermission anyOf={vm(M.ORDERS)} />}>

@@ -92,8 +92,9 @@ const Notification = () => {
                   </div>
                   <div className="card-body">
                     <p className="fs-14 text-muted mb-3">
-                      Choose how you want to be notified. These choices are stored in this browser for each signed-in
-                      account; the server does not sync them yet.
+                      Choose how you want to be notified. Preferences are saved in this browser for each signed-in
+                      account. If your role includes tenant settings access, they can also be merged into tenant
+                      server settings (see the sync banner when background sync is not allowed).
                     </p>
                     {savedMsg ? (
                       <div className="alert alert-success py-2 mb-3" role="status">
@@ -103,7 +104,9 @@ const Notification = () => {
 
                     <h6 className="fw-medium mb-2">Channels</h6>
                     <p className="fs-13 text-muted mb-3">
-                      In-app (browser) alerts will apply once push delivery is enabled for your tenant.
+                      Turn on In-app (browser) to register this device for Web Push (HTTPS or localhost). The server
+                      must have VAPID keys configured; activity events may trigger push notifications when your topic
+                      toggles allow it.
                     </p>
                     <div className="d-flex align-items-center justify-content-between mb-3">
                       <div>

@@ -65,7 +65,7 @@ export const SidebarData1 = [
             tittle: 'Packages',
             hasSubRoute: false,
             showSubRoute: false,
-            route: '/packages',
+            route: '/platform-owner/packages',
             subRoutes: [],
           },
           {

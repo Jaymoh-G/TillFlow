@@ -17,6 +17,12 @@ const Activities = () => {
               <div>
                 <h4>All Notifications</h4>
                 <h6>View your all activities</h6>
+                <p className="text-muted small mb-0 mt-2">
+                  TillFlow live feed (requires permission):{" "}
+                  <Link to="/tillflow/admin/notifications" className="text-primary">
+                    Open notifications in TillFlow
+                  </Link>
+                </p>
               </div>
               <div>
                 <Link to="#" className="btn btn-secondary me-1">

@@ -31,7 +31,7 @@ export const SidebarData = [
           { label: 'Dashboard', link: '/dashboard' },
           { label: 'Companies', link: '/companies' },
           { label: 'Subscriptions', link: '/subscription' },
-          { label: 'Packages', link: '/packages' },
+          { label: 'Packages', link: '/platform-owner/packages' },
           { label: 'Domain', link: '/domain' },
           { label: 'Purchase Transaction', link: route.purchasetransaction },
         ],

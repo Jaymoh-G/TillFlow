@@ -5,6 +5,7 @@ import { listActivityLogsRequest } from "../api/activityLogs";
 import { TillFlowApiError } from "../api/errors";
 import { useAuth } from "../auth/AuthContext";
 import { PERMISSION } from "../auth/permissions";
+import { parseActivityLogsResponse } from "../utils/activityLogNotificationMap";
 
 function subjectTypeLabel(subjectType) {
   if (!subjectType || typeof subjectType !== "string") {
@@ -21,6 +22,9 @@ function subjectTypeLabel(subjectType) {
   }
   if (subjectType.endsWith("\\Quotation") || subjectType.endsWith("Quotation")) {
     return "Quotation";
+  }
+  if (subjectType.endsWith("\\Proposal") || subjectType.endsWith("Proposal")) {
+    return "Proposal";
   }
   return subjectType.split("\\").pop() ?? subjectType;
 }
@@ -94,9 +98,8 @@ export default function AdminActivityLogs() {
     setLoading(true);
     try {
       const data = await listActivityLogsRequest(token, { per_page: 50, page: 1 });
-      const payload = data && typeof data === "object" && "data" in data && data.data != null ? data.data : data;
-      const logs = payload?.activity_logs ?? data?.activity_logs;
-      setRows(Array.isArray(logs) ? logs : []);
+      const { logs } = parseActivityLogsResponse(data);
+      setRows(logs);
     } catch (e) {
       setRows([]);
       if (e instanceof TillFlowApiError) {

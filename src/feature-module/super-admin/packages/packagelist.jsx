@@ -1,117 +1,286 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
-import PrimeDataTable from "../../../components/data-table";
-import { package_list } from '../../../core/json/packagelist';
+import PrimeDataTable from '../../../components/data-table';
 import CommonFooter from '../../../components/footer/commonFooter';
 import TooltipIcons from '../../../components/tooltip-content/tooltipIcons';
 import RefreshIcon from '../../../components/tooltip-content/refresh';
 import CollapesIcon from '../../../components/tooltip-content/collapes';
+import {
+  createPlatformPlan,
+  deletePlatformPlan,
+  fetchPlatformMeta,
+  fetchPlatformPlans,
+  updatePlatformPlan,
+} from '../../../core/api/platformAdminApi';
+import { tillflowFetch } from '../../../tillflow/api/client';
+import { TillFlowApiError } from '../../../tillflow/api/errors';
 
-const Packages = () => {
-  const data = package_list;
+function readToken() {
+  return localStorage.getItem('tillflow_sanctum_token');
+}
+
+export default function Packages() {
+  const navigate = useNavigate();
+  const [booting, setBooting] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [planRows, setPlanRows] = useState([]);
+  const [permSlugs, setPermSlugs] = useState([]);
+  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(data.length);
   const [selectedPackages, setSelectedPackages] = useState([]);
-  
+  const [editTarget, setEditTarget] = useState(null);
+
+  const [form, setForm] = useState({
+    name: '',
+    slug: '',
+    price_amount: 0,
+    currency: 'KES',
+    billing_interval: 'month',
+    included_stores: 1,
+    max_stores: '',
+    extra_store_price_amount: '',
+    is_active: true,
+    unlimited_permissions: false,
+    allowed_permission_slugs: [],
+  });
+
+  const loadPlans = useCallback(async () => {
+    setLoadError('');
+    try {
+      const data = await fetchPlatformPlans();
+      setPlanRows((data.plans || []).map((p) => ({ ...p, id: String(p.id) })));
+    } catch (e) {
+      setLoadError(e instanceof TillFlowApiError ? e.message : 'Failed to load plans.');
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const tok = readToken();
+      if (!tok) {
+        setAllowed(false);
+        setBooting(false);
+        return;
+      }
+      try {
+        const me = await tillflowFetch('/auth/me', { token: tok });
+        if (cancelled) {
+          return;
+        }
+        if (!me.user?.is_platform_owner) {
+          setAllowed(false);
+        } else {
+          setAllowed(true);
+          const meta = await fetchPlatformMeta();
+          setPermSlugs(meta.permission_slugs || []);
+          await loadPlans();
+        }
+      } catch {
+        if (!cancelled) {
+          setAllowed(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setBooting(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPlans]);
+
+  const permOptions = permSlugs.map((s) => ({ value: s, label: s }));
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      slug: '',
+      price_amount: 0,
+      currency: 'KES',
+      billing_interval: 'month',
+      included_stores: 1,
+      max_stores: '',
+      extra_store_price_amount: '',
+      is_active: true,
+      unlimited_permissions: false,
+      allowed_permission_slugs: [],
+    });
+    setEditTarget(null);
+    setError('');
+  };
+
+  const openAdd = () => {
+    resetForm();
+  };
+
+  const openEdit = (row) => {
+    setEditTarget(row);
+    setForm({
+      name: row.name || '',
+      slug: row.slug || '',
+      price_amount: Number(row.price_amount ?? 0),
+      currency: row.currency || 'KES',
+      billing_interval: row.billing_interval || 'month',
+      included_stores: row.included_stores ?? 1,
+      max_stores: row.max_stores == null ? '' : String(row.max_stores),
+      extra_store_price_amount:
+        row.extra_store_price_amount == null ? '' : String(row.extra_store_price_amount),
+      is_active: Boolean(row.is_active),
+      unlimited_permissions: !row.allowed_permission_slugs,
+      allowed_permission_slugs: Array.isArray(row.allowed_permission_slugs) ? row.allowed_permission_slugs : [],
+    });
+  };
+
+  const submitForm = async (e) => {
+    e.preventDefault();
+    setError('');
+    const body = {
+      name: form.name,
+      slug: form.slug,
+      price_amount: Number(form.price_amount),
+      currency: form.currency || 'KES',
+      billing_interval: form.billing_interval,
+      included_stores: Number(form.included_stores || 1),
+      is_active: form.is_active,
+      allowed_permission_slugs: form.unlimited_permissions ? null : form.allowed_permission_slugs,
+      max_stores: form.max_stores === '' || form.max_stores == null ? null : Number(form.max_stores),
+      extra_store_price_amount:
+        form.extra_store_price_amount === '' || form.extra_store_price_amount == null
+          ? null
+          : Number(form.extra_store_price_amount),
+    };
+
+    try {
+      if (editTarget) {
+        await updatePlatformPlan(editTarget.id, body);
+      } else {
+        await createPlatformPlan(body);
+      }
+      if (window.bootstrap?.Modal) {
+        const el = document.getElementById('add_plans');
+        const m = window.bootstrap.Modal.getInstance(el) || new window.bootstrap.Modal(el);
+        m.hide();
+      }
+      resetForm();
+      await loadPlans();
+    } catch (err) {
+      setError(err instanceof TillFlowApiError ? err.message : 'Save failed.');
+    }
+  };
+
+  const onDelete = async (row) => {
+    if (!window.confirm(`Delete plan "${row.name}"?`)) {
+      return;
+    }
+    try {
+      await deletePlatformPlan(row.id);
+      await loadPlans();
+    } catch (err) {
+      window.alert(err instanceof TillFlowApiError ? err.message : 'Delete failed.');
+    }
+  };
+
+  const totalRecords = planRows.length;
+  const activeCount = planRows.filter((r) => r.is_active).length;
+
   const columns = [
-  {
-    header: "Plan Name",
-    field: "Plan_Name",
-    body: (rowData) =>
-    <h6 className="fw-medium">
-          <Link to="#">{rowData.Plan_Name}</Link>
-        </h6>,
-
-    sortable: true
-  },
-  {
-    header: "Plan Type",
-    field: "Plan_Type",
-    sortable: true
-  },
-  {
-    header: "Total Subscribers",
-    field: "Total_Subscribers",
-    sortable: true
-  },
-  {
-    header: "Price",
-    field: "Price",
-    sortable: true
-  },
-  {
-    header: "Created Date",
-    field: "Created_Date",
-    sortable: true
-  },
-  {
-    header: "Status",
-    field: "Status",
-    body: (rowData) =>
-    <span className={`badge ${rowData.Status === 'Active' ? 'badge-success' : 'badge-danger'} d-inline-flex align-items-center badge-xs`}>
+    {
+      header: 'Plan Name',
+      field: 'name',
+      body: (rowData) => (
+        <h6 className="fw-medium">
+          <button type="button" className="btn btn-link p-0" onClick={() => openEdit(rowData)}>
+            {rowData.name}
+          </button>
+        </h6>
+      ),
+      sortable: true,
+    },
+    { header: 'Slug', field: 'slug', sortable: true },
+    {
+      header: 'Billing',
+      field: 'billing_interval',
+      body: (rowData) => <span className="text-capitalize">{rowData.billing_interval}</span>,
+      sortable: true,
+    },
+    {
+      header: 'Price',
+      field: 'price_amount',
+      body: (rowData) => (
+        <span>
+          {rowData.currency} {Number(rowData.price_amount).toFixed(2)}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      header: 'Subscribers',
+      field: 'active_subscriptions_count',
+      sortable: true,
+    },
+    {
+      header: 'Status',
+      field: 'is_active',
+      body: (rowData) => (
+        <span
+          className={`badge ${
+            rowData.is_active ? 'badge-success' : 'badge-danger'
+          } d-inline-flex align-items-center badge-xs`}
+        >
           <i className="ti ti-point-filled me-1" />
-          {rowData.Status}
-        </span>,
-
-    sortable: true
-  },
-  {
-    header: "",
-    field: "actions",
-    body: () =>
-    <div className="action-icon d-inline-flex align-items-center">
-          <Link
-        to="#"
-        className="p-2 d-flex align-items-center border rounded me-2"
-        data-bs-toggle="modal"
-        data-bs-target="#edit_plans">
-        
+          {rowData.is_active ? 'Active' : 'Inactive'}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      header: '',
+      field: 'actions',
+      body: (rowData) => (
+        <div className="action-icon d-inline-flex align-items-center">
+          <button
+            type="button"
+            className="p-2 d-flex align-items-center border rounded me-2 btn btn-light"
+            data-bs-toggle="modal"
+            data-bs-target="#add_plans"
+            onClick={() => openEdit(rowData)}
+          >
             <i className="ti ti-edit" />
-          </Link>
-          <Link
-        to="#"
-        data-bs-toggle="modal"
-        data-bs-target="#delete_modal"
-        className="p-2 d-flex align-items-center border rounded">
-        
+          </button>
+          <button
+            type="button"
+            className="p-2 d-flex align-items-center border rounded btn btn-light text-danger"
+            onClick={() => onDelete(rowData)}
+          >
             <i className="ti ti-trash" />
-          </Link>
-        </div>,
+          </button>
+        </div>
+      ),
+      sortable: false,
+    },
+  ];
 
-    sortable: false
-  }];
+  if (booting) {
+    return (
+      <div className="page-wrapper">
+        <div className="content p-4">Loading…</div>
+      </div>
+    );
+  }
 
-
-  const planName = [
-  { value: "Advanced", label: "Advanced" },
-  { value: "Basic", label: "Basic" },
-  { value: "Enterprise", label: "Enterprise" }];
-
-  const planType = [
-  { value: "Monthly", label: "Monthly" },
-  { value: "Yearly", label: "Yearly" }];
-
-  const planPosition = [
-  { value: "1", label: "1" },
-  { value: "2", label: "2" }];
-
-  const plancurrency = [
-  { value: "Fixed", label: "Fixed" },
-  { value: "Percentage", label: "Percentage" }];
-
-  const discountType = [
-  { value: "Fixed", label: "Fixed" },
-  { value: "Percentage", label: "Percentage" }];
-
-  const status = [
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" }];
+  if (!allowed) {
+    return <Navigate to="/tillflow/login" replace state={{ from: '/platform-owner/packages' }} />;
+  }
 
   return (
     <>
-      {/* Page Wrapper */}
       <div className="page-wrapper">
         <div className="content">
           <div className="page-header">
@@ -131,190 +300,58 @@ const Packages = () => {
                 to="#"
                 data-bs-toggle="modal"
                 data-bs-target="#add_plans"
-                className="btn btn-primary">
-                
-                <i className='ti ti-circle-plus me-1'></i>
+                className="btn btn-primary"
+                onClick={openAdd}
+              >
+                <i className="ti ti-circle-plus me-1" />
                 Add Packages
               </Link>
             </div>
           </div>
 
+          {loadError ? <div className="alert alert-danger">{loadError}</div> : null}
+
           <div className="row">
-            {/* Total Plans */}
             <div className="col-lg-3 col-md-6 d-flex">
               <div className="card flex-fill">
                 <div className="card-body d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center overflow-hidden">
-                    <div>
-                      <p className="fs-12 fw-medium mb-1 text-truncate">
-                        Total Plans
-                      </p>
-                      <h4>08</h4>
-                    </div>
-                  </div>
                   <div>
-                    <span className="avatar avatar-lg bg-primary flex-shrink-0">
-                      <i className="ti ti-box fs-16" />
-                    </span>
+                    <p className="fs-12 fw-medium mb-1 text-truncate">Total Plans</p>
+                    <h4>{totalRecords}</h4>
                   </div>
+                  <span className="avatar avatar-lg bg-primary flex-shrink-0">
+                    <i className="ti ti-box fs-16" />
+                  </span>
                 </div>
               </div>
             </div>
-            {/* /Total Plans */}
-            {/* Total Plans */}
             <div className="col-lg-3 col-md-6 d-flex">
               <div className="card flex-fill">
                 <div className="card-body d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center overflow-hidden">
-                    <div>
-                      <p className="fs-12 fw-medium mb-1 text-truncate">
-                        Active Plans
-                      </p>
-                      <h4>08</h4>
-                    </div>
-                  </div>
                   <div>
-                    <span className="avatar avatar-lg bg-success flex-shrink-0">
-                      <i className="ti ti-activity-heartbeat fs-16" />
-                    </span>
+                    <p className="fs-12 fw-medium mb-1 text-truncate">Active Plans</p>
+                    <h4>{activeCount}</h4>
                   </div>
+                  <span className="avatar avatar-lg bg-success flex-shrink-0">
+                    <i className="ti ti-activity-heartbeat fs-16" />
+                  </span>
                 </div>
               </div>
             </div>
-            {/* /Total Plans */}
-            {/* Inactive Plans */}
-            <div className="col-lg-3 col-md-6 d-flex">
-              <div className="card flex-fill">
-                <div className="card-body d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center overflow-hidden">
-                    <div>
-                      <p className="fs-12 fw-medium mb-1 text-truncate">
-                        Inactive Plans
-                      </p>
-                      <h4>0</h4>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="avatar avatar-lg bg-danger flex-shrink-0">
-                      <i className="ti ti-player-pause fs-16" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* /Inactive Companies */}
-            {/* No of Plans  */}
-            <div className="col-lg-3 col-md-6 d-flex">
-              <div className="card flex-fill">
-                <div className="card-body d-flex align-items-center justify-content-between">
-                  <div className="d-flex align-items-center overflow-hidden">
-                    <div>
-                      <p className="fs-12 fw-medium mb-1 text-truncate">
-                        No of Plan Types
-                      </p>
-                      <h4>02</h4>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="avatar avatar-lg bg-skyblue flex-shrink-0">
-                      <i className="ti ti-mask fs-16" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* /No of Plans */}
           </div>
+
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
               <h5>Plan List</h5>
-              <div className="d-flex my-xl-auto right-content align-items-center flex-wrap row-gap-3">
-               
-                <div className="dropdown me-3">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown">
-                    
-                    Select Status
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Active
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Inactive
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-                <div className="dropdown">
-                  <Link
-                    to="#"
-                    className="dropdown-toggle btn btn-white d-inline-flex align-items-center"
-                    data-bs-toggle="dropdown">
-                    
-                    Sort By : Last 7 Days
-                  </Link>
-                  <ul className="dropdown-menu  dropdown-menu-end p-3">
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Recently Added
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Ascending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Desending
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Last Month
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="#"
-                        className="dropdown-item rounded-1">
-                        
-                        Last 7 Days
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+              <button type="button" className="btn btn-sm btn-light" onClick={() => navigate('/subscription')}>
+                View subscriptions
+              </button>
             </div>
             <div className="card-body p-0">
-              <div className='table-responsive'>
+              <div className="table-responsive">
                 <PrimeDataTable
                   column={columns}
-                  data={data}
+                  data={planRows}
                   totalRecords={totalRecords}
                   currentPage={currentPage}
                   setCurrentPage={setCurrentPage}
@@ -331,806 +368,156 @@ const Packages = () => {
         </div>
         <CommonFooter />
       </div>
-      {/* /Page Wrapper */}
-      {/* Add Plan */}
+
       <div className="modal fade" id="add_plans">
         <div className="modal-dialog modal-dialog-centered modal-lg">
           <div className="modal-content">
             <div className="modal-header">
-              <h4 className="modal-title">Add New Plan</h4>
-              <button
-                type="button"
-                className="btn-close custom-btn-close p-0"
-                data-bs-dismiss="modal"
-                aria-label="Close">
-                
-                <i className="ti ti-x" />
-              </button>
+              <h4 className="modal-title">{editTarget ? 'Edit Plan' : 'Add New Plan'}</h4>
+              <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" />
             </div>
-            <form>
+            <form onSubmit={submitForm}>
               <div className="modal-body pb-0">
+                {error ? <div className="alert alert-danger">{error}</div> : null}
                 <div className="row">
-                  <div className="col-md-12">
-                    <div className="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
-                      <div className="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
-                        <img
-                          src="assets/img/profiles/avatar-30.jpg"
-                          alt="img"
-                          className="rounded-circle" />
-                        
-                      </div>
-                      <div className="profile-upload">
-                        <div className="mb-2">
-                          <h6 className="mb-1">Upload Profile Image</h6>
-                          <p className="fs-12">Image should be below 4 mb</p>
-                        </div>
-                        <div className="profile-uploader d-flex align-items-center">
-                          <div className="drag-upload-btn btn btn-sm btn-primary me-2">
-                            Upload
-                            <input
-                              type="file"
-                              className="form-control image-sign"
-                              multiple />
-                            
-                          </div>
-                          <Link
-                            to="#"
-                            className="btn btn-light btn-sm">
-                            
-                            Cancel
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">
+                      Plan Name<span className="text-danger"> *</span>
+                    </label>
+                    <input
+                      className="form-control"
+                      value={form.name}
+                      onChange={(ev) => setForm((s) => ({ ...s, name: ev.target.value }))}
+                      required
+                    />
                   </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Name<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planName}
-                        placeholder="Choose" />
-                      
-                    </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label">
+                      Slug<span className="text-danger"> *</span>
+                    </label>
+                    <input
+                      className="form-control"
+                      value={form.slug}
+                      onChange={(ev) => setForm((s) => ({ ...s, slug: ev.target.value }))}
+                      required
+                      disabled={Boolean(editTarget)}
+                    />
                   </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Type<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planType}
-                        placeholder="Choose" />
-                      
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={form.price_amount}
+                      onChange={(ev) => setForm((s) => ({ ...s, price_amount: ev.target.value }))}
+                      required
+                    />
                   </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Position<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planPosition}
-                        placeholder="Choose" />
-                      
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Currency</label>
+                    <input
+                      className="form-control"
+                      value={form.currency}
+                      onChange={(ev) => setForm((s) => ({ ...s, currency: ev.target.value }))}
+                    />
                   </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Currency<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={plancurrency}
-                        placeholder="Choose" />
-                      
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Billing</label>
+                    <select
+                      className="form-select"
+                      value={form.billing_interval}
+                      onChange={(ev) => setForm((s) => ({ ...s, billing_interval: ev.target.value }))}
+                    >
+                      <option value="month">month</option>
+                      <option value="year">year</option>
+                    </select>
                   </div>
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <div className="d-flex justify-content-between">
-                        <label className="form-label">
-                          Plan Currency<span className="text-danger"> *</span>
-                        </label>
-                        <span className="text-primary">
-                          <i className="fa-solid fa-circle-exclamation me-2" />
-                          Set 0 for free
-                        </span>
-                      </div>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={plancurrency}
-                        placeholder="Choose" />
-                      
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Included stores</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="form-control"
+                      value={form.included_stores}
+                      onChange={(ev) => setForm((s) => ({ ...s, included_stores: ev.target.value }))}
+                    />
                   </div>
-                  <div className="col-md-3">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Discount Type<span className="text-danger"> *</span>
-                      </label>
-                      <div className="pass-group">
-                        <Select
-                          classNamePrefix="react-select"
-                          options={discountType}
-                          placeholder="Choose" />
-                        
-                      </div>
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Max stores (empty = unlimited cap)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="form-control"
+                      value={form.max_stores}
+                      onChange={(ev) => setForm((s) => ({ ...s, max_stores: ev.target.value }))}
+                    />
                   </div>
-                  <div className="col-md-3">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Discount<span className="text-danger"> *</span>
-                      </label>
-                      <div className="pass-group">
-                        <input type="text" className="form-control" />
-                      </div>
-                    </div>
+                  <div className="col-md-4 mb-3">
+                    <label className="form-label">Extra store price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                      value={form.extra_store_price_amount}
+                      onChange={(ev) => setForm((s) => ({ ...s, extra_store_price_amount: ev.target.value }))}
+                    />
                   </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Limitations Invoices</label>
-                      <input type="text" className="form-control" />
-                    </div>
+                  <div className="col-md-12 mb-2 form-check">
+                    <input
+                      id="unlim"
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={form.unlimited_permissions}
+                      onChange={(ev) => setForm((s) => ({ ...s, unlimited_permissions: ev.target.checked }))}
+                    />
+                    <label className="form-check-label" htmlFor="unlim">
+                      Enterprise-style (no permission restriction)
+                    </label>
                   </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Max Customers</label>
-                      <input type="text" className="form-control" />
-                    </div>
+                  <div className="col-md-12 mb-3">
+                    <label className="form-label">Allowed permission slugs</label>
+                    <Select
+                      isMulti
+                      classNamePrefix="react-select"
+                      options={permOptions}
+                      value={permOptions.filter((o) => form.allowed_permission_slugs.includes(o.value))}
+                      onChange={(opts) =>
+                        setForm((s) => ({
+                          ...s,
+                          allowed_permission_slugs: (opts || []).map((o) => o.value),
+                        }))
+                      }
+                      isDisabled={form.unlimited_permissions}
+                      placeholder="Select permissions…"
+                    />
                   </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Product</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Supplier</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-12">
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <h6>Plan Modules</h6>
-                      <div className="form-check d-flex align-items-center">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Select All
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Employees
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Invoices
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Reports
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Contacts
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Clients
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Estimates
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Goals
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Deals
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Projects
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Payments
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Assets
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Leads
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Tickets
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Taxes
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Activities
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Pipelines
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 me-2 text-dark fw-medium">
-                          Access Trial
-                        </label>
-                        <div className="form-check form-switch me-2">
-                          <input
-                            className="form-check-input me-2"
-                            type="checkbox"
-                            role="switch" />
-                          
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row align-items-center gx-3">
-                    <div className="col-md-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <div className="flex-fill">
-                          <label className="form-label">Trial Days</label>
-                          <input type="text" className="form-control" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-3">
-                      <div className="d-block align-items-center ms-3">
-                        <label className="form-check-label mt-0 me-2 text-dark">
-                          Is Recommended
-                        </label>
-                        <div className="form-check form-switch me-2">
-                          <input
-                            className="form-check-input me-2"
-                            type="checkbox"
-                            role="switch" />
-                          
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-5">
-                      <div className="mb-3 ">
-                        <label className="form-label">
-                          Status<span className="text-danger"> *</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={status}
-                          placeholder="Choose" />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-12">
-                    <div className="mb-3">
-                      <label className="form-label">Description</label>
-                      <textarea className="form-control" defaultValue={""} />
-                    </div>
+                  <div className="col-md-12 mb-3 form-check">
+                    <input
+                      id="active"
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={form.is_active}
+                      onChange={(ev) => setForm((s) => ({ ...s, is_active: ev.target.checked }))}
+                    />
+                    <label className="form-check-label" htmlFor="active">
+                      Active
+                    </label>
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-light me-2"
-                  data-bs-dismiss="modal">
-                  
+                <button type="button" className="btn btn-light" data-bs-dismiss="modal">
                   Cancel
                 </button>
-                <Link to="button" data-bs-dismiss="modal" className="btn btn-primary">
-                  Add Plan
-                </Link>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-      {/* /Add Plan */}
-      {/* Edit Plan */}
-      <div className="modal fade" id="edit_plans">
-        <div className="modal-dialog modal-dialog-centered modal-lg">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h4 className="modal-title">Edit Plan</h4>
-              <button
-                type="button"
-                className="btn-close custom-btn-close p-0"
-                data-bs-dismiss="modal"
-                aria-label="Close">
-                
-                <i className="ti ti-x" />
-              </button>
-            </div>
-            <form>
-              <div className="modal-body pb-0">
-                <div className="row">
-                  <div className="col-md-12">
-                    <div className="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
-                      <div className="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
-                        <img
-                          src="assets/img/profiles/avatar-30.jpg"
-                          alt="img"
-                          className="rounded-circle" />
-                        
-                      </div>
-                      <div className="profile-upload">
-                        <div className="mb-2">
-                          <h6 className="mb-1">Upload Profile Image</h6>
-                          <p className="fs-12">Image should be below 4 mb</p>
-                        </div>
-                        <div className="profile-uploader d-flex align-items-center">
-                          <div className="drag-upload-btn btn btn-sm btn-primary me-2">
-                            Upload
-                            <input
-                              type="file"
-                              className="form-control image-sign"
-                              multiple />
-                            
-                          </div>
-                          <Link
-                            to="#"
-                            className="btn btn-light btn-sm">
-                            
-                            Cancel
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Name<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planName}
-                        placeholder="Choose" />
-                      
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Type<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planType}
-                        placeholder="Choose" />
-                      
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Position<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={planPosition}
-                        placeholder="Choose" />
-                      
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Plan Currency<span className="text-danger"> *</span>
-                      </label>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={plancurrency}
-                        placeholder="Choose" />
-                      
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <div className="d-flex justify-content-between">
-                        <label className="form-label">
-                          Plan Currency<span className="text-danger"> *</span>
-                        </label>
-                        <span className="text-primary">
-                          <i className="fa-solid fa-circle-exclamation me-2" />
-                          Set 0 for free
-                        </span>
-                      </div>
-                      <Select
-                        classNamePrefix="react-select"
-                        options={plancurrency}
-                        placeholder="Choose" />
-                      
-                    </div>
-                  </div>
-                  <div className="col-md-3">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Discount Type<span className="text-danger"> *</span>
-                      </label>
-                      <div className="pass-group">
-                        <Select
-                          classNamePrefix="react-select"
-                          options={discountType}
-                          placeholder="Choose" />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-3">
-                    <div className="mb-3 ">
-                      <label className="form-label">
-                        Discount<span className="text-danger"> *</span>
-                      </label>
-                      <div className="pass-group">
-                        <input type="text" className="form-control" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Limitations Invoices</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Max Customers</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Product</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-3">
-                    <div className="mb-3">
-                      <label className="form-label">Supplier</label>
-                      <input type="text" className="form-control" />
-                    </div>
-                  </div>
-                  <div className="col-lg-12">
-                    <div className="d-flex align-items-center justify-content-between mb-3">
-                      <h6>Plan Modules</h6>
-                      <div className="form-check d-flex align-items-center">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Select All
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Employees
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Invoices
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Reports
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Contacts
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Clients
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Estimates
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Goals
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Deals
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Projects
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Payments
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Assets
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Leads
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Tickets
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Taxes
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Activities
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-lg-3 col-sm-6">
-                      <div className="form-check d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 text-dark fw-medium">
-                          <input className="form-check-input" type="checkbox" />
-                          Pipelines
-                        </label>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <label className="form-check-label mt-0 me-2 text-dark fw-medium">
-                          Access Trial
-                        </label>
-                        <div className="form-check form-switch me-2">
-                          <input
-                            className="form-check-input me-2"
-                            type="checkbox"
-                            role="switch" />
-                          
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row align-items-center gx-3">
-                    <div className="col-md-4">
-                      <div className="d-flex align-items-center mb-3">
-                        <div className="flex-fill">
-                          <label className="form-label">Trial Days</label>
-                          <input type="text" className="form-control" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-3">
-                      <div className="d-block align-items-center ms-3">
-                        <label className="form-check-label mt-0 me-2  text-dark">
-                          Is Recommended
-                        </label>
-                        <div className="form-check form-switch me-2">
-                          <input
-                            className="form-check-input me-2"
-                            type="checkbox"
-                            role="switch" />
-                          
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-5">
-                      <div className="mb-3 ">
-                        <label className="form-label">
-                          Status<span className="text-danger"> *</span>
-                        </label>
-                        <Select
-                          classNamePrefix="react-select"
-                          options={status}
-                          placeholder="Choose" />
-                        
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-12">
-                    <div className="mb-3">
-                      <label className="form-label">Description</label>
-                      <textarea className="form-control" defaultValue={""} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-light me-2"
-                  data-bs-dismiss="modal">
-                  
-                  Cancel
-                </button>
-                <button type="button" data-bs-dismiss="modal" className="btn btn-primary">
-                  Save Changes
+                <button type="submit" className="btn btn-primary">
+                  Save
                 </button>
               </div>
             </form>
           </div>
         </div>
       </div>
-      {/* /Edit Plan */}
-      <>
-        {/* Delete Modal */}
-        <div className="modal fade" id="delete_modal">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-body text-center">
-                <span className="avatar avatar-xl bg-danger-transparent rounded-circle text-danger mb-3">
-                  <i className="ti ti-trash-x fs-36" />
-                </span>
-                <h4 className="mb-1">Confirm Delete</h4>
-                <p className="mb-3">
-                  You want to delete all the marked items, this cant be undone once
-                  you delete.
-                </p>
-                <div className="d-flex justify-content-center">
-                  <Link
-                    to="#"
-                    className="btn btn-secondary me-3"
-                    data-bs-dismiss="modal">
-                    
-                    Cancel
-                  </Link>
-                  <Link to="#" className="btn btn-primary" data-bs-dismiss="modal">
-                    Yes, Delete
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* /Delete Modal */}
-      </>
-
-    </>);
-
-
-
-};
-
-export default Packages;
+    </>
+  );
+}

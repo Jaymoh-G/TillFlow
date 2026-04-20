@@ -6,7 +6,7 @@ import BreezeTechLogo from '../components/BreezeTechLogo';
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function TillFlowLogin() {
-  const { login, token, bootstrapping } = useAuth();
+  const { login, token, user, bootstrapping } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/tillflow/admin';
@@ -18,7 +18,8 @@ export default function TillFlowLogin() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!bootstrapping && token) {
-    return <Navigate to={from} replace />;
+    const alreadyIn = user?.is_platform_owner ? '/platform-owner/packages' : from;
+    return <Navigate to={alreadyIn} replace />;
   }
 
   async function handleSubmit(e) {
@@ -27,8 +28,9 @@ export default function TillFlowLogin() {
     setFieldErrors(null);
     setSubmitting(true);
     try {
-      await login({ email, password });
-      navigate(from, { replace: true });
+      const loginData = await login({ email, password });
+      const dest = loginData?.user?.is_platform_owner ? '/platform-owner/packages' : from;
+      navigate(dest, { replace: true });
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setError(err.message);

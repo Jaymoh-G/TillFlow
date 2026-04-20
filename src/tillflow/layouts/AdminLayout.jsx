@@ -4,6 +4,7 @@ import CommonFooter from '../../components/footer/commonFooter';
 import { PERMISSION } from '../auth/permissions';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
+import TillflowNotificationMenu from '../components/TillflowNotificationMenu';
 import AdminOfflineWait from '../offline/AdminOfflineWait';
 import { tillflowAdminPathAllowsOfflineUse } from '../offline/tillflowOfflinePolicy';
 import { useOnlineStatus } from '../offline/useOnlineStatus';
@@ -145,6 +146,7 @@ export default function AdminLayout() {
                 POS
               </Link>
             ) : null}
+            <TillflowNotificationMenu className="tf-admin__notif" />
             <ThemeToggle />
             {user ? (
               <Link
