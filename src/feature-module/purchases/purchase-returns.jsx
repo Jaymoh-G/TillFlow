@@ -60,9 +60,11 @@ function nextPurchaseReturnRefLocal(list) {
 
 const PurchaseReturns = () => {
   const location = useLocation();
+  const inTillflowShell = location.pathname.includes("/tillflow/admin");
   const auth = useOptionalAuth();
   const token = auth?.token ?? (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("tillflow_sanctum_token") : null);
-  const [dataSource, setDataSource] = useState(purchasesreturn);
+  const shouldUseDemoReturns = !inTillflowShell && !token;
+  const [dataSource, setDataSource] = useState(() => (shouldUseDemoReturns ? purchasesreturn : []));
   const [listError, setListError] = useState("");
   const [suppliers, setSuppliers] = useState([]);
   const [purchaseOptions, setPurchaseOptions] = useState([]);
@@ -109,7 +111,7 @@ const PurchaseReturns = () => {
 
   const loadPurchaseReturns = useCallback(async () => {
     if (!token) {
-      setDataSource(purchasesreturn);
+      setDataSource(shouldUseDemoReturns ? purchasesreturn : []);
       setListError("");
       return;
     }
@@ -123,7 +125,7 @@ const PurchaseReturns = () => {
     } catch (err) {
       setListError(err instanceof TillFlowApiError ? err.message : "Could not load purchase returns.");
     }
-  }, [mapApiRow, token]);
+  }, [mapApiRow, shouldUseDemoReturns, token]);
 
   const loadSuppliers = useCallback(async () => {
     if (!token) return;

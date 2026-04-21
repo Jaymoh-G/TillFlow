@@ -6,7 +6,7 @@ import DeleteModal from "../../components/delete-modal";
 import CommonSelect from "../../components/select/common-select";
 import TableTopHead from "../../components/table-top-head";
 import CommonFooter from "../../components/footer/commonFooter";
-import { downloadImg, stockImg02, user33 } from "../../utils/imagepath";
+import { stockImg02, user33 } from "../../utils/imagepath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, MoreVertical, Plus, PlusCircle, Search, X } from "react-feather";
 import { AutoComplete } from "primereact/autocomplete";
@@ -37,6 +37,10 @@ import BreezeTechLogo from "../../tillflow/components/BreezeTechLogo";
 import { getCompanySettingsSnapshot } from "../../utils/companySettingsStorage";
 import { downloadQuotationDetailPdfFromElement } from "../../utils/quotationExport";
 import { downloadPurchasesExcel, downloadPurchasesPdf } from "../../utils/purchaseExport";
+import {
+  downloadPurchaseImportTemplate,
+  parsePurchaseImportFile
+} from "../../utils/purchaseImport";
 
 const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
 const TILLFLOW_PURCHASES_BASE = "/tillflow/admin/purchases";
@@ -222,6 +226,8 @@ const PurchasesList = () => {
     (typeof sessionStorage !== "undefined"
       ? sessionStorage.getItem(TILLFLOW_TOKEN_KEY)
       : null);
+  const canImportPurchases = !token || Boolean(auth?.hasPermission?.("procurement.purchases.manage"));
+  const shouldUseDemoPurchases = !inTillflowShell && !token;
   /** Same UX as quotations/new: fixed empty row 1, + commits, × on committed rows */
   const purchaseCrmLineItems = Boolean(
     token && inTillflowShell && (purchaseCreatePageActive || purchaseEditPageActive)
@@ -497,13 +503,13 @@ const PurchasesList = () => {
     const values = new Set(fromApi.map((o) => o.value));
     return [head, ...fromApi, ...fallbackRest.filter((o) => !values.has(o.value))];
   }, [apiSuppliers, token]);
-  const [listData, setListData] = useState(purchaseListData);
+  const [listData, setListData] = useState(() => (shouldUseDemoPurchases ? purchaseListData : []));
   const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [purchasesError, setPurchasesError] = useState("");
 
   const loadApiPurchases = useCallback(async () => {
     if (!token) {
-      setListData(purchaseListData);
+      setListData(shouldUseDemoPurchases ? purchaseListData : []);
       setPurchasesError("");
       setPurchasesLoading(false);
       return;
@@ -528,7 +534,7 @@ const PurchasesList = () => {
     } finally {
       setPurchasesLoading(false);
     }
-  }, [token]);
+  }, [shouldUseDemoPurchases, token]);
 
   useEffect(() => {
     void loadApiPurchases();
@@ -543,6 +549,11 @@ const PurchasesList = () => {
   const pendingDeletePurchaseIdRef = useRef(null);
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const importFileInputRef = useRef(null);
+  const [importPurchasesData, setImportPurchasesData] = useState([]);
+  const [importParseErrors, setImportParseErrors] = useState([]);
+  const [importWorking, setImportWorking] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
   const [date, setDate] = useState(new Date());
   const [selectedPurchases, setSelectedPurchases] = useState([]);
   const [receiveBusy, setReceiveBusy] = useState(false);
@@ -2271,6 +2282,177 @@ const PurchasesList = () => {
     }
   }, [filteredPurchases]);
 
+  const handleOpenImportPicker = useCallback(() => {
+    importFileInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) {
+      e.target.value = "";
+    }
+    if (!file) {
+      return;
+    }
+    try {
+      const parsed = await parsePurchaseImportFile(file);
+      setImportPurchasesData(parsed.purchases);
+      setImportParseErrors(parsed.errors);
+      setImportSummary(null);
+    } catch {
+      setImportPurchasesData([]);
+      setImportParseErrors([{ sheetRow: 1, message: "Could not parse file." }]);
+      setImportSummary(null);
+    }
+  }, []);
+
+  const resolveSupplierIdByName = useCallback(
+    (name) => {
+      const target = String(name ?? "").trim().toLowerCase();
+      if (!target) {
+        return null;
+      }
+      const row = apiSuppliers.find((s) => String(s.name ?? "").trim().toLowerCase() === target);
+      return row?.id != null ? Number(row.id) : null;
+    },
+    [apiSuppliers]
+  );
+
+  const handleImportPurchasesSubmit = useCallback(async () => {
+    if (importPurchasesData.length === 0) {
+      return;
+    }
+    setImportWorking(true);
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+    const details = [];
+
+    const existingRefs = new Set(listData.map((r) => String(r.reference ?? "").trim().toLowerCase()));
+
+    if (token) {
+      for (const purchase of importPurchasesData) {
+        const reference = String(purchase.reference ?? "").trim();
+        const refKey = reference.toLowerCase();
+        if (reference && existingRefs.has(refKey)) {
+          skipped += 1;
+          details.push(`Reference ${reference}: skipped (already exists in list).`);
+          continue;
+        }
+        const supplierId = resolveSupplierIdByName(purchase.supplier);
+        if (!supplierId) {
+          failed += 1;
+          details.push(
+            `Reference ${reference || "—"}: supplier "${purchase.supplier}" not found. Add supplier first.`
+          );
+          continue;
+        }
+
+        try {
+          const body = {
+            supplier_id: supplierId,
+            reference: reference || nextPurchaseRefLocal(listData),
+            purchase_date: purchase.purchase_date,
+            purchase_type: normalizePurchaseType(purchase.purchase_type),
+            status: purchase.status || "Draft",
+            order_tax: 0,
+            order_discount: 0,
+            shipping: 0,
+            description: purchase.description || null,
+            lines: (purchase.lines ?? []).map((line) => ({
+              product_id: null,
+              product_name: String(line.product_name ?? "").trim() || null,
+              qty: parseMoney(line.qty),
+              unit_price: parseMoney(line.unit_price),
+              discount: 0,
+              tax_percent: parseMoney(line.tax_percent)
+            }))
+          };
+          const data = await createPurchaseRequest(token, body);
+          if (!data?.purchase) {
+            failed += 1;
+            details.push(`Reference ${reference || "—"}: unexpected API response.`);
+            continue;
+          }
+          created += 1;
+          if (reference) {
+            existingRefs.add(refKey);
+          }
+        } catch (err) {
+          if (err instanceof TillFlowApiError) {
+            const msg = String(err.message ?? "");
+            if (err.status === 422 && /reference|already|unique/i.test(msg)) {
+              skipped += 1;
+              details.push(`Reference ${reference || "—"}: skipped (${msg}).`);
+            } else {
+              failed += 1;
+              details.push(`Reference ${reference || "—"}: ${msg}`);
+            }
+          } else {
+            failed += 1;
+            details.push(`Reference ${reference || "—"}: failed to create purchase.`);
+          }
+        }
+      }
+      await loadApiPurchases();
+    } else {
+      let draft = [...listData];
+      for (const purchase of importPurchasesData) {
+        const reference = String(purchase.reference ?? "").trim() || nextPurchaseRefLocal(draft);
+        const refKey = reference.toLowerCase();
+        if (existingRefs.has(refKey)) {
+          skipped += 1;
+          details.push(`Reference ${reference}: skipped (already exists).`);
+          continue;
+        }
+        const linesTotal = (purchase.lines ?? []).reduce(
+          (sum, line) => sum + parseMoney(line.qty) * parseMoney(line.unit_price),
+          0
+        );
+        const totalStr = `KES ${Math.max(0, linesTotal).toFixed(2)}`;
+        const ordered = (purchase.lines ?? []).reduce((sum, line) => sum + parseMoney(line.qty), 0);
+        draft.unshift({
+          id: newPurchaseRowId(),
+          supplierName: purchase.supplier,
+          reference,
+          date: formatPurchaseTableDate(purchase.purchase_date),
+          status: purchase.status || "Draft",
+          purchaseType: normalizePurchaseType(purchase.purchase_type),
+          orderedQty: ordered,
+          receivedQty: 0,
+          remainingQty: ordered,
+          total: totalStr,
+          paid: "KES 0.00",
+          due: totalStr,
+          paymentStatus: "Unpaid"
+        });
+        existingRefs.add(refKey);
+        created += 1;
+      }
+      setListData(draft);
+    }
+
+    setImportSummary({ created, skipped, failed, details });
+    setImportWorking(false);
+  }, [importPurchasesData, listData, loadApiPurchases, resolveSupplierIdByName, token]);
+
+  useEffect(() => {
+    const el = document.getElementById("view-notes");
+    if (!el) {
+      return undefined;
+    }
+    const onHidden = () => {
+      setImportPurchasesData([]);
+      setImportParseErrors([]);
+      setImportWorking(false);
+      setImportSummary(null);
+    };
+    el.addEventListener("hidden.bs.modal", onHidden);
+    return () => {
+      el.removeEventListener("hidden.bs.modal", onHidden);
+    };
+  }, []);
+
   return (
     <>
       <div
@@ -2331,8 +2513,16 @@ const PurchasesList = () => {
                   onRefresh={token ? () => void loadApiPurchases() : undefined}
                   onExportPdf={handleExportPdf}
                   onExportExcel={handleExportExcel}
+                  onImport={canImportPurchases ? () => showBsModal("view-notes") : undefined}
                 />
                 <div className="d-flex purchase-pg-btn">
+                  <input
+                    ref={importFileInputRef}
+                    type="file"
+                    className="d-none"
+                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                    onChange={handleImportFileChange}
+                  />
                   <div className="page-btn">
                     <Link
                       to="#"
@@ -2359,8 +2549,10 @@ const PurchasesList = () => {
                     <Link
                       to="#"
                       className="btn btn-secondary color"
-                      data-bs-toggle="modal"
-                      data-bs-target="#view-notes">
+                      onClick={(e) => {
+                        e.preventDefault();
+                        showBsModal("view-notes");
+                      }}>
                       <i className="feather icon-download me-2" />
                       Import Purchase
                     </Link>
@@ -3007,146 +3199,124 @@ const PurchasesList = () => {
       {/* /Edit Purchase */}
       {/* Import Purchase */}
       <div className="modal fade" id="view-notes">
-        <div className="modal-dialog modal-dialog-centered">
+        <div className="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
           <div className="modal-content">
-            <div className="page-wrapper-new p-0">
-              <div className="content">
-                <div className="modal-header">
-                  <div className="page-title">
-                    <h4>Import Purchase</h4>
+            <div className="modal-header">
+              <div className="page-title">
+                <h4 className="mb-0">Import Purchase</h4>
+                <p className="small text-muted mb-0 mt-1">
+                  Required columns: Supplier, Product, Qty, Unit Price. Optional: Reference, Date, Type,
+                  Status, Description.
+                </p>
+              </div>
+              <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="d-flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => {
+                    downloadPurchaseImportTemplate().catch(() => {
+                      setPurchasesError("Could not download sample file.");
+                    });
+                  }}>
+                  Download Sample File
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={handleOpenImportPicker}>
+                  Upload Spreadsheet
+                </button>
+              </div>
+
+              {importParseErrors.length > 0 ? (
+                <div className="alert alert-warning py-2" role="alert">
+                  <strong className="d-block mb-1">Parse Issues</strong>
+                  <ul className="mb-0 small ps-3">
+                    {importParseErrors.map((err, i) => (
+                      <li key={`imp-err-${i}`}>
+                        Row {err.sheetRow}: {err.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {!importSummary ? (
+                <>
+                  <div className="table-responsive border rounded" style={{ maxHeight: 340 }}>
+                    <table className="table table-sm mb-0">
+                      <thead className="table-light position-sticky top-0">
+                        <tr>
+                          <th>Supplier</th>
+                          <th>Reference</th>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Status</th>
+                          <th>Line Items</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPurchasesData.slice(0, 30).map((row, idx) => (
+                          <tr key={`${row.reference || "ref"}-${idx}`}>
+                            <td>{row.supplier}</td>
+                            <td>{row.reference || "Auto"}</td>
+                            <td>{row.purchase_date}</td>
+                            <td>{row.purchase_type}</td>
+                            <td>{row.status}</td>
+                            <td>{Array.isArray(row.lines) ? row.lines.length : 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                  {importPurchasesData.length > 30 ? (
+                    <p className="small text-muted mt-2 mb-0">
+                      Showing first 30 grouped purchases out of {importPurchasesData.length}.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <div>
+                  <p className="mb-2">
+                    <strong>Created:</strong> {importSummary.created}, <strong>Skipped:</strong>{" "}
+                    {importSummary.skipped}, <strong>Failed:</strong> {importSummary.failed}
+                  </p>
+                  {importSummary.details.length > 0 ? (
+                    <ul className="small mb-0 ps-3" style={{ maxHeight: 260, overflow: "auto" }}>
+                      {importSummary.details.map((line, idx) => (
+                        <li key={`imp-detail-${idx}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="small text-muted mb-0">No row-level messages.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {!importSummary ? (
+                <>
+                  <button type="button" className="btn me-2 btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                  </button>
                   <button
                     type="button"
-                    className="close"
-                    data-bs-dismiss="modal"
-                    aria-label="Close">
-                    
-                    <span aria-hidden="true">×</span>
+                    className="btn btn-primary"
+                    disabled={importWorking || importPurchasesData.length === 0}
+                    onClick={handleImportPurchasesSubmit}>
+                    {importWorking ? "Importing..." : "Import Purchases"}
                   </button>
-                </div>
-                <form action="purchase-list.html">
-                  <div className="modal-body">
-                    <div className="row">
-                      <div className="col-lg-6 col-sm-6 col-12">
-                        <div className="mb-3">
-                          <label className="form-label">
-                            Supplier Name
-                            <span className="text-danger ms-1">*</span>
-                          </label>
-                          <div className="row">
-                            <div className="col-lg-10 col-sm-10 col-10">
-                              <CommonSelect
-                                className="w-100"
-                                options={supplierOptions}
-                                value={selectedSupplier}
-                                onChange={(e) => setSelectedSupplier(e.value)}
-                                placeholder="Select Supplier"
-                                filter={false} />
-                              
-                            </div>
-                            <div className="col-lg-2 col-sm-2 col-2 ps-0">
-                              <div className="add-icon tab">
-                                <Link
-                                  to="#"
-                                  data-bs-toggle="modal"
-                                  data-bs-target="#add_customer">
-                                  
-                                  <i className="feather icon-plus-circle" />
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-lg-6 col-sm-6 col-12">
-                        <div className="mb-3">
-                          <label className="form-label">
-                            {" "}
-                            Status<span className="text-danger ms-1">*</span>
-                          </label>
-                          <CommonSelect
-                            className="w-100"
-                            options={statusOptions}
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.value)}
-                            placeholder="Select Status"
-                            filter={false} />
-                          
-                        </div>
-                      </div>
-                      <div className="col-lg-12 col-12">
-                        <div className="row">
-                          <div>
-                            <div className="modal-footer-btn download-file">
-                              <Link
-                                to="#"
-                                className="btn btn-submit fs-13 fw-medium">
-                                
-                                Download Sample File
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-lg-12">
-                        <div className="mb-3 image-upload-down">
-                          <label className="form-label"> Upload CSV File</label>
-                          <div className="image-upload download">
-                            <input type="file" />
-                            <div className="image-uploads">
-                              <img src={downloadImg} alt="img" />
-                              <h4>
-                                Drag and drop a <span>file to upload</span>
-                              </h4>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-lg-4 col-sm-6 col-12">
-                        <div className="mb-3">
-                          <label className="form-label">
-                            Order Tax<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control" />
-                        </div>
-                      </div>
-                      <div className="col-lg-4 col-sm-6 col-12">
-                        <div className="mb-3">
-                          <label className="form-label">
-                            Discount<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control" />
-                        </div>
-                      </div>
-                      <div className="col-lg-4 col-sm-6 col-12">
-                        <div className="mb-3">
-                          <label className="form-label">
-                            Shipping<span className="text-danger ms-1">*</span>
-                          </label>
-                          <input type="text" className="form-control" />
-                        </div>
-                      </div>
-                      <div className="mb-3 summer-description-box transfer">
-                        <label className="form-label">Description</label>
-                        <div id="summernote3"></div>
-                        <p>Maximum 60 Characters</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn me-2 btn-secondary"
-                      data-bs-dismiss="modal">
-                      
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn btn-primary">
-                      Submit
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" data-bs-dismiss="modal">
+                  Done
+                </button>
+              )}
             </div>
           </div>
         </div>

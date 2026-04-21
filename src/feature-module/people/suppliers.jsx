@@ -5,6 +5,10 @@ import SearchFromApi from "../../components/data-table/search";
 import CommonSelect from "../../components/select/common-select";
 import TableTopHead from "../../components/table-top-head";
 import { downloadSuppliersExcel, downloadSuppliersPdf } from "../../utils/supplierExport";
+import {
+  downloadSupplierImportTemplate,
+  parseSupplierImportFile
+} from "../../utils/supplierImport";
 import { user33 } from "../../utils/imagepath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -151,6 +155,7 @@ const Suppliers = () => {
 
   const auth = useOptionalAuth();
   const token = auth?.token ?? null;
+  const canImportSuppliers = !token || Boolean(auth?.hasPermission?.("procurement.suppliers.manage"));
 
   const [suppliers, setSuppliers] = useState(getInitialSupplierRows);
   const [listLoading, setListLoading] = useState(() => Boolean(token));
@@ -214,6 +219,11 @@ const Suppliers = () => {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
   const [selectedSuppliers, setSelectedSuppliers] = useState([]);
+  const importFileInputRef = useRef(null);
+  const [importRows, setImportRows] = useState([]);
+  const [importParseErrors, setImportParseErrors] = useState([]);
+  const [importWorking, setImportWorking] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const [addFirstName, setAddFirstName] = useState("");
   const [addLastName, setAddLastName] = useState("");
@@ -320,6 +330,145 @@ const Suppliers = () => {
       setListError("Could not export Excel. Try again or check the browser download settings.");
     }
   }, [displayRows]);
+
+  const handleImportPick = useCallback(() => {
+    importFileInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) {
+      e.target.value = "";
+    }
+    if (!file) {
+      return;
+    }
+    try {
+      const parsed = await parseSupplierImportFile(file);
+      setImportRows(parsed.rows);
+      setImportParseErrors(parsed.errors);
+      setImportSummary(null);
+      setImportWorking(false);
+      const el = document.getElementById("import-suppliers-modal");
+      if (el) {
+        Modal.getOrCreateInstance(el).show();
+      }
+    } catch {
+      setListError("Could not read the import file.");
+    }
+  }, []);
+
+  const runSupplierImport = useCallback(async () => {
+    if (importRows.length === 0) {
+      return;
+    }
+    setImportWorking(true);
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+    const details = [];
+
+    if (token) {
+      const usedPhones = new Set(suppliers.map((s) => String(s.phone ?? "").trim()));
+      const usedEmails = new Set(
+        suppliers.map((s) => String(s.email ?? "").trim().toLowerCase()).filter(Boolean)
+      );
+      for (const row of importRows) {
+        const ph = row.phone.trim();
+        const em = String(row.email ?? "")
+          .trim()
+          .toLowerCase();
+        if (usedPhones.has(ph) || (em && usedEmails.has(em))) {
+          skipped += 1;
+          details.push(`Row ${row.sheetRow}: skipped (duplicate phone or email already in list).`);
+          continue;
+        }
+        const nameParts = row.name.trim().split(/\s+/);
+        const firstName = nameParts.shift() ?? "";
+        const lastName = nameParts.join(" ");
+        try {
+          await createSupplierRequest(token, {
+            name: row.name,
+            first_name: firstName || null,
+            last_name: lastName || null,
+            email: row.email,
+            phone: ph,
+            location: row.location,
+            status: row.status,
+            avatar_url: null
+          });
+          created += 1;
+          usedPhones.add(ph);
+          if (em) {
+            usedEmails.add(em);
+          }
+        } catch (err) {
+          if (err instanceof TillFlowApiError) {
+            const msg = String(err.message ?? "");
+            if (err.status === 422 && /unique|already|taken|phone|email/i.test(msg)) {
+              skipped += 1;
+              details.push(`Row ${row.sheetRow}: skipped (${msg})`);
+            } else {
+              failed += 1;
+              details.push(`Row ${row.sheetRow}: ${msg}`);
+            }
+          } else {
+            failed += 1;
+            details.push(`Row ${row.sheetRow}: failed to create supplier.`);
+          }
+        }
+      }
+      await loadSuppliers();
+    } else {
+      let draft = [...suppliers];
+      for (const row of importRows) {
+        const ph = row.phone.trim();
+        const em = String(row.email ?? "")
+          .trim()
+          .toLowerCase();
+        if (
+          draft.some((s) => String(s.phone ?? "").trim() === ph) ||
+          (em && draft.some((s) => String(s.email ?? "").trim().toLowerCase() === em))
+        ) {
+          skipped += 1;
+          details.push(`Row ${row.sheetRow}: skipped (duplicate phone or email).`);
+          continue;
+        }
+        const code = nextSupplierCode(draft);
+        draft.push({
+          code,
+          supplier: row.name,
+          avatar: user33,
+          email: row.email ?? "",
+          phone: ph,
+          location: row.location ?? "",
+          status: row.status
+        });
+        created += 1;
+      }
+      setSuppliers(draft);
+    }
+
+    setImportSummary({ created, skipped, failed, details });
+    setImportWorking(false);
+  }, [importRows, token, suppliers, loadSuppliers]);
+
+  useEffect(() => {
+    const el = document.getElementById("import-suppliers-modal");
+    if (!el) {
+      return undefined;
+    }
+    const onHidden = () => {
+      setImportRows([]);
+      setImportParseErrors([]);
+      setImportSummary(null);
+      setImportWorking(false);
+    };
+    el.addEventListener("hidden.bs.modal", onHidden);
+    return () => {
+      el.removeEventListener("hidden.bs.modal", onHidden);
+    };
+  }, []);
 
   const resetAddForm = useCallback(() => {
     if (addAvatarBlobRef.current) {
@@ -809,6 +958,7 @@ const Suppliers = () => {
               onRefresh={resetFilters}
               onExportPdf={handleExportPdf}
               onExportExcel={handleExportExcel}
+              onImport={canImportSuppliers ? handleImportPick : undefined}
             />
             {listError ? (
               <div className="alert alert-danger mt-3 mb-0" role="alert">
@@ -816,6 +966,15 @@ const Suppliers = () => {
               </div>
             ) : null}
             <div className="page-btn">
+              <input
+                ref={importFileInputRef}
+                type="file"
+                className="d-none"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                aria-hidden
+                tabIndex={-1}
+                onChange={handleImportFileChange}
+              />
               <Link
                 to="#"
                 className="btn btn-primary text-white"
@@ -885,6 +1044,130 @@ const Suppliers = () => {
           </div>
         </div>
         <CommonFooter />
+      </div>
+
+      <div className="modal fade" id="import-suppliers-modal">
+        <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4 className="mb-0">Import suppliers</h4>
+                <p className="text-muted small mb-0 mt-2">
+                  Required: Name, Phone. Optional: Email, Location, Status. Code is ignored on create.
+                </p>
+              </div>
+              <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              {!importSummary ? (
+                <>
+                  <div className="d-flex flex-wrap gap-2 mb-3">
+                    <button
+                      type="button"
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => {
+                        downloadSupplierImportTemplate().catch(() => {
+                          setListError("Could not download the import template.");
+                        });
+                      }}>
+                      Download template
+                    </button>
+                  </div>
+                  {importParseErrors.length > 0 ? (
+                    <div className="alert alert-warning py-2" role="alert">
+                      <strong className="d-block mb-1">Parse issues</strong>
+                      <ul className="mb-0 small ps-3">
+                        {importParseErrors.map((pe, idx) => (
+                          <li key={`pe-${pe.sheetRow}-${idx}`}>
+                            Row {pe.sheetRow}: {pe.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <div className="table-responsive border rounded" style={{ maxHeight: 320 }}>
+                    <table className="table table-sm table-hover mb-0">
+                      <thead className="table-light position-sticky top-0">
+                        <tr>
+                          <th>Row</th>
+                          <th>Name</th>
+                          <th>Phone</th>
+                          <th>Email</th>
+                          <th>Location</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importRows.slice(0, 40).map((r) => (
+                          <tr key={`${r.sheetRow}-${r.phone}`}>
+                            <td>{r.sheetRow}</td>
+                            <td>{r.name}</td>
+                            <td>{r.phone}</td>
+                            <td>{r.email ?? "—"}</td>
+                            <td>{r.location ?? "—"}</td>
+                            <td>{r.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importRows.length > 40 ? (
+                    <p className="small text-muted mt-2 mb-0">
+                      Showing first 40 of {importRows.length} valid rows.
+                    </p>
+                  ) : null}
+                  {importRows.length === 0 && importParseErrors.length === 0 ? (
+                    <p className="text-muted small mb-0">No valid rows in this file.</p>
+                  ) : null}
+                </>
+              ) : (
+                <div>
+                  <p className="mb-2">
+                    <strong>Created:</strong> {importSummary.created}, <strong>Skipped:</strong>{" "}
+                    {importSummary.skipped}, <strong>Failed:</strong> {importSummary.failed}
+                  </p>
+                  {importSummary.details.length > 0 ? (
+                    <ul className="small mb-0 ps-3" style={{ maxHeight: 240, overflow: "auto" }}>
+                      {importSummary.details.map((line, i) => (
+                        <li key={`imp-${i}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted small mb-0">No per-row messages.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {!importSummary ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary fs-13 fw-medium p-2 px-3 shadow-none"
+                    data-bs-dismiss="modal">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                    disabled={importWorking || importRows.length === 0}
+                    onClick={runSupplierImport}>
+                    {importWorking ? "Importing..." : "Import"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary fs-13 fw-medium p-2 px-3"
+                  data-bs-dismiss="modal">
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="modal fade" id="add-supplier">
