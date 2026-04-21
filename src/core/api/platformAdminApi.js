@@ -33,3 +33,23 @@ export async function fetchPlatformSubscriptions(query = {}) {
 export async function fetchPlatformDashboard() {
   return tillflowFetch('/platform/dashboard', { token: token() });
 }
+
+/**
+ * @param {Record<string, string>} [query] q, status
+ */
+export async function fetchPlatformTenants(query = {}) {
+  const q = new URLSearchParams(query).toString();
+  return tillflowFetch(`/platform/tenants${q ? `?${q}` : ''}`, { token: token() });
+}
+
+export async function fetchPlatformTenant(id) {
+  return tillflowFetch(`/platform/tenants/${id}`, { token: token() });
+}
+
+export async function createPlatformTenant(body) {
+  return tillflowFetch('/platform/tenants', { method: 'POST', body, token: token() });
+}
+
+export async function updatePlatformTenant(id, body) {
+  return tillflowFetch(`/platform/tenants/${id}`, { method: 'PATCH', body, token: token() });
+}

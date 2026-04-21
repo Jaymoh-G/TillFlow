@@ -267,7 +267,7 @@ export const all_routes = {
   reviews: "/reviews",
   superadmindashboard: "/dashboard",
   companies: "/companies",
-  subscription: "/tillflow/platform-owner/subscription",
+  subscription: "/tillflow/platform-owner/subscribers",
   packagelist: "/tillflow/platform-owner/packages",
   domain: "/domain",
   purchasetransaction: "/purchase-transaction",

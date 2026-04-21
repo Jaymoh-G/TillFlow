@@ -25,6 +25,9 @@ export const SETTINGS_FINANCIAL_PATH_RE =
   /\/tillflow\/admin\/settings\/(payment-gateway|bank-accounts|tax-rates|currencies)(\/|$)/;
 export const SETTINGS_OTHER_PATH_RE = /\/tillflow\/admin\/settings\/(storage|ban-ip)(\/|$)/;
 
+/** Platform owner console (packages, tenant subscribers). */
+export const PLATFORM_OWNER_PATH_RE = /\/tillflow\/platform-owner\//;
+
 /**
  * Which left-rail / tab panel should be active (DreamsPOS two-column sidebar pattern).
  * Inventory paths win over reports for `expired-items` / `low-stock`.
@@ -33,6 +36,9 @@ export function pathnameToSidebarPanel(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
   if (p === '/tillflow/admin') {
     return 'dashboard';
+  }
+  if (PLATFORM_OWNER_PATH_RE.test(pathname)) {
+    return 'platform';
   }
   if (INVENTORY_PATH_RE.test(pathname)) {
     return 'inventory';

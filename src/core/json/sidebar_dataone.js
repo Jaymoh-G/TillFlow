@@ -58,7 +58,7 @@ export const SidebarData1 = [
             tittle: 'Subscriptions',
             hasSubRoute: false,
             showSubRoute: false,
-            route: '/tillflow/platform-owner/subscription',
+            route: '/tillflow/platform-owner/subscribers',
             subRoutes: [],
           },
           {

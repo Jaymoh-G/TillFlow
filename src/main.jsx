@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from "react-redux";
 import AppRouter from "./app.router";
+import { bootstrapThemeDomFromStorage } from "./core/bootstrapThemeDom";
 import store from "./core/redux/store";
 // Single Bootstrap ESM instance: `bootstrap.bundle.min` + `import { Modal } from "bootstrap"`
 // use separate JS heaps and break programmatic hide() after data-bs-toggle open (stuck backdrop).
@@ -24,6 +25,8 @@ import "./customStyle.scss";
 if (typeof window !== "undefined") {
   window.bootstrap = bootstrap;
 }
+
+bootstrapThemeDomFromStorage();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

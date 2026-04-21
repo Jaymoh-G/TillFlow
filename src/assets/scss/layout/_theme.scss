@@ -893,9 +893,11 @@
     }
 }
 
-[data-layout="horizontal-single"] { 
+[data-layout="horizontal-single"] {
+    /* React app: HorizontalSidebar only uses #horizontal-menu (no #horizontal-single). Hiding it
+       left no nav while .menu-horizontal also hides the vertical #sidebar. */
     #horizontal-menu {
-        display: none;
+        display: block;
     }
     #horizontal-single {
         position: relative;

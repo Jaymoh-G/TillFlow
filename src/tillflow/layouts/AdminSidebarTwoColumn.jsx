@@ -20,7 +20,8 @@ import {
 
 export default function AdminSidebarTwoColumn() {
   const location = useLocation();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isPlatformOwner = Boolean(user?.is_platform_owner);
   const can = (slug) => hasPermission(slug);
   const canMasters = can('catalog.masters.view');
   const canItems = can('catalog.items.view');
@@ -82,6 +83,9 @@ export default function AdminSidebarTwoColumn() {
   const railItems = useMemo(() => {
     /** @type {{ id: string; icon: string; label: string }[]} */
     const items = [{ id: 'dashboard', icon: 'icon-grid', label: 'Dashboard' }];
+    if (isPlatformOwner) {
+      items.push({ id: 'platform', icon: 'icon-layers', label: 'Platform' });
+    }
     if (showInventory) {
       items.push({ id: 'inventory', icon: 'icon-package', label: 'Inventory' });
     }
@@ -103,6 +107,7 @@ export default function AdminSidebarTwoColumn() {
     items.push({ id: 'settings', icon: 'icon-settings', label: 'Settings' });
     return items;
   }, [
+    isPlatformOwner,
     showInventory,
     showStock,
     showSalesNav,
@@ -159,6 +164,32 @@ export default function AdminSidebarTwoColumn() {
 
   const renderPanel = () => {
     switch (activeSidebarPanel) {
+      case 'platform':
+        return isPlatformOwner ? (
+          <>
+            <div className="tf-sidebar-panel__title">Platform</div>
+            <div className="tf-nav-group__body tf-nav-group__body--panel">
+              <NavLink
+                to="/tillflow/platform-owner/packages"
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <i className="feather icon-package tf-nav__icon" aria-hidden />
+                Packages
+              </NavLink>
+              <NavLink
+                to="/tillflow/platform-owner/companies"
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <i className="feather icon-briefcase tf-nav__icon" aria-hidden />
+                Companies
+              </NavLink>
+              <NavLink
+                to="/tillflow/platform-owner/subscribers"
+                className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <i className="feather icon-users tf-nav__icon" aria-hidden />
+                Subscribers
+              </NavLink>
+            </div>
+          </>
+        ) : null;
       case 'dashboard':
         return (
           <>

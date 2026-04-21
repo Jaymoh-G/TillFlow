@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import ExpensesModule from '../feature-module/finance-accounts/expenses-module';
 import Biller from '../feature-module/people/billers';
 import Customers from '../feature-module/people/customers';
@@ -8,7 +8,6 @@ import PurchaseOrderReport from '../feature-module/purchases/purchase-order-repo
 import PurchaseReturns from '../feature-module/purchases/purchase-returns';
 import Invoice from '../feature-module/sales/invoicelist';
 import QuotationList from '../feature-module/sales/quotationlist';
-import AdminSalesReturns from './pages/AdminSalesReturns';
 import InvoiceSettings from '../feature-module/settings/appsetting/invoicesettings';
 import PrinterSettings from '../feature-module/settings/appsetting/printersettings';
 import Signature from '../feature-module/settings/appsetting/signature';
@@ -22,6 +21,7 @@ import Notification from '../feature-module/settings/generalsettings/notificatio
 import SecuritySettings from '../feature-module/settings/generalsettings/securitysettings';
 import BanIpaddress from '../feature-module/settings/othersettings/ban-ipaddress';
 import StorageSettings from '../feature-module/settings/othersettings/storagesettings';
+import AutomationSettings from '../feature-module/settings/systemsettings/automationsettings';
 import EmailSettings from '../feature-module/settings/systemsettings/emailsettings';
 import Emailtemplatesettings from '../feature-module/settings/systemsettings/emailtemplatesettings';
 import GdprSettings from '../feature-module/settings/systemsettings/gdprsettings';
@@ -35,7 +35,6 @@ import PosSettings from '../feature-module/settings/websitesettings/possettings'
 import Preference from '../feature-module/settings/websitesettings/preference';
 import SocialAuthentication from '../feature-module/settings/websitesettings/socialauthentication';
 import SystemSettings from '../feature-module/settings/websitesettings/systemsettings';
-import AutomationSettings from '../feature-module/settings/systemsettings/automationsettings';
 import StockAdjustment from '../feature-module/stock/stock-adjustment';
 import StockTransfer from '../feature-module/stock/stock-transfer';
 import ManageStores from '../feature-module/stores/manage-stores';
@@ -45,8 +44,10 @@ import { AuthProvider } from './auth/AuthContext';
 import { M, PERMISSION, vm } from './auth/permissions';
 import RequireAuth from './auth/RequireAuth';
 import RequirePermission from './auth/RequirePermission';
+import TillflowPushBootstrap from './components/TillflowPushBootstrap';
 import AdminLayout from './layouts/AdminLayout';
 import PosLayout from './layouts/PosLayout';
+import AdminActivityLogs from './pages/AdminActivityLogs';
 import AdminAddItem from './pages/AdminAddItem';
 import AdminBrands from './pages/AdminBrands';
 import AdminCategories from './pages/AdminCategories';
@@ -55,33 +56,33 @@ import AdminCreditNotes from './pages/AdminCreditNotes';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminDeliveryNoteDetail from './pages/AdminDeliveryNoteDetail';
 import AdminDeliveryNotes from './pages/AdminDeliveryNotes';
-import AdminActivityLogs from './pages/AdminActivityLogs';
-import AdminNotifications from './pages/AdminNotifications';
 import AdminExpiredItems from './pages/AdminExpiredItems';
 import AdminInvoiceDetail from './pages/AdminInvoiceDetail';
 import AdminInvoicePaymentDetail from './pages/AdminInvoicePaymentDetail';
 import AdminInvoicePayments from './pages/AdminInvoicePayments';
+import AdminInvoiceReport from './pages/AdminInvoiceReport';
 import AdminLeadDetail from './pages/AdminLeadDetail';
 import AdminLeads from './pages/AdminLeads';
 import AdminLowStock from './pages/AdminLowStock';
+import AdminNotifications from './pages/AdminNotifications';
 import AdminPosOrderDetail from './pages/AdminPosOrderDetail';
 import AdminPosOrders from './pages/AdminPosOrders';
+import AdminPosSalesReport from './pages/AdminPosSalesReport';
 import AdminPrintBarcode from './pages/AdminPrintBarcode';
 import AdminProducts from './pages/AdminProducts';
-import AdminInvoiceReport from './pages/AdminInvoiceReport';
-import AdminPosSalesReport from './pages/AdminPosSalesReport';
-import AdminReportsHub from './pages/AdminReportsHub';
 import AdminReportRunner from './pages/AdminReportRunner';
+import AdminReportsHub from './pages/AdminReportsHub';
 import AdminRoles from './pages/AdminRoles';
+import AdminSalesReturns from './pages/AdminSalesReturns';
 import AdminUnits from './pages/AdminUnits';
 import AdminVariantAttributes from './pages/AdminVariantAttributes';
 import AdminWarranties from './pages/AdminWarranties';
+import PlatformCompanies from './pages/PlatformCompanies';
 import PosRegister from './pages/PosRegister';
 import TillFlowForgotPassword from './pages/TillFlowForgotPassword';
 import TillFlowInviteAccept from './pages/TillFlowInviteAccept';
 import TillFlowLanding from './pages/TillFlowLanding';
 import TillFlowLogin from './pages/TillFlowLogin';
-import TillflowPushBootstrap from './components/TillflowPushBootstrap';
 import TenantUiSettingsBridge from './tenantUiSettings/TenantUiSettingsBridge';
 import TenantUiSettingsSyncBanner from './tenantUiSettings/TenantUiSettingsSyncBanner';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -107,10 +108,16 @@ export default function TillFlowApp() {
             <Route path="forgot-password" element={<TillFlowForgotPassword />} />
             <Route path="invite/accept" element={<TillFlowInviteAccept />} />
             <Route element={<RequireAuth />}>
-              <Route path="platform-owner/packages" element={<Packages />} />
-              <Route path="platform-owner/subscription" element={<Subscription />} />
-              <Route path="admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
+              <Route element={<AdminLayout />}>
+                <Route path="platform-owner/packages" element={<Packages />} />
+                <Route path="platform-owner/companies" element={<PlatformCompanies />} />
+                <Route path="platform-owner/subscribers" element={<Subscription />} />
+                <Route
+                  path="platform-owner/subscription"
+                  element={<Navigate to="/tillflow/platform-owner/subscribers" replace />}
+                />
+                <Route path="admin" element={<Outlet />}>
+                  <Route index element={<AdminDashboard />} />
 
                 <Route element={<RequirePermission anyOf={vm(M.CATALOG_MASTERS)} />}>
                   <Route path="categories" element={<AdminCategories />} />
@@ -279,6 +286,7 @@ export default function TillFlowApp() {
 
                 <Route element={<RequirePermission anyOf={[PERMISSION.USERS_MANAGE]} />}>
                   <Route path="settings/roles-permissions" element={<AdminRoles />} />
+                </Route>
                 </Route>
               </Route>
             </Route>
