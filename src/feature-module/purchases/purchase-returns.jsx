@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import CommonFooter from "../../components/footer/commonFooter";
 import { purchasesreturn } from "../../core/json/purchasereturn";
@@ -21,6 +21,10 @@ import {
   updatePurchaseReturnRequest
 } from "../../tillflow/api/purchaseReturns";
 import { getPurchaseRequest, listPurchasesRequest } from "../../tillflow/api/purchases";
+import {
+  downloadPurchaseReturnImportTemplate,
+  parsePurchaseReturnImportFile
+} from "../../utils/purchaseReturnImport";
 
 function normalizePaymentStatus(value) {
   const raw = String(value ?? "").trim().toLowerCase();
@@ -81,6 +85,11 @@ const PurchaseReturns = () => {
   const [text, setText] = useState("");
   const [selectedReturns, setSelectedReturns] = useState([]);
   const [viewReturnRow, setViewReturnRow] = useState(null);
+  const importFileInputRef = useRef(null);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importResult, setImportResult] = useState(null);
+  const [importWorking, setImportWorking] = useState(false);
 
   const mapApiRow = useCallback((row) => ({
     id: String(row.id),
@@ -361,6 +370,41 @@ const PurchaseReturns = () => {
     inst.hide();
   }, []);
 
+  const resolveSupplierId = useCallback(
+    (rawSupplier) => {
+      const text = String(rawSupplier ?? "").trim();
+      if (!text) return null;
+      if (/^\d+$/.test(text)) return Number(text);
+      const found = suppliers.find(
+        (s) => String(s.name ?? "").trim().toLowerCase() === text.toLowerCase()
+      );
+      return found?.id ?? null;
+    },
+    [suppliers]
+  );
+
+  const buildImportPayload = useCallback(
+    (row, list) => {
+      const paid = Number(row.refunded || 0);
+      const due = Number(row.due || 0);
+      return {
+        supplier_id: resolveSupplierId(row.supplier),
+        purchase_id: null,
+        reference: row.reference || nextPurchaseReturnRefLocal(list),
+        return_date: toInputDate(row.date) || new Date().toISOString().slice(0, 10),
+        status: row.status || "Returned",
+        grand_total: paid + due,
+        paid_amount: paid,
+        due_amount: due,
+        refund_amount: paid,
+        payment_status: row.paymentStatus || "Refunded",
+        description: row.description || null,
+        lines: []
+      };
+    },
+    [resolveSupplierId]
+  );
+
   const resetFormState = useCallback(() => {
     setEditingRowId("");
     setSelectedPurchaseId("");
@@ -503,6 +547,78 @@ const PurchaseReturns = () => {
     await downloadPurchasesExcel(exportRows);
   }, [exportRows]);
 
+  const handleImportPick = useCallback(() => {
+    importFileInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = await parsePurchaseReturnImportFile(file);
+      setImportRows(parsed.rows);
+      setImportErrors(parsed.errors);
+      setImportResult(null);
+      if (typeof window !== "undefined" && window.bootstrap?.Modal) {
+        const el = document.getElementById("import-purchase-returns");
+        if (el) {
+          const inst = window.bootstrap.Modal.getInstance(el) ?? new window.bootstrap.Modal(el);
+          inst.show();
+        }
+      }
+    } catch {
+      setListError("Could not read the import file.");
+    }
+  }, []);
+
+  const runPurchaseReturnImport = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImportWorking(true);
+    setImportResult(null);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    let draft = [...dataSource];
+    for (const row of importRows) {
+      try {
+        const payload = buildImportPayload(row, draft);
+        if (!payload.supplier_id) {
+          failed += 1;
+          details.push(`Row ${row.sheetRow}: supplier "${row.supplier}" not found.`);
+          continue;
+        }
+        await createPurchaseReturnRequest(token, payload);
+        created += 1;
+        draft.push({
+          id: `tmp-${row.sheetRow}-${created}`,
+          img: stockImg01,
+          date: payload.return_date,
+          supplier: row.supplier,
+          supplierId: String(payload.supplier_id),
+          purchaseId: "",
+          reference: payload.reference,
+          status: payload.status,
+          grandTotal: String(payload.grand_total),
+          paid: String(payload.paid_amount),
+          due: String(payload.due_amount),
+          paymentStatus: normalizePaymentStatus(payload.payment_status),
+          description: payload.description || ""
+        });
+      } catch (err) {
+        failed += 1;
+        details.push(
+          `Row ${row.sheetRow}: ${
+            err instanceof TillFlowApiError ? err.message : "Failed to create purchase return."
+          }`
+        );
+      }
+    }
+    setImportResult({ created, failed, details });
+    setImportWorking(false);
+    await loadPurchaseReturns();
+  }, [token, importRows, dataSource, buildImportPayload, loadPurchaseReturns]);
+
   const supplierOptions = useMemo(() => {
     const apiOptions = suppliers.map((s) => ({
       label: String(s.name ?? "").trim() || `Supplier #${s.id}`,
@@ -536,10 +652,32 @@ const PurchaseReturns = () => {
             <TableTopHead
               onExportPdf={handleExportPdf}
               onExportExcel={handleExportExcel}
+              onImport={handleImportPick}
               onRefresh={token ? () => void loadPurchaseReturns() : undefined}
             />
+            <div className="page-btn">
+              <Link
+                to="#"
+                data-bs-toggle="modal"
+                data-bs-target="#add-sales-new"
+                className="btn btn-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  resetFormState();
+                }}>
+                <i className="feather icon-plus-circle me-2" />
+                Add Purchase Return
+              </Link>
+            </div>
           </div>
           {listError ? <p className="text-danger small mb-2">{listError}</p> : null}
+          <input
+            ref={importFileInputRef}
+            type="file"
+            className="d-none"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+            onChange={handleImportFileChange}
+          />
           {/* /product list */}
           <div className="card table-list-card">
             <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
@@ -782,6 +920,113 @@ const PurchaseReturns = () => {
         </div>
       </div>
       {/* /add popup */}
+      <div className="modal fade" id="import-purchase-returns">
+        <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="page-title">
+                <h4 className="mb-0">Import purchase returns</h4>
+              </div>
+              <button type="button" className="close" data-bs-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div className="modal-body">
+              {!importResult ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm mb-3"
+                    onClick={() => {
+                      void downloadPurchaseReturnImportTemplate();
+                    }}>
+                    Download sample template
+                  </button>
+                  {importErrors.length > 0 ? (
+                    <div className="alert alert-warning py-2">
+                      <strong className="d-block mb-1">Parse issues</strong>
+                      <ul className="mb-0 small ps-3">
+                        {importErrors.map((pe, idx) => (
+                          <li key={`pr-pe-${pe.sheetRow}-${idx}`}>
+                            Row {pe.sheetRow}: {pe.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <div className="table-responsive border rounded" style={{ maxHeight: 320 }}>
+                    <table className="table table-sm table-hover mb-0">
+                      <thead className="table-light position-sticky top-0">
+                        <tr>
+                          <th>Row</th>
+                          <th>Date</th>
+                          <th>Supplier</th>
+                          <th>Reference</th>
+                          <th>Refunded</th>
+                          <th>Due</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importRows.slice(0, 50).map((r) => (
+                          <tr key={`${r.sheetRow}-${r.reference || ""}`}>
+                            <td>{r.sheetRow}</td>
+                            <td>{r.date}</td>
+                            <td>{r.supplier}</td>
+                            <td>{r.reference ?? "—"}</td>
+                            <td>{formatKes(r.refunded)}</td>
+                            <td>{formatKes(r.due)}</td>
+                            <td>{r.paymentStatus}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <p className="mb-2">
+                    <strong>Created:</strong> {importResult.created}
+                    {", "}
+                    <strong>Failed:</strong> {importResult.failed}
+                  </p>
+                  {importResult.details.length > 0 ? (
+                    <ul className="small ps-3 mb-0">
+                      {importResult.details.map((line, idx) => (
+                        <li key={`pr-imp-${idx}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted small mb-0">No row errors.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              {!importResult ? (
+                <>
+                  <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={importWorking || importRows.length === 0}
+                    onClick={() => {
+                      void runPurchaseReturnImport();
+                    }}>
+                    {importWorking ? "Importing..." : "Import"}
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" data-bs-dismiss="modal">
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Add Supplier */}
       <div className="modal fade" id="add_customer">
         <div className="modal-dialog modal-dialog-centered">
