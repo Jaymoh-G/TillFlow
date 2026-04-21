@@ -1,5 +1,5 @@
 import { Tooltip } from "primereact/tooltip";
-import { ChevronDown, ChevronUp, RefreshCw } from "react-feather";
+import { ChevronDown, ChevronUp, RefreshCw, Upload } from "react-feather";
 import { useDispatch, useSelector } from "react-redux";
 import { setToggleHeader } from "../../core/redux/sidebarSlice";
 import { excel, pdf } from "../../utils/imagepath";
@@ -9,9 +9,16 @@ import { excel, pdf } from "../../utils/imagepath";
  * @param {() => void} [props.onRefresh]
  * @param {() => void} [props.onExportPdf]
  * @param {() => void} [props.onExportExcel]
+ * @param {() => void} [props.onImport]
  * @param {boolean} [props.showCollapse]
  */
-const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel, showCollapse = true }) => {
+const TableTopHead = ({
+  onRefresh,
+  onExportPdf,
+  onExportExcel,
+  onImport,
+  showCollapse = true
+}) => {
   const dispatch = useDispatch();
   const { toggleHeader } = useSelector((state) => state.sidebar);
   const handleToggleHeader = () => {
@@ -20,6 +27,7 @@ const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel, showCollapse = tr
 
   const exportPdfEnabled = typeof onExportPdf === "function";
   const exportExcelEnabled = typeof onExportExcel === "function";
+  const importEnabled = typeof onImport === "function";
 
   const iconProps = {
     size: 20,
@@ -42,6 +50,19 @@ const TableTopHead = ({ onRefresh, onExportPdf, onExportExcel, showCollapse = tr
             title={exportPdfEnabled ? "Export PDF" : "Export PDF (not available)"}
             onClick={exportPdfEnabled ? onExportPdf : undefined}>
             <img src={pdf} alt="" style={{ opacity: exportPdfEnabled ? 1 : 0.45 }} />
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            className="pr-tooltip border-0 bg-transparent p-0 d-inline-flex align-items-center justify-content-center"
+            data-pr-tooltip="Import"
+            data-pr-position="top"
+            aria-label="Import"
+            disabled={!importEnabled}
+            title={importEnabled ? "Import spreadsheet" : "Import (not available)"}
+            onClick={importEnabled ? onImport : undefined}>
+            <Upload {...iconProps} style={{ ...iconProps.style, opacity: importEnabled ? 1 : 0.45 }} />
           </button>
         </li>
         <li>

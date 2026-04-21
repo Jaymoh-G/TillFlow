@@ -10,6 +10,8 @@
 #
 # Hosting: point the subdomain document root at Laravel public/ (e.g. .../tillflowpos.breezetech.co.ke/public), not the project root.
 #
+# Frontend (Vite) after CI: index.html is backend/public/spa/index.html only. Hashed JS/CSS from Vite go to backend/public/assets/ (sibling folder). The built HTML references /assets/*.js and /assets/*.css — those URLs map to public/assets/ on disk, not inside public/spa/.
+#
 # backend/ is a Git submodule pointing at Jaymoh-G/TillFlow. CI checks out that repo at the commit pinned in this repo (git rev-parse HEAD:backend).
 # Secret TillFlow_submodule_CI: PAT with Contents: Read on Jaymoh-G/TillFlow (required if private). If checkout fails with missing ref, push that commit to TillFlow or run git submodule update in the parent and commit a new pointer.
 #
@@ -53,18 +55,22 @@ jobs:
           path: backend
           token: ${{ secrets.TillFlow_submodule_CI || github.token }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
           extensions: mbstring, openssl, pdo, tokenizer, xml, ctype, curl, fileinfo, bcmath
           coverage: none
+
+      - name: Composer install (production)
+        working-directory: backend
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
 
       - name: Install JS dependencies
         run: npm ci
@@ -76,17 +82,35 @@ jobs:
 
       - name: Copy Vite output for root SPA (assets under public/; shell HTML under public/spa/)
         run: |
+          set -e
           mkdir -p backend/public/spa backend/public/assets
-          rm -rf backend/public/spa/* backend/public/assets/*
+          find backend/public/spa -mindepth 1 -delete 2>/dev/null || true
+          find backend/public/assets -mindepth 1 -delete 2>/dev/null || true
+          if [ ! -d dist/assets ] || [ -z "$(ls -A dist/assets 2>/dev/null)" ]; then
+            echo "::error::Vite build produced no files under dist/assets. Check npm run build and vite.config (base/build.outDir)."
+            exit 1
+          fi
           cp -r dist/assets/. backend/public/assets/
           cp dist/index.html backend/public/spa/index.html
           for f in favicon.ico robots.txt manifest.json manifest.webmanifest sw.js; do
             if [ -f "dist/$f" ]; then cp "dist/$f" "backend/public/$f"; fi
           done
 
-      - name: Composer install (production)
-        working-directory: backend
-        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+      - name: List SPA files to deploy (public/spa, public/assets)
+        run: |
+          echo "---- backend/public/spa ----"
+          ls -la backend/public/spa || true
+          echo "---- backend/public/assets (first 30) ----"
+          ls -la backend/public/assets | head -30
+          echo "---- file counts ----"
+          spa_n=$(find backend/public/spa -type f | wc -l)
+          assets_n=$(find backend/public/assets -type f | wc -l)
+          echo "spa: $spa_n files"
+          echo "assets: $assets_n files"
+          if [ "$assets_n" -eq 0 ]; then
+            echo "::error::No files under backend/public/assets — FTP would deploy HTML only. Fix Vite build/copy before deploying."
+            exit 1
+          fi
 
       # FTP-Deploy-Action requires non-empty `server`; unset FTP_HOST becomes empty and triggers "Input required and not supplied: server".
       - name: Verify FTP_HOST secret

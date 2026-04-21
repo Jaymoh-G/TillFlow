@@ -1,5 +1,5 @@
 /**
- * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, location?: string, status?: string }>} rows
+ * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, company?: string, taxId?: string, category?: string, location?: string, status?: string }>} rows
  * @returns {Record<string, string>[]}
  */
 function rowsToExportRecords(rows) {
@@ -8,13 +8,16 @@ function rowsToExportRecords(rows) {
     Name: String(r.customer ?? ""),
     Email: String(r.email ?? ""),
     Phone: String(r.phone ?? ""),
+    Company: String(r.company ?? ""),
+    "Tax ID": String(r.taxId ?? ""),
+    Category: String(r.category ?? ""),
     Location: String(r.location ?? ""),
     Status: String(r.status ?? "")
   }));
 }
 
 /**
- * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, location?: string, status?: string }>} rows
+ * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, company?: string, taxId?: string, category?: string, location?: string, status?: string }>} rows
  */
 export async function downloadCustomersExcel(rows) {
   const XLSX = await import("xlsx");
@@ -27,7 +30,7 @@ export async function downloadCustomersExcel(rows) {
 }
 
 /**
- * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, location?: string, status?: string }>} rows
+ * @param {Array<{ code?: string, customer?: string, email?: string, phone?: string, company?: string, taxId?: string, category?: string, location?: string, status?: string }>} rows
  */
 export async function downloadCustomersPdf(rows) {
   const { jsPDF } = await import("jspdf");
@@ -40,12 +43,15 @@ export async function downloadCustomersPdf(rows) {
     String(r.customer ?? ""),
     String(r.email ?? ""),
     String(r.phone ?? ""),
+    String(r.company ?? ""),
+    String(r.taxId ?? ""),
+    String(r.category ?? ""),
     String(r.location ?? ""),
     String(r.status ?? "")
   ]);
   autoTable(doc, {
     startY: 22,
-    head: [["Code", "Name", "Email", "Phone", "Location", "Status"]],
+    head: [["Code", "Name", "Email", "Phone", "Company", "Tax ID", "Category", "Location", "Status"]],
     body,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [65, 158, 221] }

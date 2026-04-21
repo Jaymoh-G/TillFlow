@@ -16,6 +16,12 @@ function appendCustomerFieldsToFormData(formData, fields) {
   if (fields.tax_id != null && fields.tax_id !== '') {
     formData.append('tax_id', fields.tax_id);
   }
+  if (fields.category != null && fields.category !== '') {
+    formData.append('category', fields.category);
+  }
+  if (fields.created_at != null && fields.created_at !== '') {
+    formData.append('created_at', fields.created_at);
+  }
 }
 
 export function listCustomersRequest(token) {
