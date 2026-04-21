@@ -11,12 +11,17 @@ import {
 } from "../../stores/storesRegistry";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { TillFlowApiError } from "../../tillflow/api/errors";
+import ImportRecordsModal from "../../tillflow/components/ImportRecordsModal";
 import {
   createStoreRequest,
   deleteStoreRequest,
   listStoresRequest,
   updateStoreRequest
 } from "../../tillflow/api/stores";
+import {
+  downloadStoresImportTemplate,
+  parseStoresImportFile
+} from "../../tillflow/utils/storesImport";
 
 function hideBsModal(id) {
   const el = document.getElementById(id);
@@ -65,6 +70,11 @@ export default function ManageStores() {
 
   const [deleteId, setDeleteId] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const loadStoresFromApi = useCallback(async () => {
     if (!token) {
@@ -257,6 +267,40 @@ export default function ManageStores() {
     }
   };
 
+  const runImportStores = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+    const details = [];
+    const existing = new Set(stores.map((s) => String(s.name ?? "").trim().toLowerCase()).filter(Boolean));
+    for (const row of importRows) {
+      const key = String(row.name ?? "").trim().toLowerCase();
+      if (key && existing.has(key)) {
+        skipped += 1;
+        details.push(`Row ${row.sheetRow}: skipped duplicate store name "${row.name}".`);
+        continue;
+      }
+      try {
+        await createStoreRequest(token, {
+          name: row.name,
+          store_name: row.store_name,
+          location: row.location,
+          code: row.code ?? undefined
+        });
+        created += 1;
+        if (key) existing.add(key);
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create store."}`);
+      }
+    }
+    await loadStoresFromApi();
+    setImportSummary({ created, skipped, failed, details });
+    setImporting(false);
+  }, [token, importRows, stores, loadStoresFromApi]);
+
   const columns = useMemo(
     () => [
       {
@@ -356,6 +400,7 @@ export default function ManageStores() {
                   ? undefined
                   : () => void handleExportExcel()
               }
+              onImport={token ? () => setShowImport(true) : undefined}
             />
             {listError ? (
               <div className="alert alert-danger mt-3 mb-0" role="alert">
@@ -582,6 +627,41 @@ export default function ManageStores() {
           </div>
         </div>
       </div>
+
+      <ImportRecordsModal
+        show={showImport}
+        title="Import stores"
+        helpText="Required: name. Optional: location, code."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "name", label: "Name", render: (r) => r.name },
+          { key: "location", label: "Location", render: (r) => r.location || "—" },
+          { key: "code", label: "Code", render: (r) => r.code || "Auto" }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadStoresImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseStoresImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportStores()}
+      />
     </>
   );
 }

@@ -39,6 +39,7 @@ function seedWithMeta(list) {
 const SERVER_SNAPSHOT = Object.freeze(
   seedWithMeta(STORES_SEED.map((s) => ({ ...s })))
 );
+const EMPTY_SNAPSHOT = Object.freeze([]);
 
 /** @type {string | null} */
 let snapshotJson = null;
@@ -60,6 +61,9 @@ function parse(raw) {
  */
 function ensureLocalStorageSeed() {
   if (typeof window === "undefined") {
+    return;
+  }
+  if (window.location.pathname.includes("/tillflow/admin")) {
     return;
   }
   const existing = parse(localStorage.getItem(LS_KEY));
@@ -90,6 +94,9 @@ export function loadStores() {
   }
   const list = parse(localStorage.getItem(LS_KEY));
   if (!list?.length) {
+    if (window.location.pathname.includes("/tillflow/admin")) {
+      return EMPTY_SNAPSHOT;
+    }
     ensureLocalStorageSeed();
     const again = parse(localStorage.getItem(LS_KEY));
     if (!again?.length) {

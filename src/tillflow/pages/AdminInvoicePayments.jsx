@@ -8,6 +8,7 @@ import PrimeDataTable from "../../components/data-table";
 import { TillFlowApiError } from "../api/errors";
 import {
   INVOICE_PAYMENT_METHOD_OPTIONS,
+  createInvoicePaymentRequest,
   deleteInvoicePaymentRequest,
   listAllInvoicePaymentsRequest,
   paymentMethodLabel,
@@ -15,6 +16,10 @@ import {
 } from "../api/invoicePayments";
 import { useAuth } from "../auth/AuthContext";
 import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
+import {
+  downloadInvoicePaymentsImportTemplate,
+  parseInvoicePaymentsImportFile
+} from "../utils/invoicePaymentsImport";
 
 function formatKes(n) {
   const x = Number(n);
@@ -66,6 +71,11 @@ export default function AdminInvoicePayments() {
   const [editNotes, setEditNotes] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importWorking, setImportWorking] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -221,6 +231,48 @@ export default function AdminInvoicePayments() {
     [token, load]
   );
 
+  const runImport = useCallback(async () => {
+    if (!token || importRows.length === 0) {
+      return;
+    }
+    setImportWorking(true);
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+    const details = [];
+    const existing = new Set(payments.map((p) => `${p.invoice_id}|${p.transaction_id ?? ""}|${p.amount}`));
+    for (const row of importRows) {
+      const dedupeKey = `${row.invoiceId}|${row.transaction_id ?? ""}|${row.amount}`;
+      if (existing.has(dedupeKey)) {
+        skipped += 1;
+        details.push(`Row ${row.sheetRow}: skipped (duplicate by invoice/txn/amount).`);
+        continue;
+      }
+      try {
+        await createInvoicePaymentRequest(token, row.invoiceId, {
+          amount: row.amount,
+          payment_method: row.payment_method,
+          paid_at: row.paid_at || undefined,
+          transaction_id: row.transaction_id || undefined,
+          notes: row.notes || undefined
+        });
+        created += 1;
+        existing.add(dedupeKey);
+      } catch (e) {
+        if (e instanceof TillFlowApiError) {
+          failed += 1;
+          details.push(`Row ${row.sheetRow}: ${e.message}`);
+        } else {
+          failed += 1;
+          details.push(`Row ${row.sheetRow}: could not create payment.`);
+        }
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped, failed, details });
+    setImportWorking(false);
+  }, [token, importRows, payments, load]);
+
   const columns = useMemo(
     () => [
       {
@@ -315,6 +367,7 @@ export default function AdminInvoicePayments() {
                 onExportExcel={
                   loading || filtered.length === 0 ? undefined : () => void handleExportExcel()
                 }
+                onImport={token ? () => setShowImport(true) : undefined}
               />
               <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
@@ -443,6 +496,124 @@ export default function AdminInvoicePayments() {
           <button type="button" className="btn btn-primary" disabled={editSaving} onClick={() => void saveEdit()}>
             {editSaving ? "Saving…" : "Save"}
           </button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showImport}
+        onHide={() => {
+          if (!importWorking) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        centered
+        size="lg"
+        scrollable>
+        <Modal.Header closeButton={!importWorking}>
+          <Modal.Title>Import invoice payments</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {!importSummary ? (
+            <>
+              <div className="d-flex gap-2 flex-wrap mb-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={() => void downloadInvoicePaymentsImportTemplate()}>
+                  Download template
+                </button>
+                <label className="btn btn-outline-secondary btn-sm mb-0">
+                  Upload file
+                  <input
+                    type="file"
+                    className="d-none"
+                    accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (e.target) e.target.value = "";
+                      if (!file) return;
+                      const parsed = await parseInvoicePaymentsImportFile(file);
+                      setImportRows(parsed.rows);
+                      setImportErrors(parsed.errors);
+                      setImportSummary(null);
+                    }}
+                  />
+                </label>
+              </div>
+              {importErrors.length > 0 ? (
+                <div className="alert alert-warning py-2">
+                  <ul className="mb-0 small ps-3">
+                    {importErrors.map((er, i) => (
+                      <li key={`${er.sheetRow}-${i}`}>
+                        Row {er.sheetRow}: {er.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="table-responsive border rounded" style={{ maxHeight: 320 }}>
+                <table className="table table-sm mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Row</th>
+                      <th>Invoice ID</th>
+                      <th>Amount</th>
+                      <th>Method</th>
+                      <th>Paid at</th>
+                      <th>Txn ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importRows.slice(0, 40).map((r) => (
+                      <tr key={`imp-p-${r.sheetRow}`}>
+                        <td>{r.sheetRow}</td>
+                        <td>{r.invoiceId}</td>
+                        <td>{r.amount}</td>
+                        <td>{r.payment_method}</td>
+                        <td>{r.paid_at ? formatPaidAt(r.paid_at) : "—"}</td>
+                        <td>{r.transaction_id ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="mb-2">
+                <strong>Created:</strong> {importSummary.created}, <strong>Skipped:</strong>{" "}
+                {importSummary.skipped}, <strong>Failed:</strong> {importSummary.failed}
+              </p>
+              <ul className="small mb-0 ps-3" style={{ maxHeight: 220, overflow: "auto" }}>
+                {importSummary.details.map((d, i) => (
+                  <li key={`ips-${i}`}>{d}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          {!importSummary ? (
+            <>
+              <button type="button" className="btn btn-light border" onClick={() => setShowImport(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={importWorking || importRows.length === 0}
+                onClick={() => void runImport()}>
+                {importWorking ? "Importing..." : "Import"}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={() => setShowImport(false)}>
+              Done
+            </button>
+          )}
         </Modal.Footer>
       </Modal>
 

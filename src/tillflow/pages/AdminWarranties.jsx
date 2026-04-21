@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Modal from 'react-bootstrap/Modal';
 import { TillFlowApiError } from '../api/errors';
+import TableTopHead from '../../components/table-top-head';
 import {
   createWarrantyRequest,
   deleteWarrantyRequest,
@@ -12,6 +13,9 @@ import {
 } from '../api/warranties';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import ImportRecordsModal from '../components/ImportRecordsModal';
+import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
+import { downloadWarrantiesImportTemplate, parseWarrantiesImportFile } from '../utils/warrantiesImport';
 
 function formatListDate(iso) {
   if (!iso) return '—';
@@ -72,6 +76,11 @@ export default function AdminWarranties() {
   const [editActive, setEditActive] = useState(true);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -260,6 +269,53 @@ export default function AdminWarranties() {
     }
   }
 
+  const handleExportExcel = useCallback(async () => {
+    const records = filtered.map((w) => ({
+      Name: String(w.name ?? ''),
+      Description: String(w.description ?? ''),
+      Duration: formatDuration(w),
+      Status: w.is_active ? 'Active' : 'Inactive',
+      Created: formatListDate(viewTrash ? w.deleted_at : w.created_at)
+    }));
+    await downloadRowsExcel(records, 'Warranties', viewTrash ? 'warranties-trash' : 'warranties');
+  }, [filtered, viewTrash]);
+
+  const handleExportPdf = useCallback(async () => {
+    const body = filtered.map((w) => [
+      String(w.name ?? ''),
+      String(w.description ?? ''),
+      formatDuration(w),
+      w.is_active ? 'Active' : 'Inactive',
+      formatListDate(viewTrash ? w.deleted_at : w.created_at)
+    ]);
+    await downloadRowsPdf(
+      viewTrash ? 'Warranties (trash)' : 'Warranties',
+      ['Name', 'Description', 'Duration', 'Status', viewTrash ? 'Deleted' : 'Created'],
+      body,
+      viewTrash ? 'warranties-trash' : 'warranties'
+    );
+  }, [filtered, viewTrash]);
+
+  const runImportWarranties = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createWarrantyRequest(token, row);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : 'Could not create warranty.'}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
@@ -269,13 +325,12 @@ export default function AdminWarranties() {
             <h6>{viewTrash ? 'Restore deleted warranties' : 'Manage your warranties'}</h6>
           </div>
         </div>
-        <ul className="table-top-head">
-          <li>
-            <button type="button" title="Refresh" onClick={() => void load()}>
-              <i className="feather icon-refresh-cw" />
-            </button>
-          </li>
-        </ul>
+        <TableTopHead
+          onRefresh={() => void load()}
+          onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
+          onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+          onImport={!viewTrash ? () => setShowImport(true) : undefined}
+        />
         <div className="page-header-actions">
           <div className="page-btn">
             {viewTrash ? (
@@ -579,6 +634,40 @@ export default function AdminWarranties() {
         cancelLabel="Cancel"
         onConfirm={confirmDelete}
         submitting={deleteSubmitting}
+      />
+      <ImportRecordsModal
+        show={showImport}
+        title="Import warranties"
+        helpText='Required columns: name, duration_value, duration_unit (month/year).'
+        previewColumns={[
+          { key: 'sheetRow', label: 'Row', render: (r) => r.sheetRow },
+          { key: 'name', label: 'Name', render: (r) => r.name },
+          { key: 'duration', label: 'Duration', render: (r) => `${r.duration_value} ${r.duration_unit}` },
+          { key: 'is_active', label: 'Status', render: (r) => (r.is_active ? 'Active' : 'Inactive') }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadWarrantiesImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = '';
+          if (!file) return;
+          const parsed = await parseWarrantiesImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportWarranties()}
       />
     </div>
   );

@@ -6,6 +6,8 @@ import { TillFlowApiError } from '../api/errors';
 import { createLeadRequest, deleteLeadRequest, listLeadsRequest, updateLeadRequest } from '../api/leads';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import ImportRecordsModal from '../components/ImportRecordsModal';
+import { downloadLeadsImportTemplate, parseLeadsImportFile } from '../utils/leadsImport';
 
 const LEAD_STATUSES = [
   'NewLead',
@@ -82,6 +84,11 @@ export default function AdminLeads() {
   const [editLastContacted, setEditLastContacted] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -232,6 +239,35 @@ export default function AdminLeads() {
     }
   };
 
+  const runImportLeads = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createLeadRequest(token, {
+          name: row.name,
+          phone: row.phone,
+          source: row.source,
+          status: row.status,
+          email: row.email,
+          company: row.company,
+          location: row.location,
+          last_contacted_at: row.last_contacted_at
+        });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : 'Could not create lead.'}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   return (
     <div className="page-wrapper invoice-list-page">
       <div className="content">
@@ -241,6 +277,9 @@ export default function AdminLeads() {
             <h6>Pipeline and contact tracking</h6>
           </div>
           <div className="page-btn">
+            <button type="button" className="btn btn-outline-primary me-2" onClick={() => setShowImport(true)}>
+              Import leads
+            </button>
             <button type="button" className="btn btn-primary" onClick={openAdd}>
               Add lead
             </button>
@@ -565,6 +604,41 @@ export default function AdminLeads() {
         submitting={deleteSubmitting}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
+      />
+      <ImportRecordsModal
+        show={showImport}
+        title="Import leads"
+        helpText="Upload .xlsx/.xls/.csv. Required columns: name, phone, source, status."
+        previewColumns={[
+          { key: 'sheetRow', label: 'Row', render: (r) => r.sheetRow },
+          { key: 'name', label: 'Name', render: (r) => r.name },
+          { key: 'phone', label: 'Phone', render: (r) => r.phone },
+          { key: 'source', label: 'Source', render: (r) => r.source },
+          { key: 'status', label: 'Status', render: (r) => r.status }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadLeadsImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = '';
+          if (!file) return;
+          const parsed = await parseLeadsImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportLeads()}
       />
     </div>
   );

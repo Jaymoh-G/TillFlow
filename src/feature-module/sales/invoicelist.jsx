@@ -48,6 +48,11 @@ import {
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { PERMISSION } from "../../tillflow/auth/permissions";
 import ActivityLogModal from "../../tillflow/components/ActivityLogModal";
+import ImportRecordsModal from "../../tillflow/components/ImportRecordsModal";
+import {
+  downloadInvoicesImportTemplate,
+  parseInvoicesImportFile
+} from "../../tillflow/utils/invoicesImport";
 import { pdf, stockImg01 } from "../../utils/imagepath";
 import {
   createHtmlDocumentPdfObjectUrl,
@@ -247,6 +252,11 @@ const Invoice = () => {
   const [invoices, setInvoices] = useState(getInitialRows);
   const [listLoading, setListLoading] = useState(() => Boolean(token && inTillflowShell));
   const [listError, setListError] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
   const listGenRef = useRef(0);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
@@ -1210,6 +1220,28 @@ const Invoice = () => {
       setListError("Could not export Excel. Try again or check the browser download settings.");
     }
   }, [displayRows]);
+
+  const runImportInvoices = useCallback(async () => {
+    if (!token || importRows.length === 0) {
+      return;
+    }
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createInvoiceRequest(token, row);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create invoice."}`);
+      }
+    }
+    await loadInvoiceList();
+    setImportSummary({ created, failed, skipped: 0, details });
+    setImporting(false);
+  }, [token, importRows, loadInvoiceList]);
 
   const openInvoiceCancelConfirm = useCallback((row) => {
     if (!row || row.status === "Cancelled" || row.status === "Draft") {
@@ -2182,6 +2214,7 @@ const Invoice = () => {
                   onRefresh={resetFilters}
                   onExportPdf={handleExportPdf}
                   onExportExcel={handleExportExcel}
+                  onImport={token ? () => setShowImport(true) : undefined}
                   showCollapse={false}
                 />
                 {listError ? (
@@ -3074,6 +3107,41 @@ const Invoice = () => {
           title={invoiceViewPdfTitle || (viewDoc ? `Invoice ${viewDoc.invoiceNo}` : "Invoice PDF")}
           onHide={handleCloseInvoiceViewPdfPreview}
         />
+      <ImportRecordsModal
+        show={showImport}
+        title="Import invoices"
+        helpText="Template uses customer_id and product_id. Rows are grouped into one invoice by group key."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "customer_id", label: "Customer ID", render: (r) => r.customer_id },
+          { key: "issued_at", label: "Issue date", render: (r) => r.issued_at || "—" },
+          { key: "status", label: "Status", render: (r) => r.status || "Draft" },
+          { key: "items", label: "Items", render: (r) => (Array.isArray(r.items) ? r.items.length : 0) }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadInvoicesImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseInvoicesImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportInvoices()}
+      />
 
         <Modal show={Boolean(receiptInfoModal)} onHide={() => setReceiptInfoModal(null)} centered>
           <Modal.Header closeButton>

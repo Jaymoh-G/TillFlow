@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import PrimeDataTable from "../../components/data-table";
 import { TillFlowApiError } from "../api/errors";
 import {
+  createProductRequest,
   deleteProductRequest,
   listProductsRequest,
   listTrashedProductsRequest,
@@ -15,8 +16,10 @@ import { listBrandsRequest } from "../api/brands";
 import { listUnitsRequest } from "../api/units";
 import { useAuth } from "../auth/AuthContext";
 import DeleteConfirmModal from "../components/DeleteConfirmModal";
+import ImportRecordsModal from "../components/ImportRecordsModal";
 import { downloadItemsExcel, downloadItemsPdf } from "../utils/itemListExport";
 import TableTopHead from "../../components/table-top-head";
+import { downloadItemsImportTemplate, parseItemsImportFile } from "../utils/itemsImport";
 
 const ITEMS_COLUMN_VISIBILITY_KEY = "tillflow.admin.items.columnVisibility";
 
@@ -122,6 +125,11 @@ export default function AdminProducts() {
   const [bulkBrands, setBulkBrands] = useState([]);
   const [bulkUnits, setBulkUnits] = useState([]);
   const [columnVisibility, setColumnVisibility] = useState(readItemsColumnVisibility);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -560,6 +568,27 @@ export default function AdminProducts() {
     load
   ]);
 
+  const runImportItems = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      const { sheetRow, ...payload } = row;
+      try {
+        await createProductRequest(token, payload);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create item."}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   const columns = useMemo(
     () => [
       {
@@ -776,6 +805,7 @@ export default function AdminProducts() {
           onRefresh={() => void load()}
           onExportPdf={loading ? undefined : () => void handleExportPdf()}
           onExportExcel={loading ? undefined : () => void handleExportExcel()}
+          onImport={!viewTrash ? () => setShowImport(true) : undefined}
         />
         <div className="page-header-actions">
           <div className="page-btn">
@@ -790,12 +820,6 @@ export default function AdminProducts() {
                 Add New Item
               </Link>
             )}
-          </div>
-          <div className="page-btn import">
-            <button type="button" className="btn btn-secondary color" disabled title="Coming soon">
-              <i className="feather icon-download me-2" />
-              Import Item
-            </button>
           </div>
         </div>
       </div>
@@ -1135,6 +1159,41 @@ export default function AdminProducts() {
         cancelLabel="Cancel"
         onConfirm={confirmDelete}
         submitting={deleteSubmitting}
+      />
+      <ImportRecordsModal
+        show={showImport}
+        title="Import items"
+        helpText="Required: name. Optional IDs: store_id, category_id, brand_id, unit_id, warranty_id plus pricing/qty columns."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "name", label: "Item", render: (r) => r.name },
+          { key: "sku", label: "SKU", render: (r) => r.sku || "—" },
+          { key: "category_id", label: "Category ID", render: (r) => r.category_id || "—" },
+          { key: "qty", label: "Qty", render: (r) => r.qty ?? "—" }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadItemsImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseItemsImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportItems()}
       />
     </div>
   );

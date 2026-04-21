@@ -14,6 +14,8 @@ import {
 } from '../api/variantAttributes';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import ImportRecordsModal from '../components/ImportRecordsModal';
+import { downloadVariantAttributesImportTemplate, parseVariantAttributesImportFile } from '../utils/variantAttributesImport';
 import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
@@ -76,6 +78,11 @@ export default function AdminVariantAttributes() {
   const [editActive, setEditActive] = useState(true);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -266,6 +273,30 @@ export default function AdminVariantAttributes() {
     }
   }
 
+  const runImportVariantAttributes = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createVariantAttributeRequest(token, {
+          name: row.name,
+          values: row.values,
+          is_active: row.is_active
+        });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : 'Could not create variant attribute.'}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   const handleExportExcel = useCallback(async () => {
     const records = filtered.map((a) => ({
       Variant: String(a.name ?? ''),
@@ -388,6 +419,7 @@ export default function AdminVariantAttributes() {
           onRefresh={() => void load()}
           onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
           onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+          onImport={!viewTrash ? () => setShowImport(true) : undefined}
         />
         <div className="page-header-actions">
           <div className="page-btn">
@@ -570,6 +602,40 @@ export default function AdminVariantAttributes() {
         cancelLabel="Cancel"
         onConfirm={confirmDelete}
         submitting={deleteSubmitting}
+      />
+      <ImportRecordsModal
+        show={showImport}
+        title="Import variant attributes"
+        helpText='Required columns: name, values. Values must be comma-separated.'
+        previewColumns={[
+          { key: 'sheetRow', label: 'Row', render: (r) => r.sheetRow },
+          { key: 'name', label: 'Variant', render: (r) => r.name },
+          { key: 'values', label: 'Values', render: (r) => (Array.isArray(r.values) ? r.values.join(', ') : '—') },
+          { key: 'is_active', label: 'Status', render: (r) => (r.is_active ? 'Active' : 'Inactive') }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadVariantAttributesImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = '';
+          if (!file) return;
+          const parsed = await parseVariantAttributesImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportVariantAttributes()}
       />
     </div>
   );

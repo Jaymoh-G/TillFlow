@@ -6,8 +6,13 @@ import TableTopHead from "../../components/table-top-head";
 import PrimeDataTable from "../../components/data-table";
 import { apiDeliveryNoteToRow, deliveryStatusBadgeClass } from "../../feature-module/sales/deliveryNoteViewHelpers";
 import { TillFlowApiError } from "../api/errors";
-import { listDeliveryNotesRequest } from "../api/deliveryNotes";
+import { createInvoiceDeliveryNoteRequest, listDeliveryNotesRequest } from "../api/deliveryNotes";
 import { useAuth } from "../auth/AuthContext";
+import ImportRecordsModal from "../components/ImportRecordsModal";
+import {
+  downloadDeliveryNotesImportTemplate,
+  parseDeliveryNotesImportFile
+} from "../utils/deliveryNotesImport";
 import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 
 export default function AdminDeliveryNotes() {
@@ -21,6 +26,11 @@ export default function AdminDeliveryNotes() {
   const [to, setTo] = useState("");
   const [tableRows, setTableRows] = useState(10);
   const [tableCurrentPage, setTableCurrentPage] = useState(1);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -176,6 +186,30 @@ export default function AdminDeliveryNotes() {
     []
   );
 
+  const runImport = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createInvoiceDeliveryNoteRequest(token, row.invoiceId, {
+          issued_at: row.issued_at,
+          notes: row.notes,
+          items: row.items
+        });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create delivery note."}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, failed, skipped: 0, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   return (
     <div className="page-wrapper invoice-payments-page">
       <div className="content">
@@ -194,6 +228,7 @@ export default function AdminDeliveryNotes() {
                 onExportExcel={
                   loading || rows.length === 0 ? undefined : () => void handleExportExcel()
                 }
+                onImport={token ? () => setShowImport(true) : undefined}
               />
               <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
@@ -252,6 +287,40 @@ export default function AdminDeliveryNotes() {
           </div>
         </div>
       </div>
+      <ImportRecordsModal
+        show={showImport}
+        title="Import delivery notes"
+        helpText="Use invoice_id and invoice_item_id values from your system. Rows are grouped by group key (or invoice/date/notes when omitted)."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "invoiceId", label: "Invoice ID", render: (r) => r.invoiceId },
+          { key: "issued_at", label: "Issue date", render: (r) => r.issued_at || "—" },
+          { key: "items", label: "Items", render: (r) => (Array.isArray(r.items) ? r.items.length : 0) }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadDeliveryNotesImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseDeliveryNotesImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImport()}
+      />
       <CommonFooter />
     </div>
   );

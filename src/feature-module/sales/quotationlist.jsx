@@ -37,6 +37,15 @@ import {
     sendProposalToRecipientRequest,
     updateProposalRequest
 } from "../../tillflow/api/proposals";
+import ImportRecordsModal from "../../tillflow/components/ImportRecordsModal";
+import {
+  downloadProposalsImportTemplate,
+  parseProposalsImportFile
+} from "../../tillflow/utils/proposalsImport";
+import {
+  downloadQuotationsImportTemplate,
+  parseQuotationsImportFile
+} from "../../tillflow/utils/quotationsImport";
 import {
     convertQuotationToInvoiceRequest,
     createQuotationRequest,
@@ -726,6 +735,11 @@ const QuotationList = () => {
   const [listLoading, setListLoading] = useState(() => Boolean(token));
   const [listError, setListError] = useState("");
   const [listSuccess, setListSuccess] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
   const listLoadGenRef = useRef(0);
 
   const [catalogProducts, setCatalogProducts] = useState([]);
@@ -1251,6 +1265,64 @@ const QuotationList = () => {
       setListError("Could not export Excel. Try again or check the browser download settings.");
     }
   }, [displayRows]);
+
+  const runImportProposals = useCallback(async () => {
+    if (!token || !isProposalModule || importRows.length === 0) {
+      return;
+    }
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createProposalRequest(token, {
+          proposed_at: row.proposed_at,
+          status: "Draft",
+          customer_id: row.customer_id,
+          proposal_title: row.proposal_title || null,
+          items: row.items
+        });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create proposal."}`);
+      }
+    }
+    await loadQuotations();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, isProposalModule, importRows, loadQuotations]);
+
+  const runImportQuotations = useCallback(async () => {
+    if (!token || isProposalModule || importRows.length === 0) {
+      return;
+    }
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createQuotationRequest(token, {
+          customer_id: row.customer_id,
+          quote_date: row.quote_date,
+          expiry_date: row.expiry_date,
+          status: row.status || "Draft",
+          items: row.items
+        });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(
+          `Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create quotation."}`
+        );
+      }
+    }
+    await loadQuotations();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, isProposalModule, importRows, loadQuotations]);
 
   const resetAddForm = useCallback(() => {
     const quoted = new Date().toISOString().slice(0, 10);
@@ -3240,6 +3312,7 @@ const QuotationList = () => {
                   onRefresh={resetFilters}
                   onExportPdf={isProposalModule ? undefined : handleExportPdf}
                   onExportExcel={isProposalModule ? undefined : handleExportExcel}
+                  onImport={token ? () => setShowImport(true) : undefined}
                 />
                 {listError ? (
                   <div className="alert alert-danger mt-3 mb-0" role="alert">
@@ -4714,6 +4787,53 @@ const QuotationList = () => {
           </div>
         </div>
       </div>
+
+      <ImportRecordsModal
+        show={showImport}
+        title={isProposalModule ? "Import proposals" : "Import quotations"}
+        helpText={
+          isProposalModule
+            ? "Use customer_id and product_id values from your system. Rows are grouped into one proposal by group key."
+            : "Use customer_id and product_id values from your system. Rows are grouped into one quotation by group key."
+        }
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "customer_id", label: "Customer ID", render: (r) => r.customer_id },
+          {
+            key: "dated",
+            label: isProposalModule ? "Proposed at" : "Quote date",
+            render: (r) => r.proposed_at || r.quote_date || "—"
+          },
+          { key: "items", label: "Items", render: (r) => (Array.isArray(r.items) ? r.items.length : 0) }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() =>
+          void (isProposalModule ? downloadProposalsImportTemplate() : downloadQuotationsImportTemplate())
+        }
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await (isProposalModule
+            ? parseProposalsImportFile(file)
+            : parseQuotationsImportFile(file));
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void (isProposalModule ? runImportProposals() : runImportQuotations())}
+      />
 
       <div
         className="modal fade tf-hint-modal"

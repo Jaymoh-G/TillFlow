@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Dropdown from "react-bootstrap/Dropdown";
 import { Link, useNavigate } from "react-router-dom";
 import InvoiceEmailPreviewModal from "../../components/InvoiceEmailPreviewModal";
+import ImportRecordsModal from "../components/ImportRecordsModal";
 import PrimeDataTable from "../../components/data-table";
 import TableTopHead from "../../components/table-top-head";
 import PosReceiptPrintDocument from "../../feature-module/sales/PosReceiptPrintDocument";
@@ -11,9 +12,11 @@ import {
   listPosOrdersRequest,
   previewPosOrderReceiptEmailRequest,
   sendPosOrderReceiptToCustomerRequest,
-  showPosOrderRequest
+  showPosOrderRequest,
+  createPosOrderRequest
 } from "../api/posOrders";
 import { useAuth } from "../auth/AuthContext";
+import { downloadOrdersImportTemplate, parseOrdersImportFile } from "../utils/ordersImport";
 import { downloadRowsExcel, downloadRowsPdf } from "../utils/listExport";
 import { printPosReceiptThermal } from "../utils/printPosReceiptThermal";
 
@@ -93,6 +96,11 @@ export default function AdminPosOrders() {
   const [filterPaymentType, setFilterPaymentType] = useState("");
   const [tableRows, setTableRows] = useState(10);
   const [tableCurrentPage, setTableCurrentPage] = useState(1);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -411,6 +419,26 @@ export default function AdminPosOrders() {
     [navigate, startPrintForOrder, openEmailForOrder]
   );
 
+  const runImportOrders = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createPosOrderRequest(token, row);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create order."}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   return (
     <div className="page-wrapper pos-orders-page">
       <div className="content">
@@ -421,7 +449,12 @@ export default function AdminPosOrders() {
               <h6 className="mb-0">All orders. TillFlow POS orders show as POS; website orders show as Online.</h6>
             </div>
             <div className="d-flex align-items-center gap-2 flex-wrap">
-              <TableTopHead onRefresh={load} onExportPdf={handleExportPdf} onExportExcel={handleExportExcel} />
+              <TableTopHead
+                onRefresh={load}
+                onExportPdf={handleExportPdf}
+                onExportExcel={handleExportExcel}
+                onImport={() => setShowImport(true)}
+              />
               <div className="page-btn d-flex flex-wrap gap-2 m-0">
                 <Link to="/tillflow/pos" className="btn btn-primary text-white">
                   <i className="feather icon-shopping-cart me-1" />
@@ -522,6 +555,56 @@ export default function AdminPosOrders() {
         sending={emailSending}
         sendDisabled={!String(emailTo ?? "").trim()}
         sendButtonLabel="Send receipt"
+      />
+
+      <ImportRecordsModal
+        show={showImport}
+        title="Import orders"
+        helpText="Use store_id plus product_id (recommended) or product_name with quantity and unit_price. Group rows by group key to create multi-item orders."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "store_id", label: "Store ID", render: (r) => r.store_id || "—" },
+          { key: "customer_name", label: "Customer", render: (r) => r.customer_name || r.customer_id || "—" },
+          { key: "items", label: "Items", render: (r) => (Array.isArray(r.items) ? r.items.length : 0) },
+          { key: "payments", label: "Payments", render: (r) => (Array.isArray(r.payments) ? r.payments.length : 0) }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadOrdersImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          try {
+            const parsed = await parseOrdersImportFile(file);
+            setImportRows(parsed.rows);
+            setImportErrors(parsed.errors);
+            setImportSummary(null);
+          } catch (err) {
+            setImportRows([]);
+            setImportErrors([
+              {
+                sheetRow: 1,
+                message:
+                  err instanceof Error
+                    ? `Could not parse file: ${err.message}`
+                    : "Could not parse file."
+              }
+            ]);
+            setImportSummary(null);
+          }
+        }}
+        onImport={() => void runImportOrders()}
       />
     </div>
   );

@@ -10,6 +10,7 @@ import { stockTransferData } from "../../core/json/stock-transfer-data";
 import { storeLabel } from "../../stores/storesRegistry";
 import { useStores } from "../../stores/useStores";
 import { TillFlowApiError } from "../../tillflow/api/errors";
+import ImportRecordsModal from "../../tillflow/components/ImportRecordsModal";
 import { listProductsRequest } from "../../tillflow/api/products";
 import {
   apiStockTransferToRow,
@@ -21,7 +22,10 @@ import {
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
 import { downloadRowsExcel, downloadRowsPdf } from "../../tillflow/utils/listExport";
-import { downloadImg } from "../../utils/imagepath";
+import {
+  downloadStockTransferImportTemplate,
+  parseStockTransferImportFile
+} from "../../tillflow/utils/stockTransferImport";
 
 const DEMO_PRODUCTS = [
   { sku: "PT001", name: "Apple iMac Pro", category: "Electronics" },
@@ -231,9 +235,11 @@ const StockTransfer = () => {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteError, setDeleteError] = useState("");
 
-  const [importFrom, setImportFrom] = useState(null);
-  const [importTo, setImportTo] = useState(null);
-  const [importStatus, setImportStatus] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const storeFilterOptions = useMemo(
     () => [
@@ -252,14 +258,6 @@ const StockTransfer = () => {
         label: `${s.name} (${s.code})`,
         value: s.id
       }))
-    ],
-    [stores]
-  );
-
-  const importStoreOptions = useMemo(
-    () => [
-      { label: "Select", value: null },
-      ...stores.map((s) => ({ label: s.name, value: s.id }))
     ],
     [stores]
   );
@@ -353,11 +351,25 @@ const StockTransfer = () => {
     setEditProductQuery(String(p.name ?? ""));
   }, []);
 
-  const statusOptions = [
-    { label: "Select", value: "" },
-    { label: "Sent", value: "sent" },
-    { label: "Pending", value: "pending" }
-  ];
+  const runImportTransfers = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createStockTransferRequest(token, row);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create transfer."}`);
+      }
+    }
+    await loadTransfers();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, loadTransfers]);
 
   const displayRows = useMemo(() => {
     let list = [...transfers];
@@ -891,6 +903,7 @@ const StockTransfer = () => {
                   ? undefined
                   : () => void handleExportExcel()
               }
+              onImport={token ? () => setShowImport(true) : undefined}
             />
             <div className="page-btn d-flex flex-wrap gap-2">
               <button
@@ -920,16 +933,6 @@ const StockTransfer = () => {
                   Adjust Stock
                 </Link>
               ) : null}
-            </div>
-            <div className="page-btn import">
-              <Link
-                to="#"
-                className="btn btn-secondary color"
-                data-bs-toggle="modal"
-                data-bs-target="#import-stock-transfer">
-                <i className="feather icon-download me-1" />
-                Import transfer
-              </Link>
             </div>
           </div>
           <div className="card">
@@ -1526,120 +1529,40 @@ const StockTransfer = () => {
         </div>
       </div>
 
-      <div className="modal fade" id="import-stock-transfer">
-        <div className="modal-dialog modal-dialog-centered">
-          <div className="modal-content">
-            <div className="modal-header">
-              <div className="page-title">
-                <h4>Import transfer</h4>
-              </div>
-              <button
-                type="button"
-                className="close"
-                data-bs-dismiss="modal"
-                aria-label="Close">
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                hideBsModal("import-stock-transfer");
-              }}>
-              <div className="modal-body">
-                <div className="row">
-                  <div className="col-lg-4 col-sm-6 col-12">
-                    <div className="mb-3">
-                      <label className="form-label">
-                        From<span className="text-danger ms-1">*</span>
-                      </label>
-                      <CommonSelect
-                        className="w-100"
-                        options={importStoreOptions}
-                        value={importFrom}
-                        onChange={(e) =>
-                          setImportFrom(
-                            e.value == null || e.value === ""
-                              ? null
-                              : Number(e.value)
-                          )
-                        }
-                        placeholder="From store"
-                        filter={false}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-lg-4 col-sm-6 col-12">
-                    <div className="mb-3">
-                      <label className="form-label">
-                        To<span className="text-danger ms-1">*</span>
-                      </label>
-                      <CommonSelect
-                        className="w-100"
-                        options={importStoreOptions}
-                        value={importTo}
-                        onChange={(e) =>
-                          setImportTo(
-                            e.value == null || e.value === ""
-                              ? null
-                              : Number(e.value)
-                          )
-                        }
-                        placeholder="To store"
-                        filter={false}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-lg-4 col-sm-6 col-12">
-                    <div className="mb-3">
-                      <label className="form-label">Status</label>
-                      <CommonSelect
-                        className="w-100"
-                        options={statusOptions}
-                        value={importStatus}
-                        onChange={(e) => setImportStatus(e.value || null)}
-                        placeholder="Status"
-                        filter={false}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-lg-12">
-                    <div className="mb-3 image-upload-down">
-                      <label className="form-label">Upload CSV file</label>
-                      <div className="image-upload download">
-                        <input type="file" accept=".csv,text/csv" />
-                        <div className="image-uploads">
-                          <img src={downloadImg} alt="" />
-                          <h4>
-                            Drag and drop a <span>file to upload</span>
-                          </h4>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-lg-12">
-                    <div className="mb-0">
-                      <label className="form-label">Description</label>
-                      <textarea className="form-control" rows={3} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary me-2"
-                  data-bs-dismiss="modal">
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Submit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
+      <ImportRecordsModal
+        show={showImport}
+        title="Import stock transfers"
+        helpText="Use from_store_id, to_store_id, product_id and qty columns. Use group to combine multiple lines into one transfer."
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "from_store_id", label: "From", render: (r) => r.from_store_id },
+          { key: "to_store_id", label: "To", render: (r) => r.to_store_id },
+          { key: "lines", label: "Lines", render: (r) => (Array.isArray(r.lines) ? r.lines.length : 0) }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadStockTransferImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseStockTransferImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportTransfers()}
+      />
 
       <div className="modal fade" id="delete-stock-transfer">
         <div className="modal-dialog modal-dialog-centered">

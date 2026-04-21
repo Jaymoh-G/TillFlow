@@ -7,6 +7,8 @@ import { TillFlowApiError } from '../api/errors';
 import { createUnitRequest, deleteUnitRequest, listTrashedUnitsRequest, listUnitsRequest, restoreUnitRequest, updateUnitRequest } from '../api/units';
 import { useAuth } from '../auth/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import ImportRecordsModal from '../components/ImportRecordsModal';
+import { downloadUnitsImportTemplate, parseUnitsImportFile } from '../utils/unitsImport';
 import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
@@ -58,6 +60,11 @@ export default function AdminUnits() {
   const [addShortName, setAddShortName] = useState('');
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -245,6 +252,26 @@ export default function AdminUnits() {
     }
   }
 
+  const runImportUnits = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createUnitRequest(token, { name: row.name, short_name: row.short_name });
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : 'Could not create unit.'}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   const handleExportExcel = useCallback(async () => {
     const records = filtered.map((u) => ({
       Name: String(u.name ?? ''),
@@ -360,6 +387,7 @@ export default function AdminUnits() {
           onRefresh={() => void load()}
           onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
           onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+          onImport={!viewTrash ? () => setShowImport(true) : undefined}
         />
         <div className="page-header-actions">
           <div className="page-btn">
@@ -533,6 +561,39 @@ export default function AdminUnits() {
           </Modal.Footer>
         </form>
       </Modal>
+      <ImportRecordsModal
+        show={showImport}
+        title="Import units"
+        helpText='Required columns: name, short_name.'
+        previewColumns={[
+          { key: 'sheetRow', label: 'Row', render: (r) => r.sheetRow },
+          { key: 'name', label: 'Name', render: (r) => r.name },
+          { key: 'short_name', label: 'Short', render: (r) => r.short_name }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadUnitsImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = '';
+          if (!file) return;
+          const parsed = await parseUnitsImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportUnits()}
+      />
     </div>
   );
 }

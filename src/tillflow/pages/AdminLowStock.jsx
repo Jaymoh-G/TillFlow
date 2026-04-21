@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PrimeDataTable from '../../components/data-table';
 import TableTopHead from '../../components/table-top-head';
+import ImportRecordsModal from '../components/ImportRecordsModal';
 import { listLowStockRequest } from '../api/lowStock';
+import { createProductRequest } from '../api/products';
 import { TillFlowApiError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { downloadItemsImportTemplate, parseItemsImportFile } from '../utils/itemsImport';
 import { downloadRowsExcel, downloadRowsPdf } from '../utils/listExport';
 
 function formatListDate(iso) {
@@ -38,6 +41,11 @@ export default function AdminLowStock() {
   const [rows, setRows] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [tab, setTab] = useState('low'); // low | out
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -145,6 +153,27 @@ export default function AdminLowStock() {
     );
   }, [filtered, tab]);
 
+  const runImportItems = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      const { sheetRow, ...payload } = row;
+      try {
+        await createProductRequest(token, payload);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(`Row ${sheetRow}: ${e instanceof TillFlowApiError ? e.message : 'Could not create item.'}`);
+      }
+    }
+    await load();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, load]);
+
   return (
     <div className="tf-item-list-page">
       <div className="page-header">
@@ -158,6 +187,7 @@ export default function AdminLowStock() {
           onRefresh={() => void load()}
           onExportPdf={loading || filtered.length === 0 ? undefined : () => void handleExportPdf()}
           onExportExcel={loading || filtered.length === 0 ? undefined : () => void handleExportExcel()}
+          onImport={() => setShowImport(true)}
         />
         <div className="page-header-actions">
           <div className="page-btn import">
@@ -228,6 +258,40 @@ export default function AdminLowStock() {
           </div>
         </div>
       </div>
+      <ImportRecordsModal
+        show={showImport}
+        title="Import items"
+        helpText="Create items from spreadsheet while reviewing low-stock reports."
+        previewColumns={[
+          { key: 'sheetRow', label: 'Row', render: (r) => r.sheetRow },
+          { key: 'name', label: 'Item', render: (r) => r.name },
+          { key: 'sku', label: 'SKU', render: (r) => r.sku || '—' },
+          { key: 'qty', label: 'Qty', render: (r) => r.qty ?? '—' }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadItemsImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = '';
+          if (!file) return;
+          const parsed = await parseItemsImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportItems()}
+      />
     </div>
   );
 }

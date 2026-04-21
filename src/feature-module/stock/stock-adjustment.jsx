@@ -14,9 +14,14 @@ import {
 import { listProductsRequest } from "../../tillflow/api/products";
 import { listStoresRequest } from "../../tillflow/api/stores";
 import { TillFlowApiError } from "../../tillflow/api/errors";
+import ImportRecordsModal from "../../tillflow/components/ImportRecordsModal";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { readTillflowStoredToken } from "../../tillflow/auth/tillflowToken";
 import { downloadRowsExcel, downloadRowsPdf } from "../../tillflow/utils/listExport";
+import {
+  downloadStockAdjustmentImportTemplate,
+  parseStockAdjustmentImportFile
+} from "../../tillflow/utils/stockAdjustmentImport";
 
 const STOCK_ADJUST_COLUMN_VISIBILITY_KEY = "tillflow.admin.stockAdjustment.columnVisibility";
 
@@ -166,6 +171,11 @@ const StockAdjustment = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [columnVisibility, setColumnVisibility] = useState(readStockAdjustColumnVisibility);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState(null);
 
   const loadList = useCallback(async () => {
     if (!token) {
@@ -606,6 +616,30 @@ const StockAdjustment = () => {
     }
   }, []);
 
+  const runImportAdjustments = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createStockAdjustmentRequest(token, row);
+        created += 1;
+      } catch (e) {
+        failed += 1;
+        details.push(
+          `Row ${row.sheetRow}: ${e instanceof TillFlowApiError ? e.message : "Could not create adjustment."}`
+        );
+      }
+    }
+    await loadList();
+    await loadProducts();
+    await loadStores();
+    setImportSummary({ created, skipped: 0, failed, details });
+    setImporting(false);
+  }, [token, importRows, loadList, loadProducts, loadStores]);
+
   return (
     <>
       <div
@@ -636,6 +670,7 @@ const StockAdjustment = () => {
                   ? undefined
                   : () => void handleExportExcel()
               }
+              onImport={liveMode ? () => setShowImport(true) : undefined}
             />
             <div className="page-btn d-flex gap-2 flex-wrap">
               {liveMode && (
@@ -918,6 +953,42 @@ const StockAdjustment = () => {
           </div>
         </div>
       </div>
+
+      <ImportRecordsModal
+        show={showImport}
+        title="Import stock adjustments"
+        helpText='Required columns: product_id, store_id, type ("add"/"remove"), quantity.'
+        previewColumns={[
+          { key: "sheetRow", label: "Row", render: (r) => r.sheetRow },
+          { key: "product_id", label: "Product ID", render: (r) => r.product_id },
+          { key: "store_id", label: "Store ID", render: (r) => r.store_id },
+          { key: "type", label: "Type", render: (r) => r.type },
+          { key: "quantity", label: "Qty", render: (r) => r.quantity }
+        ]}
+        previewRows={importRows}
+        parseErrors={importErrors}
+        summary={importSummary}
+        importing={importing}
+        onClose={() => {
+          if (!importing) {
+            setShowImport(false);
+            setImportRows([]);
+            setImportErrors([]);
+            setImportSummary(null);
+          }
+        }}
+        onDownloadTemplate={() => void downloadStockAdjustmentImportTemplate()}
+        onChooseFile={async (e) => {
+          const file = e.target.files?.[0];
+          if (e.target) e.target.value = "";
+          if (!file) return;
+          const parsed = await parseStockAdjustmentImportFile(file);
+          setImportRows(parsed.rows);
+          setImportErrors(parsed.errors);
+          setImportSummary(null);
+        }}
+        onImport={() => void runImportAdjustments()}
+      />
 
       <div className="modal fade" id="view-product-adjustment-history" tabIndex={-1}>
         <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
