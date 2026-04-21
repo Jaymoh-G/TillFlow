@@ -1,5 +1,5 @@
 import { Edit2, PlusCircle, Trash2 } from "react-feather";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Modal from "react-bootstrap/Modal";
 import PrimeDataTable from "../../components/data-table";
 import SearchFromApi from "../../components/data-table/search";
@@ -9,6 +9,7 @@ import TableTopHead from "../../components/table-top-head";
 import { listCustomersRequest } from "../../tillflow/api/customers";
 import { TillFlowApiError } from "../../tillflow/api/errors";
 import {
+  createExpenseRequest,
   createExpenseCategoryRequest,
   createExpenseMultipartRequest,
   createExpenseRecurringRuleRequest,
@@ -21,6 +22,7 @@ import {
 } from "../../tillflow/api/expenses";
 import { useOptionalAuth } from "../../tillflow/auth/AuthContext";
 import { downloadExpensesExcel, downloadExpensesPdf } from "../../utils/expenseExport";
+import { downloadExpenseImportTemplate, parseExpenseImportFile } from "../../utils/expenseImport";
 
 const ALL = { label: "All", value: "" };
 
@@ -62,6 +64,11 @@ export default function ExpensesModule() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importResult, setImportResult] = useState(null);
+  const [importWorking, setImportWorking] = useState(false);
 
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formTitle, setFormTitle] = useState("");
@@ -81,6 +88,31 @@ export default function ExpensesModule() {
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryError, setNewCategoryError] = useState("");
+
+  const resolveIdByName = useCallback((items, rawName) => {
+    const text = String(rawName ?? "").trim();
+    if (!text) return null;
+    if (/^\d+$/.test(text)) return Number(text);
+    const found = items.find((it) => String(it.name ?? "").toLowerCase() === text.toLowerCase());
+    return found?.id ?? null;
+  }, []);
+
+  const buildImportPayload = useCallback(
+    (row) => ({
+      expense_date: row.expenseDate,
+      title: row.title,
+      category_id: resolveIdByName(categories, row.category),
+      customer_id: resolveIdByName(customers, row.customer),
+      payee: row.payee,
+      amount: row.amount,
+      payment_mode: row.paymentMode,
+      payment_status: row.paymentStatus,
+      notes: row.notes
+    }),
+    [categories, customers, resolveIdByName]
+  );
+
+  const importFileInputRef = useRef(null);
 
   const loadAll = useCallback(async () => {
     if (!token) return;
@@ -250,6 +282,46 @@ export default function ExpensesModule() {
     }
   };
 
+  const handleImportPick = useCallback(() => {
+    importFileInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = await parseExpenseImportFile(file);
+      setImportRows(parsed.rows);
+      setImportErrors(parsed.errors);
+      setImportResult(null);
+      setShowImportModal(true);
+    } catch {
+      setListError("Could not read the import file.");
+    }
+  }, []);
+
+  const runExpenseImport = useCallback(async () => {
+    if (!token || importRows.length === 0) return;
+    setImportWorking(true);
+    setImportResult(null);
+    let created = 0;
+    let failed = 0;
+    const details = [];
+    for (const row of importRows) {
+      try {
+        await createExpenseRequest(token, buildImportPayload(row));
+        created += 1;
+      } catch (err) {
+        failed += 1;
+        details.push(`Row ${row.sheetRow}: ${err instanceof TillFlowApiError ? err.message : "Failed to create expense."}`);
+      }
+    }
+    setImportResult({ created, failed, details });
+    setImportWorking(false);
+    await loadAll();
+  }, [token, importRows, buildImportPayload, loadAll]);
+
   const columns = useMemo(
     () => [
       { header: "Date", field: "expenseDate", sortable: true },
@@ -289,7 +361,12 @@ export default function ExpensesModule() {
               <h6>Track one-off and recurring expenses</h6>
             </div>
           </div>
-          <TableTopHead onRefresh={loadAll} onExportPdf={() => void downloadExpensesPdf(rows)} onExportExcel={() => void downloadExpensesExcel(rows)} />
+          <TableTopHead
+            onRefresh={loadAll}
+            onExportPdf={() => void downloadExpensesPdf(rows)}
+            onExportExcel={() => void downloadExpensesExcel(rows)}
+            onImport={handleImportPick}
+          />
           <div className="page-btn d-flex gap-2">
             <button type="button" className="btn btn-outline-primary" onClick={() => setShowCategoryModal(true)}>
               Categories
@@ -310,6 +387,13 @@ export default function ExpensesModule() {
           </div>
         </div>
         {listError ? <div className="alert alert-danger">{listError}</div> : null}
+        <input
+          ref={importFileInputRef}
+          type="file"
+          className="d-none"
+          accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+          onChange={handleImportFileChange}
+        />
         <div className="card table-list-card">
           <div className="card-header d-flex align-items-center justify-content-between flex-wrap row-gap-3">
             <SearchFromApi callback={(v) => setSearchQuery(v ?? "")} rows={tableRows} setRows={setTableRows} />
@@ -403,6 +487,71 @@ export default function ExpensesModule() {
           <input className="form-control" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
         </Modal.Body>
         <Modal.Footer><button type="button" className="btn btn-light border" onClick={() => setShowCategoryModal(false)}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => void addCategory()}>Add category</button></Modal.Footer>
+      </Modal>
+
+      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg" centered>
+        <Modal.Header closeButton><Modal.Title>Import expenses</Modal.Title></Modal.Header>
+        <Modal.Body>
+          {!importResult ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm mb-3"
+                onClick={() => void downloadExpenseImportTemplate()}>
+                Download sample template
+              </button>
+              {importErrors.length > 0 ? (
+                <div className="alert alert-warning py-2">
+                  <strong className="d-block mb-1">Parse issues</strong>
+                  <ul className="mb-0 small ps-3">
+                    {importErrors.map((pe, idx) => (
+                      <li key={`exp-pe-${pe.sheetRow}-${idx}`}>Row {pe.sheetRow}: {pe.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="table-responsive border rounded" style={{ maxHeight: 320 }}>
+                <table className="table table-sm table-hover mb-0">
+                  <thead className="table-light position-sticky top-0">
+                    <tr>
+                      <th>Row</th><th>Date</th><th>Title</th><th>Amount</th><th>Category</th><th>Customer</th><th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importRows.slice(0, 50).map((r) => (
+                      <tr key={`${r.sheetRow}-${r.title}-${r.amount}`}>
+                        <td>{r.sheetRow}</td>
+                        <td>{r.expenseDate}</td>
+                        <td>{r.title}</td>
+                        <td>{Number(r.amount).toFixed(2)}</td>
+                        <td>{r.category ?? "—"}</td>
+                        <td>{r.customer ?? "—"}</td>
+                        <td>{r.paymentStatus}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div>
+              <p className="mb-2"><strong>Created:</strong> {importResult.created}, <strong>Failed:</strong> {importResult.failed}</p>
+              {importResult.details.length > 0 ? <ul className="small ps-3 mb-0">{importResult.details.map((d, i) => <li key={`exp-imp-${i}`}>{d}</li>)}</ul> : <p className="text-muted small mb-0">No row errors.</p>}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          {!importResult ? (
+            <>
+              <button type="button" className="btn btn-light border" onClick={() => setShowImportModal(false)}>Cancel</button>
+              <button type="button" className="btn btn-primary" disabled={importWorking || importRows.length === 0} onClick={() => void runExpenseImport()}>
+                {importWorking ? "Importing..." : "Import"}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={() => setShowImportModal(false)}>Done</button>
+          )}
+        </Modal.Footer>
       </Modal>
 
     </div>
