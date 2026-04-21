@@ -20,6 +20,42 @@ function readToken() {
   return localStorage.getItem('tillflow_sanctum_token');
 }
 
+/** react-select inside Bootstrap modal: keep chips inside control (flex min-width) + portal menu z-index. */
+const planPermSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1060 }),
+  control: (base) => ({
+    ...base,
+    minHeight: 42,
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+  }),
+  valueContainer: (base) => ({
+    ...base,
+    flexWrap: 'wrap',
+    flex: '1 1 0',
+    minWidth: 0,
+    maxWidth: '100%',
+    paddingTop: 4,
+    paddingBottom: 4,
+    rowGap: 4,
+    columnGap: 4,
+  }),
+  indicatorsContainer: (base) => ({ ...base, alignSelf: 'flex-start', flexShrink: 0, paddingTop: 6 }),
+  multiValue: (base) => ({
+    ...base,
+    flex: '0 1 auto',
+    maxWidth: '100%',
+    minWidth: 0,
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
+  }),
+  input: (base) => ({ ...base, margin: 0, paddingTop: 2, paddingBottom: 2 }),
+};
+
 export default function Packages() {
   const navigate = useNavigate();
   const [booting, setBooting] = useState(true);
@@ -477,20 +513,25 @@ export default function Packages() {
                   </div>
                   <div className="col-md-12 mb-3">
                     <label className="form-label">Allowed permission slugs</label>
-                    <Select
-                      isMulti
-                      classNamePrefix="react-select"
-                      options={permOptions}
-                      value={permOptions.filter((o) => form.allowed_permission_slugs.includes(o.value))}
-                      onChange={(opts) =>
-                        setForm((s) => ({
-                          ...s,
-                          allowed_permission_slugs: (opts || []).map((o) => o.value),
-                        }))
-                      }
-                      isDisabled={form.unlimited_permissions}
-                      placeholder="Select permissions…"
-                    />
+                    <div className="tf-plan-perm-select">
+                      <Select
+                        isMulti
+                        classNamePrefix="react-select"
+                        options={permOptions}
+                        value={permOptions.filter((o) => form.allowed_permission_slugs.includes(o.value))}
+                        onChange={(opts) =>
+                          setForm((s) => ({
+                            ...s,
+                            allowed_permission_slugs: (opts || []).map((o) => o.value),
+                          }))
+                        }
+                        isDisabled={form.unlimited_permissions}
+                        placeholder="Select permissions…"
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        menuPosition="fixed"
+                        styles={planPermSelectStyles}
+                      />
+                    </div>
                   </div>
                   <div className="col-md-12 mb-3 form-check">
                     <input

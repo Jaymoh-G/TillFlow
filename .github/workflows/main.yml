@@ -88,6 +88,16 @@ jobs:
         working-directory: backend
         run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
+      # FTP-Deploy-Action requires non-empty `server`; unset FTP_HOST becomes empty and triggers "Input required and not supplied: server".
+      - name: Verify FTP_HOST secret
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+        run: |
+          if [ -z "$FTP_HOST" ]; then
+            echo "::error::Repository secret FTP_HOST is missing or empty. Add it under Settings → Secrets and variables → Actions (your FTP hostname, e.g. ftp.yourhost.com)."
+            exit 1
+          fi
+
       - name: Deploy backend over FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:

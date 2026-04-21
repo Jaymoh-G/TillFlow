@@ -4779,3 +4779,43 @@ body.modal-open .p-autocomplete-panel {
 .tf-pos-shell .tf-notif-menu__toggle {
   color: #212529;
 }
+
+/* Platform Packages modal: react-select multi + menu must stay inside visual bounds */
+#add_plans .modal-body {
+  overflow-x: hidden;
+}
+
+#add_plans .tf-plan-perm-select {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+
+  .react-select__control {
+    align-items: flex-start;
+    min-height: auto;
+  }
+
+  /* Critical: flex items default min-width:auto and won’t shrink — chips escape the “input” box */
+  .react-select__value-container {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    flex-wrap: wrap !important;
+  }
+
+  .react-select__multi-value {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .react-select__multi-value__label {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .react-select__indicators {
+    align-self: flex-start;
+    flex-shrink: 0;
+  }
+}
