@@ -16,10 +16,13 @@ class Customer extends Model
         'name',
         'email',
         'company',
+        'tax_id',
+        'category',
         'phone',
         'location',
         'status',
         'avatar_url',
+        'created_at',
     ];
 
     public function tenant(): BelongsTo

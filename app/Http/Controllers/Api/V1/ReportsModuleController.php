@@ -8,21 +8,22 @@ use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
-use App\Models\Product;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
 use App\Models\PosOrderPayment;
+use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\PurchaseReturn;
 use App\Models\SalesReturn;
-use App\Models\StoreManager;
-use App\Models\Supplier;
 use App\Models\StockAdjustment;
 use App\Models\StockTransferLine;
+use App\Models\StoreManager;
+use App\Models\Supplier;
 use App\Models\Tenant;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -658,7 +659,7 @@ class ReportsModuleController extends Controller
             ->get()
             ->groupBy('created_by')
             ->map(function ($orders, $userId) {
-                /** @var \Illuminate\Support\Collection<int, PosOrder> $orders */
+                /** @var Collection<int, PosOrder> $orders */
                 $first = $orders->first();
                 $cashier = $first?->cashier;
 
@@ -1042,9 +1043,9 @@ class ReportsModuleController extends Controller
             return response()->json([
                 'message' => 'Customer KPIs retrieved.',
                 'range' => $range,
-            'note' => 'Transaction count = POS orders + invoices in range. profit_estimated = spend − COGS (buying_price × qty) − expenses tagged to the customer.',
-            'rows' => [],
-        ]);
+                'note' => 'Transaction count = POS orders + invoices in range. profit_estimated = spend − COGS (buying_price × qty) − expenses tagged to the customer.',
+                'rows' => [],
+            ]);
         }
 
         $customers = Customer::query()->where('tenant_id', $tenant->id)->whereIn('id', $ids)->get()->keyBy('id');

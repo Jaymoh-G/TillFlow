@@ -47,6 +47,7 @@ final class ActivityLogProperties
             'customer_id' => $c->id,
             'code' => $c->code,
             'name' => $c->name,
+            'tax_id' => $c->tax_id,
         ];
     }
 

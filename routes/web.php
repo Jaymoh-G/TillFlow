@@ -26,4 +26,4 @@ $spaFromDisk = static function () {
 Route::get('/', $spaFromDisk);
 
 Route::get('/{path}', $spaFromDisk)
-    ->where('path', '^(?!api(?:/|$)|up$|sanctum(?:/|$)).*$');
+    ->where('path', '^(?!api(?:/|$)|up$|sanctum(?:/|$)|assets(?:/|$)).*$');

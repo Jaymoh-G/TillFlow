@@ -34,6 +34,8 @@ class CustomerController extends Controller
                 'name',
                 'email',
                 'company',
+                'tax_id',
+                'category',
                 'phone',
                 'location',
                 'status',
@@ -60,13 +62,15 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
-                'nullable',
+                'required',
                 'string',
                 'email',
                 'max:255',
                 Rule::unique('customers', 'email')->where(fn ($q) => $q->where('tenant_id', $tenant->id)),
             ],
             'company' => ['nullable', 'string', 'max:255'],
+            'tax_id' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:255'],
             'phone' => [
                 'required',
                 'string',
@@ -75,12 +79,15 @@ class CustomerController extends Controller
             ],
             'location' => ['nullable', 'string', 'max:255'],
             'status' => ['required', 'string', Rule::in(['Active', 'Inactive'])],
+            'created_at' => ['nullable', 'date'],
             'avatar' => ['nullable', 'file', 'image', 'max:2048'],
             'avatar_url' => ['nullable', 'string', 'max:2048'],
         ]);
 
         $email = $this->normalizeOptionalString($validated['email'] ?? null);
         $company = $this->normalizeOptionalString($validated['company'] ?? null);
+        $taxId = $this->normalizeOptionalString($validated['tax_id'] ?? null);
+        $category = $this->normalizeOptionalString($validated['category'] ?? null);
         $location = $this->normalizeOptionalString($validated['location'] ?? null);
 
         $avatarUrl = $validated['avatar_url'] ?? null;
@@ -99,10 +106,13 @@ class CustomerController extends Controller
             'name' => $validated['name'],
             'email' => $email,
             'company' => $company,
+            'tax_id' => $taxId,
+            'category' => $category,
             'phone' => $validated['phone'],
             'location' => $location,
             'status' => $validated['status'],
             'avatar_url' => $avatarUrl,
+            'created_at' => $validated['created_at'] ?? null,
         ]);
 
         $this->activityLogWriter->record(
@@ -122,6 +132,8 @@ class CustomerController extends Controller
                 'name',
                 'email',
                 'company',
+                'tax_id',
+                'category',
                 'phone',
                 'location',
                 'status',
@@ -145,6 +157,8 @@ class CustomerController extends Controller
                 'name',
                 'email',
                 'company',
+                'tax_id',
+                'category',
                 'phone',
                 'location',
                 'status',
@@ -179,6 +193,8 @@ class CustomerController extends Controller
                     ->ignore($model->id),
             ],
             'company' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'tax_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'category' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone' => [
                 'sometimes',
                 'required',
@@ -202,6 +218,12 @@ class CustomerController extends Controller
         }
         if (array_key_exists('location', $validated)) {
             $validated['location'] = $this->normalizeOptionalString($validated['location']);
+        }
+        if (array_key_exists('tax_id', $validated)) {
+            $validated['tax_id'] = $this->normalizeOptionalString($validated['tax_id']);
+        }
+        if (array_key_exists('category', $validated)) {
+            $validated['category'] = $this->normalizeOptionalString($validated['category']);
         }
 
         if ($request->hasFile('avatar')) {
@@ -235,6 +257,8 @@ class CustomerController extends Controller
                 'name',
                 'email',
                 'company',
+                'tax_id',
+                'category',
                 'phone',
                 'location',
                 'status',

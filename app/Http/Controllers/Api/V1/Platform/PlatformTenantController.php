@@ -7,10 +7,65 @@ use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class PlatformTenantController extends Controller
 {
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
+            'status' => ['sometimes', 'string', Rule::in([Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED])],
+            'company_email' => ['nullable', 'email', 'max:255'],
+            'company_phone' => ['nullable', 'string', 'max:64'],
+            'company_fax' => ['nullable', 'string', 'max:64'],
+            'company_website' => ['nullable', 'string', 'max:512'],
+            'company_address_line' => ['nullable', 'string', 'max:2000'],
+            'company_country' => ['nullable', 'string', 'max:32'],
+            'company_state' => ['nullable', 'string', 'max:64'],
+            'company_city' => ['nullable', 'string', 'max:64'],
+            'company_postal_code' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $name = trim($data['name']);
+        $slugBase = isset($data['slug']) && $data['slug'] !== ''
+            ? Str::slug((string) $data['slug'])
+            : Str::slug($name);
+        if ($slugBase === '') {
+            $slugBase = 'tenant';
+        }
+
+        $slug = $slugBase;
+        $n = 1;
+        while (Tenant::query()->where('slug', $slug)->exists()) {
+            $slug = $slugBase.'-'.$n;
+            $n++;
+        }
+
+        $tenant = Tenant::query()->create([
+            'name' => $name,
+            'slug' => $slug,
+            'status' => $data['status'] ?? Tenant::STATUS_ACTIVE,
+            'company_email' => $this->nullableTrim($data['company_email'] ?? null),
+            'company_phone' => $this->nullableTrim($data['company_phone'] ?? null),
+            'company_fax' => $this->nullableTrim($data['company_fax'] ?? null),
+            'company_website' => $this->nullableTrim($data['company_website'] ?? null),
+            'company_address_line' => $this->nullableTrim($data['company_address_line'] ?? null),
+            'company_country' => $this->nullableTrim($data['company_country'] ?? null),
+            'company_state' => $this->nullableTrim($data['company_state'] ?? null),
+            'company_city' => $this->nullableTrim($data['company_city'] ?? null),
+            'company_postal_code' => $this->nullableTrim($data['company_postal_code'] ?? null),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tenant created.',
+            'data' => ['tenant' => $this->serializeTenant($tenant->fresh(), null)],
+        ], 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $q = trim((string) $request->query('q', ''));
@@ -84,11 +139,33 @@ class PlatformTenantController extends Controller
     public function update(Request $request, Tenant $tenant): JsonResponse
     {
         $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('tenants', 'slug')->ignore($tenant->id)],
             'status' => ['sometimes', 'string', Rule::in([Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED])],
             'suspended_reason' => ['nullable', 'string', 'max:2000'],
+            'company_email' => ['nullable', 'email', 'max:255'],
+            'company_phone' => ['nullable', 'string', 'max:64'],
+            'company_fax' => ['nullable', 'string', 'max:64'],
+            'company_website' => ['nullable', 'string', 'max:512'],
+            'company_address_line' => ['nullable', 'string', 'max:2000'],
+            'company_country' => ['nullable', 'string', 'max:32'],
+            'company_state' => ['nullable', 'string', 'max:64'],
+            'company_city' => ['nullable', 'string', 'max:64'],
+            'company_postal_code' => ['nullable', 'string', 'max:32'],
         ]);
 
-        $tenant->fill($data);
+        $fill = $data;
+        if (array_key_exists('name', $fill)) {
+            $fill['name'] = trim((string) $fill['name']);
+        }
+        foreach (['company_email', 'company_phone', 'company_fax', 'company_website', 'company_address_line',
+            'company_country', 'company_state', 'company_city', 'company_postal_code', ] as $k) {
+            if (array_key_exists($k, $fill)) {
+                $fill[$k] = $this->nullableTrim($fill[$k] ?? null);
+            }
+        }
+
+        $tenant->fill($fill);
         $tenant->save();
 
         return response()->json([
@@ -96,6 +173,16 @@ class PlatformTenantController extends Controller
             'message' => 'Tenant updated.',
             'data' => ['tenant' => $this->serializeTenant($tenant->fresh(), null)],
         ]);
+    }
+
+    private function nullableTrim(?string $v): ?string
+    {
+        if ($v === null) {
+            return null;
+        }
+        $t = trim($v);
+
+        return $t === '' ? null : $t;
     }
 
     /**
@@ -126,6 +213,16 @@ class PlatformTenantController extends Controller
             'status' => $tenant->status ?? Tenant::STATUS_ACTIVE,
             'suspended_reason' => $tenant->suspended_reason,
             'last_active_at' => $tenant->last_active_at?->toIso8601String(),
+            'created_at' => $tenant->created_at?->toIso8601String(),
+            'company_email' => $tenant->company_email,
+            'company_phone' => $tenant->company_phone,
+            'company_fax' => $tenant->company_fax,
+            'company_website' => $tenant->company_website,
+            'company_address_line' => $tenant->company_address_line,
+            'company_country' => $tenant->company_country,
+            'company_state' => $tenant->company_state,
+            'company_city' => $tenant->company_city,
+            'company_postal_code' => $tenant->company_postal_code,
             'current_plan' => $sub && $sub->plan ? [
                 'id' => $sub->plan->id,
                 'name' => $sub->plan->name,

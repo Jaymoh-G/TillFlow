@@ -18,6 +18,15 @@ class Tenant extends Model
         'status',
         'suspended_reason',
         'last_active_at',
+        'company_email',
+        'company_phone',
+        'company_fax',
+        'company_website',
+        'company_address_line',
+        'company_country',
+        'company_state',
+        'company_city',
+        'company_postal_code',
     ];
 
     protected function casts(): array

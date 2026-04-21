@@ -20,7 +20,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->string('sales_return_no', 32);
-            $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
+            if (Schema::hasTable('invoices')) {
+                $table->foreignId('invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
+            } else {
+                $table->unsignedBigInteger('invoice_id')->nullable();
+                $table->index('invoice_id');
+            }
             $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
             $table->string('product_name');
             $table->dateTime('returned_at');

@@ -75,6 +75,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/meta', PlatformMetaController::class);
         Route::apiResource('plans', PlatformPlanController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
         Route::get('/tenants', [PlatformTenantController::class, 'index']);
+        Route::post('/tenants', [PlatformTenantController::class, 'store']);
         Route::get('/tenants/{tenant}', [PlatformTenantController::class, 'show'])->whereNumber('tenant');
         Route::patch('/tenants/{tenant}', [PlatformTenantController::class, 'update'])->whereNumber('tenant');
         Route::get('/subscriptions', [PlatformTenantSubscriptionController::class, 'index']);

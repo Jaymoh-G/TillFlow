@@ -11,7 +11,12 @@ return new class extends Migration
         Schema::create('invoice_payments', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            if (Schema::hasTable('invoices')) {
+                $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            } else {
+                $table->unsignedBigInteger('invoice_id');
+                $table->index('invoice_id');
+            }
 
             $table->string('receipt_ref', 32);
             $table->decimal('amount', 12, 2);

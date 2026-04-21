@@ -45,14 +45,16 @@ class PushSubscriptionController extends Controller
         $encoding = isset($validated['content_encoding']) && is_string($validated['content_encoding']) && $validated['content_encoding'] !== ''
             ? $validated['content_encoding']
             : 'aes128gcm';
+        $endpointHash = hash('sha256', $validated['endpoint']);
 
         PushSubscription::query()->updateOrCreate(
             [
                 'user_id' => $user->id,
-                'endpoint' => $validated['endpoint'],
+                'endpoint_hash' => $endpointHash,
             ],
             [
                 'tenant_id' => $tenant->id,
+                'endpoint' => $validated['endpoint'],
                 'public_key' => $validated['keys']['p256dh'],
                 'auth_secret' => $validated['keys']['auth'],
                 'content_encoding' => $encoding,
@@ -74,10 +76,11 @@ class PushSubscriptionController extends Controller
         $validated = $request->validate([
             'endpoint' => ['required', 'string'],
         ]);
+        $endpointHash = hash('sha256', $validated['endpoint']);
 
         PushSubscription::query()
             ->where('user_id', $user->id)
-            ->where('endpoint', $validated['endpoint'])
+            ->where('endpoint_hash', $endpointHash)
             ->delete();
 
         return response()->json([

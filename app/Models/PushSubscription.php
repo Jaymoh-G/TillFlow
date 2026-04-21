@@ -11,6 +11,7 @@ class PushSubscription extends Model
         'tenant_id',
         'user_id',
         'endpoint',
+        'endpoint_hash',
         'public_key',
         'auth_secret',
         'content_encoding',

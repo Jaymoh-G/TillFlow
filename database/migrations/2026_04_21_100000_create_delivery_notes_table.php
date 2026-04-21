@@ -12,7 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->string('delivery_note_no', 64);
-            $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            if (Schema::hasTable('invoices')) {
+                $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            } else {
+                $table->unsignedBigInteger('invoice_id');
+                $table->index('invoice_id');
+            }
             $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete();
             $table->date('issued_at');
             $table->string('status', 32)->default('Issued');
