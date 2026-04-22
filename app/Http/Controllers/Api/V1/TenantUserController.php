@@ -3,20 +3,22 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Mail\TillFlowPasswordSetupMail;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Tenants\TenantUserInvitationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TenantUserController extends Controller
 {
+    public function __construct(
+        private readonly TenantUserInvitationService $invitations,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         /** @var Tenant $tenant */
@@ -49,39 +51,15 @@ class TenantUserController extends Controller
 
         $requestedRoleIds = array_map('intval', $data['role_ids'] ?? []);
 
-        $roleResolution = $this->resolveTenantRoleIds($tenant, $requestedRoleIds);
-        if ($roleResolution instanceof JsonResponse) {
-            return $roleResolution;
-        }
-
-        $user = User::query()->create([
-            'tenant_id' => $tenant->id,
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Str::password(64),
-        ]);
-
-        $syncError = $this->syncRolesForUser($user, $tenant, $roleResolution);
-        if ($syncError instanceof JsonResponse) {
-            $user->delete();
-
-            return $syncError;
-        }
-
-        $user->load('roles:id,slug,name,tenant_id');
-
         try {
-            $plainToken = Password::broker()->createToken($user);
-            $actionUrl = $this->tillflowPasswordSetupUrl($user->email, $plainToken);
-            Mail::to($user->email)->send(new TillFlowPasswordSetupMail($user, $tenant, $actionUrl, 'invite'));
-        } catch (\Throwable $e) {
-            report($e);
-            $user->tokens()->delete();
-            $user->delete();
+            $user = $this->invitations->invite($tenant, $data['name'], $data['email'], $requestedRoleIds);
+        } catch (ValidationException $e) {
+            $first = collect($e->errors())->flatten()->first();
 
             return response()->json([
                 'success' => false,
-                'message' => 'Could not send the invitation email. Check mail configuration and try again.',
+                'message' => is_string($first) ? $first : 'Validation failed.',
+                'data' => ['errors' => $e->errors()],
             ], 422);
         }
 
@@ -178,17 +156,6 @@ class TenantUserController extends Controller
         $user->roles()->sync($roleIds);
 
         return null;
-    }
-
-    private function tillflowPasswordSetupUrl(string $email, string $plainToken): string
-    {
-        $base = (string) config('tillflow.frontend_url');
-        $path = '/tillflow/invite/accept';
-
-        return $base.$path.'?'.http_build_query([
-            'token' => $plainToken,
-            'email' => $email,
-        ]);
     }
 
     /**
