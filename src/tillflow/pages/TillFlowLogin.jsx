@@ -18,8 +18,7 @@ export default function TillFlowLogin() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!bootstrapping && token) {
-    const alreadyIn = user?.is_platform_owner ? '/tillflow/platform-owner/packages' : from;
-    return <Navigate to={alreadyIn} replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function handleSubmit(e) {
@@ -28,9 +27,8 @@ export default function TillFlowLogin() {
     setFieldErrors(null);
     setSubmitting(true);
     try {
-      const loginData = await login({ email, password });
-      const dest = loginData?.user?.is_platform_owner ? '/tillflow/platform-owner/packages' : from;
-      navigate(dest, { replace: true });
+      await login({ email, password });
+      navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setError(err.message);
