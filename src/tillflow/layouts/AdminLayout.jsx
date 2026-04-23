@@ -1,14 +1,17 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import CommonFooter from '../../components/footer/commonFooter';
 import { PERMISSION } from '../auth/permissions';
 import { useAuth } from '../auth/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
+import TillflowThemeQuickPanel from '../components/TillflowThemeQuickPanel';
 import TillflowNotificationMenu from '../components/TillflowNotificationMenu';
 import AdminOfflineWait from '../offline/AdminOfflineWait';
 import { tillflowAdminPathAllowsOfflineUse } from '../offline/tillflowOfflinePolicy';
 import { useOnlineStatus } from '../offline/useOnlineStatus';
 import { resolveMediaUrl } from '../utils/resolveMediaUrl';
+import GlobalSearchTypeahead from '../components/GlobalSearchTypeahead';
 import AdminSidebarTwoColumn from './AdminSidebarTwoColumn';
 
 export default function AdminLayout() {
@@ -29,6 +32,7 @@ export default function AdminLayout() {
   const canSalesReturns = can('sales.returns.view');
   const canCustomers = can('sales.customers.view');
   const canUsers = hasPermission(PERMISSION.USERS_MANAGE);
+  const canGlobalSearch = hasPermission(PERMISSION.SEARCH_GLOBAL);
 
   /** Quick-add links (order fixed). Shown on every admin page when permitted. Same layout as main header Add New. */
   const dashboardAddNewItems = useMemo(() => {
@@ -90,6 +94,8 @@ export default function AdminLayout() {
     canSuppliers
   ]);
   const { isOnline } = useOnlineStatus();
+  const dataLayout = useSelector((state) => state.themeSetting.dataLayout);
+  const effectiveLayoutClass = dataLayout === 'layout-hovered' ? 'mini' : dataLayout || 'default';
   const adminOutletBlockedOffline = !isOnline && !tillflowAdminPathAllowsOfflineUse(location.pathname);
 
   const adminTopbarAvatarSrc = resolveMediaUrl(user?.avatar_url);
@@ -99,12 +105,22 @@ export default function AdminLayout() {
     navigate('/login', { replace: true });
   }
 
+  useEffect(() => {
+    const shouldUseMiniSidebar = dataLayout === 'mini' || dataLayout === 'layout-hovered';
+    document.body.classList.toggle('mini-sidebar', shouldUseMiniSidebar);
+    return () => {
+      document.body.classList.remove('mini-sidebar');
+    };
+  }, [dataLayout]);
+
   return (
-    <div className="tf-admin">
+    <div className={`tf-admin tf-admin--layout-${effectiveLayoutClass}`}>
       <AdminSidebarTwoColumn />
       <div className="tf-admin__main">
         <header className="tf-admin__topbar">
-          <h1 className="tf-admin__topbar-title">Admin console</h1>
+          <div className="tf-admin__topbar-start">
+            {canGlobalSearch ? <GlobalSearchTypeahead className="tf-admin__topbar-search" /> : null}
+          </div>
           <div className="tf-admin__topbar-actions">
             {dashboardAddNewItems.length > 0 ? (
               <div className="dropdown link-nav tf-admin__add-new-dd">
@@ -186,6 +202,7 @@ export default function AdminLayout() {
           <CommonFooter />
         </footer>
       </div>
+      <TillflowThemeQuickPanel />
     </div>
   );
 }

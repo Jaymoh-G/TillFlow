@@ -63,6 +63,7 @@ import { createInvoiceDeliveryNoteRequest, listInvoiceDeliveryNotesRequest } fro
 import { createInvoiceCreditNoteRequest, listInvoiceCreditNotesRequest } from "../api/creditNotes";
 import { useOptionalAuth } from "../auth/AuthContext";
 import { PERMISSION } from "../auth/permissions";
+import { fetchTenantContacts } from "../api/tenantContacts";
 import ActivityLogModal from "../components/ActivityLogModal";
 import { roundMoney } from "../../utils/salesDocumentLineItems";
 
@@ -106,6 +107,7 @@ export default function AdminInvoiceDetail() {
   const auth = useOptionalAuth();
   const token = auth?.token ?? null;
   const canViewActivityLog = Boolean(auth?.hasPermission?.(PERMISSION.ACTIVITY_LOGS_VIEW));
+  const canManageTenantContacts = Boolean(auth?.hasPermission?.(PERMISSION.TENANT_MANAGE));
 
   const paymentsSectionRef = useRef(null);
   const paymentsHintTimerRef = useRef(null);
@@ -179,6 +181,12 @@ export default function AdminInvoiceDetail() {
   const [invoiceEmailPreviewSending, setInvoiceEmailPreviewSending] = useState(false);
   const [invoiceEmailPreviewSource, setInvoiceEmailPreviewSource] = useState("invoice");
   const [invoiceEmailPreviewPaymentId, setInvoiceEmailPreviewPaymentId] = useState(null);
+  const [invoiceEmailCcContactIds, setInvoiceEmailCcContactIds] = useState(
+    /** @type {number[]} */ ([])
+  );
+  const [invoiceEmailCcContacts, setInvoiceEmailCcContacts] = useState(
+    /** @type {Array<{ id: number, display_name?: string, email?: string | null }>} */ ([])
+  );
   const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState(null);
   const [invoiceEmailSuccessMessage, setInvoiceEmailSuccessMessage] = useState("");
   const invoiceEmailSuccessTimerRef = useRef(null);
@@ -546,6 +554,8 @@ export default function AdminInvoiceDetail() {
     setInvoiceEmailPreviewSending(false);
     setInvoiceEmailPreviewSource("invoice");
     setInvoiceEmailPreviewPaymentId(null);
+    setInvoiceEmailCcContactIds([]);
+    setInvoiceEmailCcContacts([]);
   }, []);
 
   const openSendInvoiceEmailPreview = useCallback(async (source = "invoice") => {
@@ -564,14 +574,24 @@ export default function AdminInvoiceDetail() {
     setInvoiceEmailPreviewOpen(true);
     setInvoiceEmailPreviewSource(source === "receipt" ? "receipt" : "invoice");
     setInvoiceEmailPreviewLoading(true);
+    setInvoiceEmailCcContactIds([]);
+    setInvoiceEmailCcContacts([]);
     try {
-      const data = await previewInvoiceEmailRequest(token, detailRow.apiId);
+      const wantCcList = source !== "receipt" && canManageTenantContacts;
+      const [data, contactsEnvelope] = await Promise.all([
+        previewInvoiceEmailRequest(token, detailRow.apiId),
+        wantCcList
+          ? fetchTenantContacts().catch(() => ({ contacts: [] }))
+          : Promise.resolve({ contacts: [] })
+      ]);
       setInvoiceEmailPreviewSubject(String(data?.subject ?? ""));
       setInvoiceEmailPreviewHtml(String(data?.html ?? ""));
       if (String(data?.to_email ?? "").trim()) {
         setInvoiceEmailPreviewTo(String(data.to_email).trim());
       }
       setInvoiceEmailPreviewMessage(String(data?.message_template ?? "Please find your invoice below."));
+      const rawList = Array.isArray(contactsEnvelope?.contacts) ? contactsEnvelope.contacts : [];
+      setInvoiceEmailCcContacts(rawList);
     } catch (e) {
       if (e instanceof TillFlowApiError) {
         setInvoiceEmailPreviewError(e.message);
@@ -581,7 +601,7 @@ export default function AdminInvoiceDetail() {
     } finally {
       setInvoiceEmailPreviewLoading(false);
     }
-  }, [token, detailRow?.apiId, detailRow?.status, detailRow?.customerEmail]);
+  }, [token, detailRow?.apiId, detailRow?.status, detailRow?.customerEmail, canManageTenantContacts]);
 
   const handleSendReceiptToCustomer = useCallback(async () => {
     if (!token || !detailRow?.apiId || isCancelled || !String(detailRow.customerEmail ?? "").trim() || !receiptPreview?.id) {
@@ -699,12 +719,30 @@ export default function AdminInvoiceDetail() {
 
       const attachFilename = `invoice-${String(detailRow.invoiceRefStored ?? detailRow.invoiceno ?? detailRow.apiId ?? "invoice").replace(/[^\w.-]+/g, "_")}.pdf`;
 
+      const toNorm = String(invoiceEmailPreviewTo ?? "")
+        .trim()
+        .toLowerCase();
+      const ccIds =
+        invoiceEmailPreviewSource === "invoice"
+          ? invoiceEmailCcContactIds.filter((id) => {
+              const row = invoiceEmailCcContacts.find((c) => Number(c.id) === Number(id));
+              const em = String(row?.email ?? "")
+                .trim()
+                .toLowerCase();
+              if (!em) {
+                return false;
+              }
+              return em !== toNorm;
+            })
+          : [];
+
       const data = await sendInvoiceToCustomerRequest(token, detailRow.apiId, {
         pdfBlob: pdfBlob instanceof Blob ? pdfBlob : undefined,
         attachmentFilename: attachFilename,
         toEmail: String(invoiceEmailPreviewTo ?? "").trim(),
         subject: String(invoiceEmailPreviewSubject ?? "").trim(),
-        message: String(invoiceEmailPreviewMessage ?? "")
+        message: String(invoiceEmailPreviewMessage ?? ""),
+        ccContactIds: ccIds.length ? ccIds : undefined
       });
       const inv = data?.invoice ? enrichCustomerRow(apiInvoiceToRow(data.invoice), customers) : null;
       if (inv) {
@@ -748,6 +786,8 @@ export default function AdminInvoiceDetail() {
     invoiceEmailPreviewMessage,
     invoiceEmailPreviewSource,
     invoiceEmailPreviewPaymentId,
+    invoiceEmailCcContactIds,
+    invoiceEmailCcContacts,
     customers,
     mergeRowIntoList,
     resetInvoiceEmailPreview,
@@ -1811,8 +1851,48 @@ export default function AdminInvoiceDetail() {
           String(detailRow?.status ?? "") === "Cancelled" ||
           !String(invoiceEmailPreviewTo ?? "").trim()
         }
-        onSend={confirmSendInvoiceFromPreview}
-      />
+        onSend={confirmSendInvoiceFromPreview}>
+        {invoiceEmailPreviewSource === "invoice" &&
+        invoiceEmailCcContacts.some((c) => String(c.email ?? "").trim()) ? (
+          <div>
+            <div className="form-label mb-2">CC company contacts (optional)</div>
+            <div className="border rounded p-2 bg-light" style={{ maxHeight: 200, overflowY: "auto" }}>
+              {invoiceEmailCcContacts
+                .filter((c) => String(c.email ?? "").trim())
+                .map((c) => {
+                  const id = Number(c.id);
+                  const checked = invoiceEmailCcContactIds.includes(id);
+                  return (
+                    <div key={String(c.id)} className="form-check">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id={`tf-inv-cc-${c.id}`}
+                        checked={checked}
+                        disabled={invoiceEmailPreviewSending}
+                        onChange={(e) => {
+                          setInvoiceEmailCcContactIds((prev) => {
+                            const next = new Set(prev.map(Number));
+                            if (e.target.checked) {
+                              next.add(id);
+                            } else {
+                              next.delete(id);
+                            }
+                            return Array.from(next);
+                          });
+                        }}
+                      />
+                      <label className="form-check-label small" htmlFor={`tf-inv-cc-${c.id}`}>
+                        {c.display_name ? String(c.display_name) : "Contact"} ({String(c.email)})
+                      </label>
+                    </div>
+                  );
+                })}
+            </div>
+            <div className="form-text">Recipients must have an email; duplicates of “To” are skipped when sending.</div>
+          </div>
+        ) : null}
+      </InvoiceEmailPreviewModal>
 
       <DocumentPdfPreviewModal
         url={invoicePdfPreviewUrl}

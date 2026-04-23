@@ -2119,7 +2119,7 @@ export const authRoutes = [
 export const posPages = [
 {
   id: 25,
-  path: routes.pos,
+  path: "/pos-template",
   name: "pos",
   element: <Pos />,
   route: Route

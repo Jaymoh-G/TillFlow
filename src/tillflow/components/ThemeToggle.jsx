@@ -1,8 +1,8 @@
 import { useTheme } from '../theme/ThemeContext';
 
 export default function ThemeToggle({ className = '' }) {
-  const { theme, toggleTheme } = useTheme();
-  const isLight = theme === 'light';
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
 
   return (
     <button

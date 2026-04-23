@@ -78,6 +78,7 @@ import AdminUnits from './pages/AdminUnits';
 import AdminVariantAttributes from './pages/AdminVariantAttributes';
 import AdminWarranties from './pages/AdminWarranties';
 import PlatformCompanies from './pages/PlatformCompanies';
+import TenantCompanyContacts from './pages/TenantCompanyContacts';
 import PosRegister from './pages/PosRegister';
 import TillFlowForgotPassword from './pages/TillFlowForgotPassword';
 import TillFlowInviteAccept from './pages/TillFlowInviteAccept';
@@ -89,8 +90,9 @@ import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import './tillflow.scss';
 
 function TillFlowRoot({ children }) {
-  const { theme } = useTheme();
-  const rootClass = theme === 'light' ? 'tillflow-root tillflow-root--light' : 'tillflow-root';
+  const { resolvedTheme } = useTheme();
+  const rootClass =
+    resolvedTheme === 'light' ? 'tillflow-root tillflow-root--light' : 'tillflow-root';
   return <div className={rootClass}>{children}</div>;
 }
 
@@ -262,6 +264,7 @@ export default function TillFlowApp() {
                   <Route path="settings/system" element={<SystemSettings />} />
                   <Route path="settings/automation" element={<AutomationSettings />} />
                   <Route path="settings/company" element={<CompanySettings />} />
+                  <Route path="settings/company-contacts" element={<TenantCompanyContacts />} />
                   <Route path="settings/preference" element={<Preference />} />
                   <Route path="settings/appearance" element={<Appearance />} />
                   <Route path="settings/social-authentication" element={<SocialAuthentication />} />

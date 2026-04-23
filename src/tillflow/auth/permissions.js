@@ -5,6 +5,7 @@ export const PERMISSION = {
   USERS_MANAGE: 'users.manage',
   ACTIVITY_LOGS_VIEW: 'system.activity_logs.view',
   REPORTS_VIEW: 'reports.view',
+  SEARCH_GLOBAL: 'search.global',
 };
 
 /**

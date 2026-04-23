@@ -1251,7 +1251,8 @@ const ModernDashboard = ({
           <div className="col-xxl-8 col-lg-8 col-md-12 d-flex">
             <DashboardRecentTransactionsWidget
               token={tillflowToken}
-              initialDatePreset={dashboardDatePreset}
+              limit={tillflowToken ? 5 : 10}
+              initialDatePreset={tillflowToken ? "all" : dashboardDatePreset}
             />
           </div>
           {/* /Recent Transactions */}

@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import BreezeTechLogo from '../components/BreezeTechLogo';
 import { PERMISSION } from '../auth/permissions';
 import { useAuth } from '../auth/AuthContext';
@@ -20,6 +21,9 @@ import {
 
 export default function AdminSidebarTwoColumn() {
   const location = useLocation();
+  const dataLayout = useSelector((state) => state.themeSetting.dataLayout);
+  const isOneColumnLayout = dataLayout === 'twocolumn';
+  const isMiniLayout = dataLayout === 'mini' || dataLayout === 'layout-hovered';
   const { hasPermission, user } = useAuth();
   const isPlatformOwner = Boolean(user?.is_platform_owner);
   const can = (slug) => hasPermission(slug);
@@ -162,8 +166,8 @@ export default function AdminSidebarTwoColumn() {
     }
   }, [railItems, activeSidebarPanel]);
 
-  const renderPanel = () => {
-    switch (activeSidebarPanel) {
+  const renderPanel = (panelId = activeSidebarPanel) => {
+    switch (panelId) {
       case 'platform':
         return isPlatformOwner ? (
           <>
@@ -535,20 +539,28 @@ export default function AdminSidebarTwoColumn() {
 
   return (
     <aside className="tf-admin__sidebar tf-admin__sidebar--twocol" aria-label="Admin navigation">
-      <div className="tf-admin__sidebar-rail" role="tablist" aria-label="Main sections">
-        {railItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={activeSidebarPanel === item.id}
-            className={`tf-admin__sidebar-rail__btn${activeSidebarPanel === item.id ? ' active' : ''}`}
-            title={item.label}
-            onClick={() => setActiveSidebarPanel(item.id)}>
-            <i className={`feather ${item.icon}`} aria-hidden />
-            <span className="visually-hidden">{item.label}</span>
-          </button>
-        ))}
+      <div className="tf-admin__sidebar-rail">
+        <div className="tf-admin__sidebar-rail__tabs" role="tablist" aria-label="Main sections">
+          {railItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={activeSidebarPanel === item.id}
+              className={`tf-admin__sidebar-rail__btn${activeSidebarPanel === item.id ? ' active' : ''}`}
+              title={item.label}
+              onClick={() => setActiveSidebarPanel(item.id)}>
+              <i className={`feather ${item.icon}`} aria-hidden />
+              <span className="visually-hidden">{item.label}</span>
+            </button>
+          ))}
+        </div>
+        {isMiniLayout ? (
+          <div className="tf-admin__sidebar-rail__expand-hint" aria-hidden="true">
+            <i className="feather icon-chevrons-right" />
+            <span className="visually-hidden">Hover to expand menu</span>
+          </div>
+        ) : null}
       </div>
       <div className="tf-admin__sidebar-panel">
         <div className="tf-sidebar-logo">
@@ -558,8 +570,10 @@ export default function AdminSidebarTwoColumn() {
           </Link>
         </div>
         <div className="tf-sidebar-menu">
-          <nav className="tf-nav tf-nav--twocol-panel" aria-label={`${activeSidebarPanel} menu`}>
-            {renderPanel()}
+          <nav
+            className={`tf-nav tf-nav--twocol-panel${isOneColumnLayout ? ' tf-nav--one-col' : ''}`}
+            aria-label={isOneColumnLayout ? 'Admin menu' : `${activeSidebarPanel} menu`}>
+            {isOneColumnLayout ? railItems.map((item) => renderPanel(item.id)) : renderPanel()}
           </nav>
         </div>
       </div>

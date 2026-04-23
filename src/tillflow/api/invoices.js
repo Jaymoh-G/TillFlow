@@ -27,11 +27,28 @@ export function restoreInvoiceRequest(token, id) {
 /**
  * @param {string} token
  * @param {string|number} id
- * @param {{ pdfBlob?: Blob, attachmentFilename?: string, toEmail?: string, subject?: string, message?: string }} [options]
+ * @param {{
+ *   pdfBlob?: Blob,
+ *   attachmentFilename?: string,
+ *   toEmail?: string,
+ *   subject?: string,
+ *   message?: string,
+ *   ccContactIds?: number[]
+ * }} [options]
  *   — same html2canvas+jsPDF capture as modal PDF when provided
  */
 export function sendInvoiceToCustomerRequest(token, id, options = {}) {
-  const { pdfBlob, attachmentFilename, toEmail, subject, message } = options;
+  const { pdfBlob, attachmentFilename, toEmail, subject, message, ccContactIds } = options;
+  const appendCc = (fd) => {
+    if (Array.isArray(ccContactIds) && ccContactIds.length) {
+      for (const raw of ccContactIds) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) {
+          fd.append('cc_contact_ids[]', String(n));
+        }
+      }
+    }
+  };
   if (pdfBlob instanceof Blob) {
     const fd = new FormData();
     const safeId = String(id).replace(/[^\w.-]+/g, '_');
@@ -46,6 +63,7 @@ export function sendInvoiceToCustomerRequest(token, id, options = {}) {
     if (typeof message === 'string' && message.trim()) {
       fd.append('message', message);
     }
+    appendCc(fd);
     return tillflowUpload(`/invoices/${encodeURIComponent(String(id))}/send-to-customer`, {
       method: 'POST',
       token,
@@ -61,6 +79,9 @@ export function sendInvoiceToCustomerRequest(token, id, options = {}) {
   }
   if (typeof message === 'string' && message.trim()) {
     body.message = message;
+  }
+  if (Array.isArray(ccContactIds) && ccContactIds.length) {
+    body.cc_contact_ids = ccContactIds.map((x) => Number(x)).filter((n) => Number.isFinite(n));
   }
   return tillflowFetch(`/invoices/${encodeURIComponent(String(id))}/send-to-customer`, {
     method: 'POST',

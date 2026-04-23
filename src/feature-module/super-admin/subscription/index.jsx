@@ -58,7 +58,7 @@ export default function Subscription() {
         return;
       }
       try {
-        const me = await tillflowFetch('/tillflow/auth/me', { token: tok });
+        const me = await tillflowFetch('/auth/me', { token: tok });
         if (cancelled) {
           return;
         }
@@ -156,7 +156,7 @@ export default function Subscription() {
   }
 
   if (!allowed) {
-    return <Navigate to="/login" replace state={{ from: '/platform-owner/subscribers' }} />;
+    return <Navigate to="/admin" replace />;
   }
 
   return (

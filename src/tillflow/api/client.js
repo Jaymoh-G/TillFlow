@@ -15,10 +15,11 @@ function messageForFailedRequest(status, fallback) {
  * @param {object|undefined} [options.body]
  * @param {string|null|undefined} [options.token]
  * @param {Record<string, string>} [options.headers]
+ * @param {AbortSignal} [options.signal]
  * @returns {Promise<any>} Unwrapped `data` from API envelope
  */
 export async function tillflowFetch(path, options = {}) {
-  const { method = 'GET', body, token = null, headers: extra = {} } = options;
+  const { method = 'GET', body, token = null, headers: extra = {}, signal } = options;
   const url = `${TILLFLOW_API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
   /** @type {Record<string, string>} */
@@ -30,6 +31,10 @@ export async function tillflowFetch(path, options = {}) {
 
   /** @type {RequestInit} */
   const init = { method, headers };
+
+  if (signal) {
+    init.signal = signal;
+  }
 
   if (body !== undefined && body !== null) {
     headers['Content-Type'] = 'application/json';

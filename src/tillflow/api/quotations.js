@@ -1,7 +1,18 @@
 import { tillflowFetch, tillflowUpload } from './client';
 
-export function listQuotationsRequest(token) {
-  return tillflowFetch('/quotations', { token });
+function qs(params) {
+  const u = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') {
+      u.set(k, String(v));
+    }
+  });
+  const s = u.toString();
+  return s ? `?${s}` : '';
+}
+
+export function listQuotationsRequest(token, params) {
+  return tillflowFetch(`/quotations${qs(params)}`, { token });
 }
 
 export function createQuotationRequest(token, body) {

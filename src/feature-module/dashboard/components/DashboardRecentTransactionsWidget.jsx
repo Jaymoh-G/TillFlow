@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchDashboardRecentProposals, fetchDashboardRecentTransactions } from "../../../tillflow/api/reports";
+import { listQuotationsRequest } from "../../../tillflow/api/quotations";
 import { TillFlowApiError } from "../../../tillflow/api/errors";
 import { useOptionalAuth } from "../../../tillflow/auth/AuthContext";
 import { resolveMediaUrl } from "../../../tillflow/utils/resolveMediaUrl";
@@ -47,6 +48,14 @@ function CustomerCell({ avatarSrc, name, refCode, nameTo = "#" }) {
 }
 
 const moneyFmtCache = new Map();
+const PERIOD_LABELS = {
+  today: "Today",
+  week: "Weekly",
+  month: "Monthly",
+  "6months": "6 months",
+  "1year": "1 year",
+  all: "All time"
+};
 
 function formatMoney(amountStr, currency = "KES") {
   const n = Number.parseFloat(String(amountStr));
@@ -79,6 +88,44 @@ function EmptyRow({ colSpan, message }) {
       </td>
     </tr>
   );
+}
+
+function quotationStatusToBadgeVariant(status) {
+  const s = String(status || "").trim().toLowerCase();
+  if (s === "accepted") return "success";
+  if (s === "sent") return "primary";
+  if (s === "expired") return "warning";
+  if (s === "declined") return "danger";
+  return "secondary";
+}
+
+function toFallbackQuotationRows(data, limit) {
+  const rows = Array.isArray(data?.quotations) ? data.quotations : [];
+  return rows
+    .slice()
+    .sort((a, b) => {
+      const ad = new Date(a?.quoted_at ?? a?.created_at ?? 0).getTime();
+      const bd = new Date(b?.quoted_at ?? b?.created_at ?? 0).getTime();
+      return bd - ad;
+    })
+    .slice(0, limit)
+    .map((q) => ({
+      id: q.id,
+      date: q.quoted_at
+        ? new Date(`${String(q.quoted_at).slice(0, 10)}T12:00:00`).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric"
+          })
+        : "—",
+      avatar_url: q.customer_image_url ?? null,
+      customer_name: q.customer_name ?? "—",
+      reference: q.quote_ref ?? q.id ?? "—",
+      badge_variant: quotationStatusToBadgeVariant(q.status),
+      status_label: q.status ?? "Draft",
+      total: q.total_amount ?? 0,
+      currency: q.currency ?? "KES"
+    }));
 }
 
 /**
@@ -133,10 +180,22 @@ export default function DashboardRecentTransactionsWidget({
           ? fetchDashboardRecentProposals(token, { limit, ...apiParams })
           : Promise.resolve({ proposals: [] })
       ]);
+      let fallbackQuotations = [];
+      if (!Array.isArray(data?.quotations) || data.quotations.length === 0) {
+        try {
+          const qData = await listQuotationsRequest(token, { limit, ...apiParams });
+          fallbackQuotations = toFallbackQuotationRows(qData, limit);
+        } catch {
+          fallbackQuotations = [];
+        }
+      }
       setLive({
         sales: Array.isArray(data?.sales) ? data.sales : [],
         purchases: Array.isArray(data?.purchases) ? data.purchases : [],
-        quotations: Array.isArray(data?.quotations) ? data.quotations : [],
+        quotations:
+          Array.isArray(data?.quotations) && data.quotations.length > 0
+            ? data.quotations
+            : fallbackQuotations,
         expenses: Array.isArray(data?.expenses) ? data.expenses : [],
         invoices: Array.isArray(data?.invoices) ? data.invoices : [],
         proposals: shouldFetchProposals ? (Array.isArray(propData?.proposals) ? propData.proposals : []) : []
@@ -167,6 +226,12 @@ export default function DashboardRecentTransactionsWidget({
 
   const data = token && live ? live : demo;
   const useApi = Boolean(token && live && !error);
+  const activeFilterLabel = useMemo(() => {
+    if (apiParams?.from && apiParams?.to) {
+      return `${apiParams.from} to ${apiParams.to}`;
+    }
+    return PERIOD_LABELS[period] || "the selected period";
+  }, [apiParams, period]);
 
   const tabs = useMemo(() => {
     const saleRows = useApi
@@ -448,7 +513,7 @@ export default function DashboardRecentTransactionsWidget({
                   colSpan={4}
                   message={
                     useApi
-                      ? "No quotations module in the database yet."
+                      ? `No recent quotations in ${activeFilterLabel}.`
                       : "No data."
                   }
                 />
@@ -571,7 +636,7 @@ export default function DashboardRecentTransactionsWidget({
         )
       }
     ];
-  }, [data, useApi, showProposalsTab]);
+  }, [data, useApi, showProposalsTab, activeFilterLabel]);
 
   return (
     <div className="card flex-fill">

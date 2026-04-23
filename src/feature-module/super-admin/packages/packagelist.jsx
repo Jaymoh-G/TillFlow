@@ -104,7 +104,7 @@ export default function Packages() {
         return;
       }
       try {
-        const me = await tillflowFetch('/tillflow/auth/me', { token: tok });
+        const me = await tillflowFetch('/auth/me', { token: tok });
         if (cancelled) {
           return;
         }
@@ -112,9 +112,15 @@ export default function Packages() {
           setAllowed(false);
         } else {
           setAllowed(true);
-          const meta = await fetchPlatformMeta();
-          setPermSlugs(meta.permission_slugs || []);
-          await loadPlans();
+          try {
+            const meta = await fetchPlatformMeta();
+            setPermSlugs(meta.permission_slugs || []);
+            await loadPlans();
+          } catch (e) {
+            if (!cancelled) {
+              setLoadError(e instanceof TillFlowApiError ? e.message : 'Failed to load plan data.');
+            }
+          }
         }
       } catch {
         if (!cancelled) {
@@ -312,7 +318,7 @@ export default function Packages() {
   }
 
   if (!allowed) {
-    return <Navigate to="/login" replace state={{ from: '/platform-owner/packages' }} />;
+    return <Navigate to="/admin" replace />;
   }
 
   return (

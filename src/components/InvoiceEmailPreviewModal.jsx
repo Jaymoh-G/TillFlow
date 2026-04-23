@@ -19,7 +19,8 @@ export default function InvoiceEmailPreviewModal({
   sending,
   sendDisabled,
   sendButtonLabel = "Send email",
-  showHtmlPreview = false
+  showHtmlPreview = false,
+  children
 }) {
   // When HTML preview is hidden, sending does not depend on client-side `html` (server builds the mail).
   const canSend =
@@ -73,6 +74,7 @@ export default function InvoiceEmailPreviewModal({
               />
               <div className="form-text">Editable text at the top of the email before the main content.</div>
             </div>
+            {children ? <div className="mb-3">{children}</div> : null}
             {showHtmlPreview && html ? (
               <div
                 className="border rounded bg-white overflow-hidden"

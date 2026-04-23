@@ -129,6 +129,7 @@ export const all_routes = {
   /** TillFlow admin embed of the same Profile screen */
   tillflowAdminProfile: "/admin/settings/profile",
   tillflowAdminCompanySettings: "/admin/settings/company",
+  tillflowAdminCompanyContacts: "/admin/settings/company-contacts",
   tillflowAdminSystemSettings: "/admin/settings/system",
   tillflowAdminAutomationSettings: "/admin/settings/automation",
   tillflowAdminPreference: "/admin/settings/preference",
@@ -162,6 +163,7 @@ export const all_routes = {
   connectedapps: "/connected-apps",
   systemsettings: "/system-settings",
   companysettings: "/company-settings",
+  companycontacts: "/company-contacts",
   preference: "/preference",
   saleslist: "/sales-list",
   invoicereport: "/invoice-report",

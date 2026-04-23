@@ -11,6 +11,9 @@ const SettingsSideBar = (props) => {
   const companySettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminCompanySettings
     : route.companysettings;
+  const companyContactsSettingsPath = location.pathname.startsWith("/admin")
+    ? route.tillflowAdminCompanyContacts
+    : route.companycontacts;
   const securitySettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSecurity
     : route.securitysettings;
@@ -147,6 +150,8 @@ const SettingsSideBar = (props) => {
       p === route.tillflowAdminSystemSettings ||
       p === route.companysettings ||
       p === route.tillflowAdminCompanySettings ||
+      p === route.companycontacts ||
+      p === route.tillflowAdminCompanyContacts ||
       p === route.preference ||
       p === route.tillflowAdminPreference ||
       p === route.appearance ||
@@ -308,9 +313,11 @@ const SettingsSideBar = (props) => {
                         className={
                         location.pathname === route.systemsettings ||
                         location.pathname === route.tillflowAdminSystemSettings ||
-                        location.pathname === route.companysettings ||
-                        location.pathname === route.tillflowAdminCompanySettings ||
-                        location.pathname === route.preference ||
+        location.pathname === route.companysettings ||
+        location.pathname === route.tillflowAdminCompanySettings ||
+        location.pathname === route.companycontacts ||
+        location.pathname === route.tillflowAdminCompanyContacts ||
+        location.pathname === route.preference ||
                         location.pathname === route.tillflowAdminPreference ||
                         location.pathname === route.appearance ||
                         location.pathname === route.tillflowAdminAppearance ||
@@ -355,6 +362,19 @@ const SettingsSideBar = (props) => {
                             }>
 
                             Company Settings
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to={companyContactsSettingsPath}
+                            className={
+                            location.pathname === route.companycontacts ||
+                            location.pathname === route.tillflowAdminCompanyContacts ?
+                            "active" :
+                            ""
+                            }>
+
+                            Company contacts
                           </Link>
                         </li>
                         <li>

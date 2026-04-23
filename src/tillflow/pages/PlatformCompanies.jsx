@@ -18,6 +18,7 @@ import {
   updatePlatformTenant
 } from '../../core/api/platformAdminApi';
 import { tillflowFetch } from '../api/client';
+import { createPlatformTenantContact, fetchPlatformTenantContacts } from '../api/tenantContacts';
 import { TillFlowApiError } from '../api/errors';
 
 function readToken() {
@@ -45,13 +46,28 @@ function computeStats(tenants) {
 
 const emptyCreate = {
   name: '',
-  slug: '',
+  company_phone: '',
+  company_website: '',
+  company_address_line: ''
+};
+
+const emptyContactForm = {
+  first_name: '',
+  last_name: '',
+  position: '',
+  email: '',
+  phone: '',
+  password: '',
+  send_password_setup_email: false,
+  is_primary: true
+};
+
+const emptyEdit = {
+  name: '',
   company_email: '',
   company_phone: '',
   company_website: '',
-  company_address_line: '',
-  primary_contact_name: '',
-  invite_primary_contact: true
+  company_address_line: ''
 };
 
 function normalizeEmail(value) {
@@ -105,8 +121,8 @@ function DetailField({ label, children, className = 'col-md-6' }) {
   );
 }
 
-/** @param {{ tenant: Record<string, unknown> }} props */
-function PlatformTenantDetailView({ tenant }) {
+/** @param {{ tenant: Record<string, unknown>, contacts?: Array<Record<string, unknown>> }} props */
+function PlatformTenantDetailView({ tenant, contacts = [] }) {
   const status = tenant.status === 'suspended' ? 'Suspended' : 'Active';
   const badgeClass =
     tenant.status === 'suspended' ? 'badge-danger' : 'badge-success';
@@ -138,9 +154,48 @@ function PlatformTenantDetailView({ tenant }) {
         <DetailField label="Last active">{formatDetailDate(tenant.last_active_at)}</DetailField>
       </div>
 
-      <h6 className="text-uppercase text-muted small mb-2">Contact</h6>
+      {contacts.length > 0 ? (
+        <>
+          <h6 className="text-uppercase text-muted small mb-2">Contacts</h6>
+          <div className="table-responsive border rounded mb-3">
+            <table className="table table-sm mb-0 small">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.map((c) => (
+                  <tr key={String(c.id)}>
+                    <td>
+                      {c.display_name ? String(c.display_name) : '—'}
+                      {c.is_primary ? (
+                        <span className="badge badge-xs bg-secondary ms-1">Primary</span>
+                      ) : null}
+                    </td>
+                    <td>{c.position ? String(c.position) : '—'}</td>
+                    <td>
+                      {c.email ? (
+                        <a href={`mailto:${String(c.email)}`}>{String(c.email)}</a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>{c.phone ? String(c.phone) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
+
+      <h6 className="text-uppercase text-muted small mb-2">Billing / company (mirrored from primary contact)</h6>
       <div className="row g-2 mb-3">
-        <DetailField label="Email">
+        <DetailField label="Billing email">
           {tenant.company_email ? (
             <a href={`mailto:${tenant.company_email}`}>{String(tenant.company_email)}</a>
           ) : (
@@ -148,7 +203,6 @@ function PlatformTenantDetailView({ tenant }) {
           )}
         </DetailField>
         <DetailField label="Phone">{tenant.company_phone}</DetailField>
-        <DetailField label="Fax">{tenant.company_fax}</DetailField>
         <DetailField label="Website">
           {tenant.company_website ? (
             <a href={websiteHref(tenant.company_website)} target="_blank" rel="noopener noreferrer">
@@ -165,10 +219,6 @@ function PlatformTenantDetailView({ tenant }) {
         <DetailField className="col-12" label="Street / line">
           {tenant.company_address_line}
         </DetailField>
-        <DetailField label="City">{tenant.company_city}</DetailField>
-        <DetailField label="State / region">{tenant.company_state}</DetailField>
-        <DetailField label="Postal code">{tenant.company_postal_code}</DetailField>
-        <DetailField label="Country">{tenant.company_country}</DetailField>
       </div>
 
       <h6 className="text-uppercase text-muted small mb-2">Subscription</h6>
@@ -271,15 +321,20 @@ export default function PlatformCompanies() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const [showAdd, setShowAdd] = useState(false);
+  const [addWizardStep, setAddWizardStep] = useState(1);
+  const [newTenantId, setNewTenantId] = useState(null);
   const [createForm, setCreateForm] = useState(emptyCreate);
+  const [contactForm, setContactForm] = useState(emptyContactForm);
+  const [contactAvatarFile, setContactAvatarFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const [viewOpen, setViewOpen] = useState(false);
   const [viewLoading, setViewLoading] = useState(false);
   const [viewTenant, setViewTenant] = useState(null);
+  const [viewContacts, setViewContacts] = useState([]);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState(emptyCreate);
+  const [editForm, setEditForm] = useState(emptyEdit);
   const [editId, setEditId] = useState(null);
 
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -358,11 +413,17 @@ export default function PlatformCompanies() {
     setViewOpen(true);
     setViewLoading(true);
     setViewTenant(null);
+    setViewContacts([]);
     try {
-      const data = await fetchPlatformTenant(row.id);
-      setViewTenant(data.tenant);
+      const [tenantData, contactsEnvelope] = await Promise.all([
+        fetchPlatformTenant(row.id),
+        fetchPlatformTenantContacts(row.id).catch(() => ({ contacts: [] }))
+      ]);
+      setViewTenant(tenantData.tenant);
+      setViewContacts(Array.isArray(contactsEnvelope?.contacts) ? contactsEnvelope.contacts : []);
     } catch {
       setViewTenant(null);
+      setViewContacts([]);
     } finally {
       setViewLoading(false);
     }
@@ -373,7 +434,6 @@ export default function PlatformCompanies() {
     setEditId(raw.id);
     setEditForm({
       name: raw.name || '',
-      slug: raw.slug || '',
       company_email: raw.company_email || '',
       company_phone: raw.company_phone || '',
       company_website: raw.company_website || '',
@@ -382,47 +442,109 @@ export default function PlatformCompanies() {
     setEditOpen(true);
   }, []);
 
-  const submitCreate = async (e) => {
+  const resetAddWizard = () => {
+    setAddWizardStep(1);
+    setNewTenantId(null);
+    setCreateForm(emptyCreate);
+    setContactForm(emptyContactForm);
+    setContactAvatarFile(null);
+  };
+
+  const submitCreateCompany = async (e) => {
     e.preventDefault();
-    if (createForm.invite_primary_contact && !normalizeEmail(createForm.company_email)) {
-      window.alert('Company email is required when sending an invitation to the primary contact.');
-      return;
-    }
-    const email = normalizeEmail(createForm.company_email);
     const phone = normalizePhone(createForm.company_phone);
-    const duplicateEmail = email
-      ? (apiTenants || []).some((t) => normalizeEmail(t.company_email) === email)
-      : false;
     const duplicatePhone = phone
       ? (apiTenants || []).some((t) => normalizePhone(t.company_phone) === phone)
       : false;
-    if (duplicateEmail || duplicatePhone) {
-      const msg = [
-        duplicateEmail ? 'Company email must be unique.' : null,
-        duplicatePhone ? 'Company phone must be unique.' : null
-      ]
-        .filter(Boolean)
-        .join(' ');
-      window.alert(msg);
+    if (duplicatePhone) {
+      window.alert('Company phone must be unique.');
       return;
     }
     setSaving(true);
     try {
-      await createPlatformTenant({
+      const data = await createPlatformTenant({
         name: createForm.name,
-        slug: createForm.slug || undefined,
-        company_email: createForm.company_email || undefined,
         company_phone: createForm.company_phone || undefined,
         company_website: createForm.company_website || undefined,
-        company_address_line: createForm.company_address_line || undefined,
-        invite_primary_contact: createForm.invite_primary_contact,
-        primary_contact_name: createForm.primary_contact_name?.trim() || undefined
+        company_address_line: createForm.company_address_line || undefined
       });
-      setShowAdd(false);
-      setCreateForm(emptyCreate);
+      const tenant = data.tenant;
+      setNewTenantId(tenant?.id ?? null);
+      setAddWizardStep(2);
       await load();
     } catch (err) {
       let msg = 'Could not create company.';
+      if (err instanceof TillFlowApiError) {
+        msg = err.message;
+        const errs = err.data?.errors;
+        if (errs && typeof errs === 'object') {
+          const flat = Object.values(errs)
+            .flat()
+            .filter((x) => typeof x === 'string' && x.length);
+          if (flat.length) {
+            msg = String(flat[0]);
+          }
+        }
+      }
+      window.alert(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitContactForCompany = async (e) => {
+    e.preventDefault();
+    if (!newTenantId) {
+      return;
+    }
+    const email = normalizeEmail(contactForm.email);
+    if (contactForm.is_primary && !email) {
+      window.alert('Primary contacts need an email (used for billing correspondence).');
+      return;
+    }
+    const wantsLogin =
+      contactForm.send_password_setup_email ||
+      (String(contactForm.password ?? '').trim().length > 0);
+    if (wantsLogin && !email) {
+      window.alert('Email is required for an invitation or login.');
+      return;
+    }
+    if (
+      wantsLogin &&
+      !contactForm.send_password_setup_email &&
+      String(contactForm.password ?? '').trim().length < 8
+    ) {
+      window.alert('Use at least 8 characters for the password, or enable “Send set-password email”.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('first_name', contactForm.first_name.trim());
+      fd.append('last_name', contactForm.last_name.trim());
+      if (contactForm.position?.trim()) {
+        fd.append('position', contactForm.position.trim());
+      }
+      if (email) {
+        fd.append('email', email);
+      }
+      if (contactForm.phone?.trim()) {
+        fd.append('phone', contactForm.phone.trim());
+      }
+      fd.append('is_primary', contactForm.is_primary ? '1' : '0');
+      fd.append('send_password_setup_email', contactForm.send_password_setup_email ? '1' : '0');
+      if (!contactForm.send_password_setup_email && contactForm.password?.trim()) {
+        fd.append('password', contactForm.password.trim());
+      }
+      if (contactAvatarFile) {
+        fd.append('avatar', contactAvatarFile);
+      }
+      await createPlatformTenantContact(newTenantId, fd);
+      setShowAdd(false);
+      resetAddWizard();
+      await load();
+    } catch (err) {
+      let msg = 'Could not create contact.';
       if (err instanceof TillFlowApiError) {
         msg = err.message;
         const errs = err.data?.errors;
@@ -473,10 +595,6 @@ export default function PlatformCompanies() {
         company_website: editForm.company_website?.trim() || null,
         company_address_line: editForm.company_address_line?.trim() || null
       };
-      const s = editForm.slug?.trim();
-      if (s) {
-        patch.slug = s;
-      }
       await updatePlatformTenant(editId, patch);
       setEditOpen(false);
       await load();
@@ -547,8 +665,8 @@ export default function PlatformCompanies() {
               <div className="page-title">
                 <h4>Companies</h4>
                 <h6>
-                  Subscriber organizations — primary contact is invited with the Tenant role; they can add users
-                  after sign-in.
+                  Create the organization first, then add contacts (billing email comes from the primary contact).
+                  Tenant role invitations are optional when creating a login-capable contact.
                 </h6>
               </div>
             </div>
@@ -558,7 +676,13 @@ export default function PlatformCompanies() {
               <CollapesIcon />
             </ul>
             <div className="page-btn">
-              <button type="button" className="btn btn-primary" onClick={() => setShowAdd(true)}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  resetAddWizard();
+                  setShowAdd(true);
+                }}>
                 <i className="ti ti-circle-plus me-1" />
                 Add Company
               </button>
@@ -626,93 +750,185 @@ export default function PlatformCompanies() {
         <CommonFooter />
       </div>
 
-      <Modal show={showAdd} onHide={() => setShowAdd(false)} centered size="lg">
-        <Form onSubmit={submitCreate}>
+      <Modal
+        show={showAdd}
+        onHide={() => {
+          setShowAdd(false);
+          resetAddWizard();
+        }}
+        centered
+        size="lg">
+        <Form onSubmit={addWizardStep === 1 ? submitCreateCompany : submitContactForCompany}>
           <Modal.Header closeButton>
-            <Modal.Title>Add company (tenant)</Modal.Title>
+            <Modal.Title>
+              {addWizardStep === 1 ? 'Add company — step 1 of 2' : 'Add primary contact — step 2 of 2'}
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <div className="row g-3">
-              <div className="col-md-12">
-                <Form.Label>Name *</Form.Label>
-                <Form.Control
-                  required
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                />
+            {addWizardStep === 1 ? (
+              <div className="row g-3">
+                <div className="col-md-12">
+                  <Form.Label>Company name *</Form.Label>
+                  <Form.Control
+                    required
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>Phone</Form.Label>
+                  <Form.Control
+                    value={createForm.company_phone}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, company_phone: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>Website</Form.Label>
+                  <Form.Control
+                    value={createForm.company_website}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, company_website: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-12">
+                  <Form.Label>Address</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={createForm.company_address_line}
+                    onChange={(e) =>
+                      setCreateForm((f) => ({ ...f, company_address_line: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="col-12">
+                  <p className="text-muted small mb-0">
+                    Billing correspondence uses the primary contact&apos;s email once you add contacts.
+                  </p>
+                </div>
               </div>
-              <div className="col-md-12">
-                <Form.Label>Slug (optional)</Form.Label>
-                <Form.Control
-                  placeholder="auto from name if empty"
-                  value={createForm.slug}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, slug: e.target.value }))}
-                />
+            ) : (
+              <div className="row g-3">
+                <div className="col-md-12">
+                  <Form.Label>Profile image</Form.Label>
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      setContactAvatarFile(f ?? null);
+                    }}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>First name *</Form.Label>
+                  <Form.Control
+                    required
+                    value={contactForm.first_name}
+                    onChange={(e) => setContactForm((f) => ({ ...f, first_name: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>Last name *</Form.Label>
+                  <Form.Control
+                    required
+                    value={contactForm.last_name}
+                    onChange={(e) => setContactForm((f) => ({ ...f, last_name: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-12">
+                  <Form.Label>Position</Form.Label>
+                  <Form.Control
+                    value={contactForm.position}
+                    onChange={(e) => setContactForm((f) => ({ ...f, position: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <Form.Label>Phone</Form.Label>
+                  <Form.Control
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-12">
+                  <Form.Check
+                    type="checkbox"
+                    id="tf-contact-primary"
+                    checked={contactForm.is_primary}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, is_primary: e.target.checked }))
+                    }
+                    label="Primary contact (billing ‘To’ uses this email)"
+                  />
+                </div>
+                <div className="col-md-12">
+                  <Form.Check
+                    type="checkbox"
+                    id="tf-contact-invite"
+                    checked={contactForm.send_password_setup_email}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setContactForm((f) => ({
+                        ...f,
+                        send_password_setup_email: v,
+                        ...(v ? { password: '' } : {})
+                      }));
+                    }}
+                    label="Email a link to set their password (invitation)"
+                  />
+                  <div className="form-text">
+                    When checked, TillFlow sends a message to the <strong>email above</strong> with a secure link so
+                    they can choose their own password and sign in. The password box below is not used for that path.
+                  </div>
+                </div>
+                <div className="col-md-12">
+                  <Form.Label>
+                    {contactForm.send_password_setup_email
+                      ? 'Password (not used — they set it via the email link)'
+                      : `Password (min 8 characters if login, optional if contact-only)`}
+                  </Form.Label>
+                  <Form.Control
+                    type="password"
+                    autoComplete="new-password"
+                    disabled={contactForm.send_password_setup_email}
+                    value={contactForm.password}
+                    onChange={(e) => setContactForm((f) => ({ ...f, password: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div className="col-md-12">
-                <Form.Check
-                  type="checkbox"
-                  id="tf-invite-primary"
-                  checked={createForm.invite_primary_contact}
-                  onChange={(e) =>
-                    setCreateForm((f) => ({ ...f, invite_primary_contact: e.target.checked }))
-                  }
-                  label="Send invitation to company email (Tenant role — can manage company profile and invite users)"
-                />
-              </div>
-              <div className="col-md-12">
-                <Form.Label>Primary contact name (optional)</Form.Label>
-                <Form.Control
-                  placeholder="Defaults to company name if empty"
-                  value={createForm.primary_contact_name}
-                  disabled={!createForm.invite_primary_contact}
-                  onChange={(e) =>
-                    setCreateForm((f) => ({ ...f, primary_contact_name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="col-md-6">
-                <Form.Label>Company email{createForm.invite_primary_contact ? ' *' : ''}</Form.Label>
-                <Form.Control
-                  type="email"
-                  required={createForm.invite_primary_contact}
-                  value={createForm.company_email}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, company_email: e.target.value }))}
-                />
-              </div>
-              <div className="col-md-6">
-                <Form.Label>Phone</Form.Label>
-                <Form.Control
-                  value={createForm.company_phone}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, company_phone: e.target.value }))}
-                />
-              </div>
-              <div className="col-md-12">
-                <Form.Label>Website</Form.Label>
-                <Form.Control
-                  value={createForm.company_website}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, company_website: e.target.value }))}
-                />
-              </div>
-              <div className="col-md-12">
-                <Form.Label>Address</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={createForm.company_address_line}
-                  onChange={(e) =>
-                    setCreateForm((f) => ({ ...f, company_address_line: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
+            )}
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" type="button" onClick={() => setShowAdd(false)}>
+          <Modal.Footer className="gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => {
+                setShowAdd(false);
+                resetAddWizard();
+              }}>
               Cancel
             </Button>
+            {addWizardStep === 2 ? (
+              <Button
+                variant="outline-secondary"
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  setShowAdd(false);
+                  resetAddWizard();
+                }}>
+                Skip contact
+              </Button>
+            ) : null}
             <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Create'}
+              {saving ? 'Saving…' : addWizardStep === 1 ? 'Next: add contact' : 'Create contact'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -734,13 +950,6 @@ export default function PlatformCompanies() {
                 />
               </div>
               <div className="col-md-12">
-                <Form.Label>Slug</Form.Label>
-                <Form.Control
-                  value={editForm.slug}
-                  onChange={(e) => setEditForm((f) => ({ ...f, slug: e.target.value }))}
-                />
-              </div>
-              <div className="col-md-6">
                 <Form.Label>Company email</Form.Label>
                 <Form.Control
                   type="email"
@@ -755,7 +964,7 @@ export default function PlatformCompanies() {
                   onChange={(e) => setEditForm((f) => ({ ...f, company_phone: e.target.value }))}
                 />
               </div>
-              <div className="col-md-12">
+              <div className="col-md-6">
                 <Form.Label>Website</Form.Label>
                 <Form.Control
                   value={editForm.company_website}
@@ -794,7 +1003,7 @@ export default function PlatformCompanies() {
               <Spinner animation="border" />
             </div>
           ) : viewTenant ? (
-            <PlatformTenantDetailView tenant={viewTenant} />
+            <PlatformTenantDetailView tenant={viewTenant} contacts={viewContacts} />
           ) : (
             <p className="text-muted mb-0">Could not load detail.</p>
           )}
