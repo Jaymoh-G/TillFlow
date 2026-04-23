@@ -12,7 +12,7 @@ class PlanSeeder extends Seeder
     public function run(): void
     {
         $essentials = [
-            'tenant.manage', 'users.manage', 'reports.view',
+            'tenant.manage', 'users.manage', 'reports.view', 'search.global',
             'catalog.masters.manage', 'catalog.items.manage', 'stores.manage',
             'sales.orders.manage', 'sales.customers.manage',
         ];

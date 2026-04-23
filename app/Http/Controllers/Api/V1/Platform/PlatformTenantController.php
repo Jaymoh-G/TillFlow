@@ -3,46 +3,26 @@
 namespace App\Http\Controllers\Api\V1\Platform;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\TenantSubscription;
 use App\Services\Tenants\TenantRoleProvisioningService;
-use App\Services\Tenants\TenantUserInvitationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class PlatformTenantController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
-        $invite = $request->boolean('invite_primary_contact', true);
-
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
             'status' => ['sometimes', 'string', Rule::in([Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED])],
-            'invite_primary_contact' => ['sometimes', 'boolean'],
-            'primary_contact_name' => ['nullable', 'string', 'max:255'],
-            'company_email' => ['nullable', 'email', 'max:255', Rule::unique('tenants', 'company_email')],
             'company_phone' => ['nullable', 'string', 'max:64', Rule::unique('tenants', 'company_phone')],
-            'company_fax' => ['nullable', 'string', 'max:64'],
             'company_website' => ['nullable', 'string', 'max:512'],
             'company_address_line' => ['nullable', 'string', 'max:2000'],
-            'company_country' => ['nullable', 'string', 'max:32'],
-            'company_state' => ['nullable', 'string', 'max:64'],
-            'company_city' => ['nullable', 'string', 'max:64'],
-            'company_postal_code' => ['nullable', 'string', 'max:32'],
         ]);
-
-        if ($invite && $this->nullableTrim($data['company_email'] ?? null) === null) {
-            throw ValidationException::withMessages([
-                'company_email' => ['Company email is required when inviting the primary contact.'],
-            ]);
-        }
 
         $name = trim($data['name']);
         $slugBase = isset($data['slug']) && $data['slug'] !== ''
@@ -59,74 +39,28 @@ class PlatformTenantController extends Controller
             $n++;
         }
 
-        try {
-            /** @var array{tenant: Tenant, primary_contact_invited: bool} $payload */
-            $payload = DB::transaction(function () use ($data, $name, $slug, $invite): array {
-                $tenant = Tenant::query()->create([
-                    'name' => $name,
-                    'slug' => $slug,
-                    'status' => $data['status'] ?? Tenant::STATUS_ACTIVE,
-                    'company_email' => $this->nullableTrim($data['company_email'] ?? null),
-                    'company_phone' => $this->nullableTrim($data['company_phone'] ?? null),
-                    'company_fax' => $this->nullableTrim($data['company_fax'] ?? null),
-                    'company_website' => $this->nullableTrim($data['company_website'] ?? null),
-                    'company_address_line' => $this->nullableTrim($data['company_address_line'] ?? null),
-                    'company_country' => $this->nullableTrim($data['company_country'] ?? null),
-                    'company_state' => $this->nullableTrim($data['company_state'] ?? null),
-                    'company_city' => $this->nullableTrim($data['company_city'] ?? null),
-                    'company_postal_code' => $this->nullableTrim($data['company_postal_code'] ?? null),
-                ]);
+        $tenant = Tenant::query()->create([
+            'name' => $name,
+            'slug' => $slug,
+            'status' => $data['status'] ?? Tenant::STATUS_ACTIVE,
+            'company_email' => null,
+            'company_phone' => $this->nullableTrim($data['company_phone'] ?? null),
+            'company_fax' => null,
+            'company_website' => $this->nullableTrim($data['company_website'] ?? null),
+            'company_address_line' => $this->nullableTrim($data['company_address_line'] ?? null),
+            'company_country' => null,
+            'company_state' => null,
+            'company_city' => null,
+            'company_postal_code' => null,
+        ]);
 
-                app(TenantRoleProvisioningService::class)->ensureForTenant($tenant);
-
-                $primaryContactInvited = false;
-                if ($invite) {
-                    $email = (string) $tenant->company_email;
-                    $tenantRole = Role::query()
-                        ->where('tenant_id', $tenant->id)
-                        ->where('slug', 'tenant')
-                        ->first();
-                    if (! $tenantRole) {
-                        throw ValidationException::withMessages([
-                            'tenant' => ['Default tenant role could not be created.'],
-                        ]);
-                    }
-                    $contactName = trim((string) ($data['primary_contact_name'] ?? ''));
-                    if ($contactName === '') {
-                        $contactName = $name;
-                    }
-                    app(TenantUserInvitationService::class)->invite(
-                        $tenant,
-                        $contactName,
-                        $email,
-                        [(int) $tenantRole->id]
-                    );
-                    $primaryContactInvited = true;
-                }
-
-                return [
-                    'tenant' => $tenant,
-                    'primary_contact_invited' => $primaryContactInvited,
-                ];
-            });
-            $tenant = $payload['tenant'];
-            $primaryContactInvited = $payload['primary_contact_invited'];
-        } catch (ValidationException $e) {
-            $first = collect($e->errors())->flatten()->first();
-
-            return response()->json([
-                'success' => false,
-                'message' => is_string($first) ? $first : 'Validation failed.',
-                'data' => ['errors' => $e->errors()],
-            ], 422);
-        }
+        app(TenantRoleProvisioningService::class)->ensureForTenant($tenant);
 
         return response()->json([
             'success' => true,
-            'message' => 'Tenant created.',
+            'message' => 'Tenant created. Add company contacts next; billing email comes from the primary contact.',
             'data' => [
                 'tenant' => $this->serializeTenant($tenant->fresh(), null),
-                'primary_contact_invited' => $primaryContactInvited,
             ],
         ], 201);
     }

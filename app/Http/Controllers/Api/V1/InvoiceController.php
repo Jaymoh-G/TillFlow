@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Models\TenantContact;
 use App\Services\ActivityLogWriter;
 use App\Support\ActivityLogProperties;
 use App\Support\CustomerViewUrl;
@@ -472,7 +473,24 @@ class InvoiceController extends Controller
             'to_email' => ['nullable', 'string', 'max:255', 'email:rfc'],
             'subject' => ['nullable', 'string', 'max:255'],
             'message' => ['nullable', 'string', 'max:10000'],
+            'cc_contact_ids' => ['sometimes', 'array', 'max:20'],
+            'cc_contact_ids.*' => ['integer'],
         ]);
+
+        $ccEmails = [];
+        $ccIds = array_values(array_unique(array_map('intval', $validated['cc_contact_ids'] ?? [])));
+        if ($ccIds !== []) {
+            $ccRows = TenantContact::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('id', $ccIds)
+                ->get();
+            if ($ccRows->count() !== count($ccIds)) {
+                return response()->json([
+                    'message' => 'One or more CC contact ids are invalid for this company.',
+                ], 422);
+            }
+            $ccEmails = $ccRows->pluck('email')->filter()->map(fn ($e) => strtolower(trim((string) $e)))->unique()->values()->all();
+        }
 
         $model->load('customer');
         $toOverride = strtolower(trim((string) ($validated['to_email'] ?? '')));
@@ -511,7 +529,7 @@ class InvoiceController extends Controller
 
                 $pdfBinary = $this->resolveInvoiceEmailPdfAttachment($request, $tenant, $fresh, true);
                 $pdfFilename = $this->invoicePdfAttachmentFilename($fresh);
-                Mail::to($email)->send(new InvoiceSentToCustomer($fresh, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl));
+                $this->mailInvoiceToCustomer($email, $ccEmails, $fresh, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl);
 
                 $fresh->sent_to_customer_at = now();
                 $fresh->save();
@@ -522,7 +540,7 @@ class InvoiceController extends Controller
                     'customer',
                 ]);
             } else {
-                $out = DB::transaction(function () use ($request, $tenant, $model, $email, $subjectOverride, $messageOverride): Invoice {
+                $out = DB::transaction(function () use ($request, $tenant, $model, $email, $ccEmails, $subjectOverride, $messageOverride, $viewUrl): Invoice {
                     $model->load([
                         'items' => fn ($q) => $q->orderBy('position'),
                         'payments',
@@ -530,7 +548,7 @@ class InvoiceController extends Controller
                     ]);
                     $pdfBinary = $this->resolveInvoiceEmailPdfAttachment($request, $tenant, $model, false);
                     $pdfFilename = $this->invoicePdfAttachmentFilename($model);
-                    Mail::to($email)->send(new InvoiceSentToCustomer($model, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl));
+                    $this->mailInvoiceToCustomer($email, $ccEmails, $model, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl);
                     $model->sent_to_customer_at = now();
                     $model->save();
 
@@ -1219,5 +1237,25 @@ class InvoiceController extends Controller
             'created_at' => $i->created_at ? $i->created_at->toISOString() : null,
             'updated_at' => $i->updated_at ? $i->updated_at->toISOString() : null,
         ];
+    }
+
+    /**
+     * @param  list<string>  $ccEmails
+     */
+    private function mailInvoiceToCustomer(
+        string $toEmail,
+        array $ccEmails,
+        Invoice $invoice,
+        string $pdfBinary,
+        string $pdfFilename,
+        ?string $subjectOverride,
+        ?string $messageOverride,
+        ?string $viewUrl,
+    ): void {
+        $m = Mail::to($toEmail);
+        if ($ccEmails !== []) {
+            $m->cc($ccEmails);
+        }
+        $m->send(new InvoiceSentToCustomer($invoice, $pdfBinary, $pdfFilename, $subjectOverride, $messageOverride, $viewUrl));
     }
 }

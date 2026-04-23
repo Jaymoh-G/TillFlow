@@ -14,14 +14,16 @@ use Illuminate\Database\Seeder;
 class ProductSeeder extends Seeder
 {
     /**
-     * Seed 110 catalog items for the TillFlow demo tenant (SKUs SEED-001 … SEED-110).
+     * Seed 15 catalog items for the TillFlow demo tenant (SKUs SEED-001 … SEED-015).
      */
     public function run(): void
     {
         $tenant = Tenant::query()->where('slug', 'tillflow-demo')->first();
 
         if (! $tenant) {
-            $this->command?->warn('TillFlow demo tenant (tillflow-demo) not found — run DatabaseSeeder first.');
+            if ($this->command) {
+                $this->command->warn('TillFlow demo tenant (tillflow-demo) not found — run DatabaseSeeder first.');
+            }
 
             return;
         }
@@ -57,13 +59,15 @@ class ProductSeeder extends Seeder
             ->all();
 
         $rows = [];
-        for ($i = 1; $i <= 110; $i++) {
+        for ($i = 1; $i <= 15; $i++) {
             $cid = $categoryIds === [] ? null : $categoryIds[($i - 1) % count($categoryIds)];
             $bid = $brandIds === [] ? null : $brandIds[($i - 1) % count($brandIds)];
             $uid = $unitIds === [] ? null : $unitIds[($i - 1) % count($unitIds)];
             $wid = $warrantyIds === [] ? null : $warrantyIds[($i - 1) % count($warrantyIds)];
             $qtyAlert = 5 + (($i - 1) % 16); // 5..20
             $qty = ($i % 7 === 0) ? 0 : (($i * 3) % 26); // mix of zeros and 0..25
+            $buying = 95 + ($i * 4.5);
+            $selling = round($buying * 1.4, 2);
 
             $manufacturedAt = null;
             $expiresAt = null;
@@ -85,6 +89,8 @@ class ProductSeeder extends Seeder
                 'sku' => sprintf('SEED-%03d', $i),
                 'qty' => $qty,
                 'qty_alert' => $qtyAlert,
+                'buying_price' => round($buying, 2),
+                'selling_price' => $selling,
                 'manufactured_at' => $manufacturedAt,
                 'expires_at' => $expiresAt,
                 'created_at' => now(),
@@ -96,6 +102,8 @@ class ProductSeeder extends Seeder
             Product::query()->insert($chunk);
         }
 
-        $this->command?->info('Seeded 110 products (SEED-001–SEED-110) for tenant tillflow-demo.');
+        if ($this->command) {
+            $this->command->info('Seeded 15 products (SEED-001–SEED-015) for tenant tillflow-demo.');
+        }
     }
 }

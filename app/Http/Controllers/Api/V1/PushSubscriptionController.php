@@ -14,9 +14,11 @@ class PushSubscriptionController extends Controller
     {
         $key = config('push.vapid.public_key');
         if (! is_string($key) || $key === '') {
+            // 200 + null key: clients skip subscribe; avoids noisy 503 in dev when push is disabled.
             return response()->json([
                 'message' => 'Web Push is not configured on the server.',
-            ], 503);
+                'public_key' => null,
+            ]);
         }
 
         return response()->json([

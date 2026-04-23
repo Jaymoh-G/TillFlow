@@ -69,6 +69,17 @@ class TenantUserInvitationService
     }
 
     /**
+     * Assign tenant roles (e.g. after creating a user with a known password).
+     *
+     * @param  list<int>  $requestedRoleIds
+     */
+    public function assignRolesToUser(User $user, Tenant $tenant, array $requestedRoleIds): void
+    {
+        $roleIds = $this->resolveTenantRoleIds($tenant, $requestedRoleIds);
+        $this->syncRolesForUserOrFail($user, $tenant, $roleIds);
+    }
+
+    /**
      * @param  list<int>  $requestedRoleIds
      * @return list<int>
      */

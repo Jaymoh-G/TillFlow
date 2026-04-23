@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DeliveryNoteController;
 use App\Http\Controllers\Api\V1\ExpenseCategoryController;
 use App\Http\Controllers\Api\V1\ExpenseController;
+use App\Http\Controllers\Api\V1\GlobalSearchController;
 use App\Http\Controllers\Api\V1\ExpenseRecurringController;
 use App\Http\Controllers\Api\V1\ExpiredItemsReportController;
 use App\Http\Controllers\Api\V1\InvoiceController;
@@ -43,6 +44,7 @@ use App\Http\Controllers\Api\V1\StoreManagerController;
 use App\Http\Controllers\Api\V1\SupplierController;
 use App\Http\Controllers\Api\V1\SystemHealthController;
 use App\Http\Controllers\Api\V1\TenantCompanyProfileController;
+use App\Http\Controllers\Api\V1\TenantContactController;
 use App\Http\Controllers\Api\V1\TenantUiSettingsController;
 use App\Http\Controllers\Api\V1\TenantUserController;
 use App\Http\Controllers\Api\V1\UnitController;
@@ -78,6 +80,14 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/tenants', [PlatformTenantController::class, 'store']);
         Route::get('/tenants/{tenant}', [PlatformTenantController::class, 'show'])->whereNumber('tenant');
         Route::patch('/tenants/{tenant}', [PlatformTenantController::class, 'update'])->whereNumber('tenant');
+        Route::get('/tenants/{tenant}/contacts', [TenantContactController::class, 'index'])->whereNumber('tenant');
+        Route::post('/tenants/{tenant}/contacts', [TenantContactController::class, 'store'])->whereNumber('tenant');
+        Route::patch('/tenants/{tenant}/contacts/{contact}', [TenantContactController::class, 'update'])
+            ->whereNumber('tenant')
+            ->whereNumber('contact');
+        Route::delete('/tenants/{tenant}/contacts/{contact}', [TenantContactController::class, 'destroy'])
+            ->whereNumber('tenant')
+            ->whereNumber('contact');
         Route::get('/subscriptions', [PlatformTenantSubscriptionController::class, 'index']);
         Route::post('/subscriptions', [PlatformTenantSubscriptionController::class, 'store']);
         Route::patch('/subscriptions/{subscription}', [PlatformTenantSubscriptionController::class, 'update'])->whereNumber('subscription');
@@ -90,9 +100,19 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/tenant/company-profile', [TenantCompanyProfileController::class, 'update'])
             ->middleware('permission:tenant.manage');
 
+        Route::middleware(['permission:tenant.manage'])->group(function (): void {
+            Route::get('/tenant/contacts', [TenantContactController::class, 'index']);
+            Route::post('/tenant/contacts', [TenantContactController::class, 'store']);
+            Route::patch('/tenant/contacts/{contact}', [TenantContactController::class, 'update'])->whereNumber('contact');
+            Route::delete('/tenant/contacts/{contact}', [TenantContactController::class, 'destroy'])->whereNumber('contact');
+        });
+
         Route::get('/tenant/ui-settings', [TenantUiSettingsController::class, 'show']);
         Route::patch('/tenant/ui-settings', [TenantUiSettingsController::class, 'update'])
             ->middleware('permission:tenant.manage');
+
+        Route::get('/search/global', GlobalSearchController::class)
+            ->middleware('permission:search.global');
 
         Route::get('/push/vapid-public-key', [PushSubscriptionController::class, 'vapidPublicKey']);
         Route::post('/push/subscriptions', [PushSubscriptionController::class, 'store']);

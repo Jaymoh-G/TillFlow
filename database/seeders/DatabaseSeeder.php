@@ -9,6 +9,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            TillFlowDemoTenantSeeder::class,
             RolesAndPermissionsSeeder::class,
             RbacSeeder::class,
             PlanSeeder::class,
@@ -18,9 +19,9 @@ class DatabaseSeeder extends Seeder
             VariantAttributeSeeder::class,
             WarrantySeeder::class,
             ItemsSeeder::class,
-            ProductSeeder::class,
+            TillFlowDemoTransactionalSeeder::class,
+            LowStockDemoSeeder::class,
             PlatformOwnerSeeder::class,
-            MultitenancyTestSeeder::class,
         ]);
     }
 }

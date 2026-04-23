@@ -13,6 +13,7 @@ class TenantCompanyProfileController extends Controller
     {
         /** @var Tenant $tenant */
         $tenant = $request->attributes->get('tenant');
+        $tenant->loadMissing('primaryContact');
 
         return response()->json([
             'message' => 'Company profile retrieved.',
@@ -78,10 +79,14 @@ class TenantCompanyProfileController extends Controller
      */
     private function serializeProfile(Tenant $tenant): array
     {
+        $primary = $tenant->relationLoaded('primaryContact') ? $tenant->primaryContact : $tenant->primaryContact()->first();
+
         return [
             'name' => $tenant->name,
             'company_email' => $tenant->company_email,
             'company_phone' => $tenant->company_phone,
+            'billing_email' => $primary?->email ?? $tenant->company_email,
+            'billing_phone' => $primary?->phone ?? $tenant->company_phone,
             'company_fax' => $tenant->company_fax,
             'company_website' => $tenant->company_website,
             'company_address_line' => $tenant->company_address_line,

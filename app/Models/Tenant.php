@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Tenant extends Model
 {
@@ -50,5 +51,15 @@ class Tenant extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(TenantSubscription::class);
+    }
+
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(TenantContact::class)->orderByDesc('is_primary')->orderBy('last_name')->orderBy('first_name');
+    }
+
+    public function primaryContact(): HasOne
+    {
+        return $this->hasOne(TenantContact::class)->where('is_primary', true);
     }
 }

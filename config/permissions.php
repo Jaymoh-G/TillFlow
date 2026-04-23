@@ -10,6 +10,7 @@ return [
         'users.manage',
         'system.activity_logs.view',
         'reports.view',
+        'search.global',
 
         'catalog.masters.view',
         'catalog.masters.manage',

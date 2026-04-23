@@ -76,7 +76,7 @@ class TenantRoleProvisioningService
 
         return array_values(array_filter($slugs, static function (string $s): bool {
             return str_ends_with($s, '.manage')
-                || in_array($s, ['tenant.manage', 'users.manage', 'reports.view', 'system.activity_logs.view'], true);
+                || in_array($s, ['tenant.manage', 'users.manage', 'reports.view', 'system.activity_logs.view', 'search.global'], true);
         }));
     }
 }
