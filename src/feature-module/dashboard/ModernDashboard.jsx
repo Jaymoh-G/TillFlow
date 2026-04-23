@@ -377,8 +377,8 @@ function parseProposalsReportForDashboard(data) {
   };
 }
 
-const TF_INVOICE_REPORT = "/tillflow/admin/reports/invoice-report";
-const TF_PROPOSALS = "/tillflow/admin/proposals";
+const TF_INVOICE_REPORT = "/admin/reports/invoice-report";
+const TF_PROPOSALS = "/admin/proposals";
 const DASHBOARD_BREAKDOWN_LINK =
   "fs-11 link-secondary link-underline link-underline-opacity-50";
 /** Bold status label before the count in second-row KPI breakdowns. */
@@ -452,12 +452,12 @@ const ModernDashboard = ({
   hideRecentSales = false,
   tillflowToken = null,
   customerListPath = null,
-  stockAdjustmentPath = "/tillflow/admin/stock-adjustment",
-  lowStockListPath = "/tillflow/admin/low-stock"
+  stockAdjustmentPath = "/admin/stock-adjustment",
+  lowStockListPath = "/admin/low-stock"
 }) => {
   const route = all_routes;
   const customersPath = customerListPath || route.customer;
-  /** TillFlow admin (`/tillflow/admin`): default period is monthly; retail demo stays weekly. */
+  /** TillFlow admin (`/admin`): default period is monthly; retail demo stays weekly. */
   const dashboardDatePreset = tillflowToken ? "month" : "week";
   const [salesPurchasePeriod, setSalesPurchasePeriod] = useState("6m");
   const [salesPurchaseKpi, setSalesPurchaseKpi] = useState(null);
@@ -1084,7 +1084,7 @@ const ModernDashboard = ({
               </div>
             </div>
           ) : null}
-          {/* Recent Sales — hidden on TillFlow /tillflow/admin */}
+          {/* Recent Sales — hidden on TillFlow /admin */}
           {!hideRecentSales ? (
             <div className={catalogRowColClass}>
               <div className="card flex-fill">

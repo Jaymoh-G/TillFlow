@@ -50,7 +50,7 @@ const Preference = () => {
   };
 
   const showTillflowBackLink =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin/");
 
   return (
     <>
@@ -76,7 +76,7 @@ const Preference = () => {
                   <div className="card-header d-flex flex-wrap align-items-center gap-2 justify-content-between">
                     <h4 className="fs-18 fw-bold mb-0">Preference</h4>
                     {showTillflowBackLink ? (
-                      <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm">
+                      <Link to="/admin" className="btn btn-outline-secondary btn-sm">
                         Back to admin
                       </Link>
                     ) : null}

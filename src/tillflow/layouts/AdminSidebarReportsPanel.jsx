@@ -14,7 +14,7 @@ export default function AdminSidebarReportsPanel({
         <div className="tf-nav-group__body">
           {canReports ? (
             <NavLink
-              to="/tillflow/admin/reports"
+              to="/admin/reports"
               end
               className={({ isActive }) => (isActive ? 'active' : undefined)}>
               <i className="feather icon-pie-chart tf-nav__icon" aria-hidden />
@@ -24,13 +24,13 @@ export default function AdminSidebarReportsPanel({
           {canActivityLogs ? (
             <>
               <NavLink
-                to="/tillflow/admin/notifications"
+                to="/admin/notifications"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-bell tf-nav__icon" aria-hidden />
                 Notifications
               </NavLink>
               <NavLink
-                to="/tillflow/admin/activity-logs"
+                to="/admin/activity-logs"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-clock tf-nav__icon" aria-hidden />
                 Activity log

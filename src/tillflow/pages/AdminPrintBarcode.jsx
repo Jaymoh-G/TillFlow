@@ -150,7 +150,7 @@ export default function AdminPrintBarcode() {
           </ul>
           <div className="page-header-actions">
             <div className="page-btn">
-              <Link to="/tillflow/admin/items" className="btn btn-secondary">
+              <Link to="/admin/items" className="btn btn-secondary">
                 Items
               </Link>
             </div>

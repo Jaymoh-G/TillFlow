@@ -45,7 +45,7 @@ function formatWhen(iso) {
 
 export default function ManageStores() {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const auth = useOptionalAuth();
   const token = auth?.token ?? null;
   const stores = useStores();
@@ -424,7 +424,7 @@ export default function ManageStores() {
               <Link
                 to={
                   inTillflowShell
-                    ? "/tillflow/admin/stock-transfer"
+                    ? "/admin/stock-transfer"
                     : "/stock-transfer"
                 }
                 className="btn btn-outline-secondary">
@@ -433,7 +433,7 @@ export default function ManageStores() {
               </Link>
               {inTillflowShell ? (
                 <Link
-                  to="/tillflow/admin/stock-adjustment"
+                  to="/admin/stock-adjustment"
                   className="btn btn-outline-secondary">
                   <i className="feather icon-trending-up me-1" />
                   Adjust Stock

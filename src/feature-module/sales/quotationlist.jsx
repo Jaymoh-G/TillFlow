@@ -149,8 +149,8 @@ const PICK_PLACEHOLDER = { label: "Select…", value: "" };
 /** Line items table: drag, #, item, description, qty, rate, tax, amount, actions */
 const QUOTE_LINE_ITEMS_COL_WIDTHS_DEFAULT = [28, 44, 120, 300, 52, 136, 52, 72, 50];
 
-const TILLFLOW_QUOTATIONS_BASE = "/tillflow/admin/quotations";
-const TILLFLOW_PROPOSALS_BASE = "/tillflow/admin/proposals";
+const TILLFLOW_QUOTATIONS_BASE = "/admin/quotations";
+const TILLFLOW_PROPOSALS_BASE = "/admin/proposals";
 
 const STORAGE_KEY = "retailpos_quotations_v1";
 /** Same key as TillFlow `AuthContext` — legacy `/quotation-list` has no AuthProvider, so read token here. */
@@ -243,7 +243,7 @@ function loadStoredQuotations() {
 
 function getInitialQuotationRows() {
   try {
-    if (typeof window !== "undefined" && window.location.pathname.includes("/tillflow/admin")) {
+    if (typeof window !== "undefined" && window.location.pathname.includes("/admin")) {
       return [];
     }
   } catch {
@@ -710,7 +710,7 @@ const QuotationList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { quotationId: routeQuotationId, proposalId: routeProposalId } = useParams();
-  const isProposalModule = location.pathname.includes("/tillflow/admin/proposals");
+  const isProposalModule = location.pathname.includes("/admin/proposals");
   const tillflowDocBase = isProposalModule ? TILLFLOW_PROPOSALS_BASE : TILLFLOW_QUOTATIONS_BASE;
   const routeDetailDocId = isProposalModule ? routeProposalId : routeQuotationId;
   const docUiNoun = isProposalModule ? "Proposal" : "Quotation";
@@ -718,7 +718,7 @@ const QuotationList = () => {
   const docUiNounLower = isProposalModule ? "proposal" : "quotation";
   const docUiRefColumn = isProposalModule ? "PR #" : "Quote #";
   const docUiDetailSidebarRef = isProposalModule ? "PR #" : "QT #";
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const pendingProposalEditFetchRef = useRef(null);
   const leadFromQueryAppliedRef = useRef("");
   const urlLeadTitleSuggestIdRef = useRef(null);
@@ -2436,13 +2436,13 @@ const QuotationList = () => {
           setAcceptProposalSuccess(null);
           hideBsModal("accept-proposal-success-modal");
           window.setTimeout(() => {
-            navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(qid))}/edit`);
+            navigate(`/admin/quotations/${encodeURIComponent(String(qid))}/edit`);
           }, 100);
         } else if (convertTo === "invoice" && invId != null) {
           setAcceptProposalSuccess(null);
           hideBsModal("accept-proposal-success-modal");
           window.setTimeout(() => {
-            navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(invId))}/edit`);
+            navigate(`/admin/invoices/${encodeURIComponent(String(invId))}/edit`);
           }, 100);
         } else {
           setAcceptProposalSuccess({
@@ -2482,7 +2482,7 @@ const QuotationList = () => {
         await loadQuotations();
         const invoiceId = data?.invoice?.id;
         if (invoiceId != null) {
-          navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(invoiceId))}`);
+          navigate(`/admin/invoices/${encodeURIComponent(String(invoiceId))}`);
         } else {
           setListError("Quotation converted, but invoice link is missing.");
         }
@@ -3345,7 +3345,7 @@ const QuotationList = () => {
                     {`Create ${docUiNoun}`}
                   </Link>
                   {inTillflowShell ? (
-                    <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+                    <Link to="/admin/invoices" className="btn btn-outline-primary">
                       <i className="ti ti-file-invoice me-1" />
                       Invoices
                     </Link>
@@ -4182,7 +4182,7 @@ const QuotationList = () => {
                           {crmQuotationForm && useApiProductLines ? (
                             <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-center">
                               <Link
-                                to="/tillflow/admin/add-product"
+                                to="/admin/add-product"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="tf-btn tf-btn--secondary quotation-crm-add-product-link d-inline-flex align-items-center justify-content-center gap-1 w-100 text-decoration-none text-nowrap"
@@ -5127,7 +5127,7 @@ const QuotationList = () => {
                     hideBsModal("accept-proposal-success-modal");
                     setAcceptProposalSuccess(null);
                     window.setTimeout(() => {
-                      navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(id))}/edit`);
+                      navigate(`/admin/invoices/${encodeURIComponent(String(id))}/edit`);
                     }, 100);
                   }}>
                   Open invoice
@@ -5142,7 +5142,7 @@ const QuotationList = () => {
                     hideBsModal("accept-proposal-success-modal");
                     setAcceptProposalSuccess(null);
                     window.setTimeout(() => {
-                      navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(id))}/edit`);
+                      navigate(`/admin/quotations/${encodeURIComponent(String(id))}/edit`);
                     }, 100);
                   }}>
                   Open quotation

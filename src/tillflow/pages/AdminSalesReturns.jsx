@@ -710,7 +710,7 @@ export default function AdminSalesReturns() {
                 <i className="ti ti-circle-plus me-1" />
                 Add a sale return
               </button>
-              <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+              <Link to="/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
                 Invoices
               </Link>

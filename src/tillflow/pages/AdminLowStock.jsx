@@ -191,7 +191,7 @@ export default function AdminLowStock() {
         />
         <div className="page-header-actions">
           <div className="page-btn import">
-            <Link to="/tillflow/admin/items" className="btn btn-secondary color">
+            <Link to="/admin/items" className="btn btn-secondary color">
               <i className="feather icon-package me-2" />
               Items
             </Link>

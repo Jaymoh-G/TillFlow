@@ -55,7 +55,7 @@ export default function PosLayout() {
 
   const handleLogout = useCallback(async () => {
     await logout();
-    navigate("/tillflow/login", { replace: true });
+    navigate("/login", { replace: true });
   }, [logout, navigate]);
 
   useEffect(() => {
@@ -96,13 +96,13 @@ export default function PosLayout() {
     <div className="main-wrapper pos-three tf-pos-shell">
       <div className="header pos-header">
         <div className="header-left active">
-          <Link to="/tillflow/admin" className="logo logo-normal">
+          <Link to="/admin" className="logo logo-normal">
             <img src={primaryLogoSrc} alt="" />
           </Link>
-          <Link to="/tillflow/admin" className="logo logo-white">
+          <Link to="/admin" className="logo logo-white">
             <img src={darkBgLogoSrc} alt="" />
           </Link>
-          <Link to="/tillflow/admin" className="logo-small">
+          <Link to="/admin" className="logo-small">
             <img src={smallLogoSrc} alt="" />
           </Link>
           <div className="d-none d-md-flex align-items-center ms-2">
@@ -131,7 +131,7 @@ export default function PosLayout() {
             <TillflowNotificationMenu />
           </li>
           <li className="nav-item pos-nav">
-            <Link to="/tillflow/admin" className="btn btn-purple btn-md d-inline-flex align-items-center">
+            <Link to="/admin" className="btn btn-purple btn-md d-inline-flex align-items-center">
               <i className="ti ti-layout-dashboard me-1" aria-hidden />
               Dashboard
             </Link>
@@ -201,11 +201,11 @@ export default function PosLayout() {
                   </div>
                 </div>
                 <hr className="m-0" />
-                <Link className="dropdown-item" to="/tillflow/admin/settings/profile">
+                <Link className="dropdown-item" to="/admin/settings/profile">
                   <i className="ti ti-user me-2" />
                   My Profile
                 </Link>
-                <Link className="dropdown-item" to="/tillflow/admin/settings/system">
+                <Link className="dropdown-item" to="/admin/settings/system">
                   <i className="ti ti-settings me-2" />
                   Settings
                 </Link>
@@ -230,8 +230,8 @@ export default function PosLayout() {
             <i className="fa fa-ellipsis-v" />
           </Link>
           <div className="dropdown-menu dropdown-menu-right">
-            <Link className="dropdown-item" to="/tillflow/admin/settings/profile">My Profile</Link>
-            <Link className="dropdown-item" to="/tillflow/admin/settings/system">Settings</Link>
+            <Link className="dropdown-item" to="/admin/settings/profile">My Profile</Link>
+            <Link className="dropdown-item" to="/admin/settings/system">Settings</Link>
             <Link
               className="dropdown-item"
               to="#"

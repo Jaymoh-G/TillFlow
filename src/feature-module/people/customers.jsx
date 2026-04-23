@@ -72,7 +72,7 @@ function loadStoredCustomers() {
 
 function getInitialCustomerRows() {
   try {
-    if (typeof window !== "undefined" && window.location.pathname.includes("/tillflow/admin")) {
+    if (typeof window !== "undefined" && window.location.pathname.includes("/admin")) {
       return [];
     }
   } catch {
@@ -171,7 +171,7 @@ function formatDateTime(value) {
 
 const Customers = () => {
   const routeLocation = useLocation();
-  const inTillflowShell = routeLocation.pathname.includes("/tillflow/admin");
+  const inTillflowShell = routeLocation.pathname.includes("/admin");
 
   const auth = useOptionalAuth();
   const token = auth?.token ?? null;

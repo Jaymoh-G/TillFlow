@@ -63,7 +63,7 @@ function enrichCustomerRow(baseRow, catalogCustomers) {
   };
 }
 
-const PAYMENTS_LIST_PATH = "/tillflow/admin/invoice-payments";
+const PAYMENTS_LIST_PATH = "/admin/invoice-payments";
 
 function formatKes(n) {
   const x = Number(n);
@@ -396,7 +396,7 @@ export default function AdminInvoicePaymentDetail() {
     if (!selected?.invoice_id || !canEmailCustomer) {
       return;
     }
-    navigate(`/tillflow/admin/invoices/${selected.invoice_id}?emailCustomer=1`);
+    navigate(`/admin/invoices/${selected.invoice_id}?emailCustomer=1`);
   }, [navigate, selected?.invoice_id, canEmailCustomer]);
 
   const notFound = !listLoading && !listError && payments.length > 0 && paymentId && !selected;
@@ -434,7 +434,7 @@ export default function AdminInvoicePaymentDetail() {
             <h5 className="tf-heading mb-0">Receipts</h5>
             {selected?.invoice_id ? (
               <NavLink
-                to={`/tillflow/admin/invoices/${selected.invoice_id}?recordPayment=1`}
+                to={`/admin/invoices/${selected.invoice_id}?recordPayment=1`}
                 className="btn btn-sm btn-primary"
                 title="Record a new payment on this invoice">
                 New
@@ -523,7 +523,7 @@ export default function AdminInvoicePaymentDetail() {
                     Edit payment
                   </button>
                   <NavLink
-                    to={`/tillflow/admin/invoices/${selected.invoice_id}`}
+                    to={`/admin/invoices/${selected.invoice_id}`}
                     className="btn btn-outline-secondary btn-sm">
                     <i className="ti ti-file-invoice me-1" />
                     Invoice {selected.invoice_ref}

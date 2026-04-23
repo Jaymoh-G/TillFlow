@@ -25,7 +25,7 @@ const PAYMENT_LABELS = [
 
 const PosSettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [pos, setPos] = useState(() => loadAppSettings().pos);
   const [baseline, setBaseline] = useState(() => loadAppSettings().pos);

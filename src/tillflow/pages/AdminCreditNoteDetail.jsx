@@ -149,7 +149,7 @@ export default function AdminCreditNoteDetail() {
         header: "Credit note",
         field: "creditNoteNo",
         body: (item) => (
-          <Link to={`/tillflow/admin/credit-notes/${item.apiId}`} className="fw-medium text-nowrap">
+          <Link to={`/admin/credit-notes/${item.apiId}`} className="fw-medium text-nowrap">
             {item.creditNoteNo}
           </Link>
         )
@@ -368,7 +368,7 @@ export default function AdminCreditNoteDetail() {
         <aside className="tf-admin-invoice-detail__list">
           <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
             <h5 className="tf-heading mb-0">Credit notes</h5>
-            <NavLink to="/tillflow/admin/invoices" className="btn btn-sm btn-outline-primary">
+            <NavLink to="/admin/invoices" className="btn btn-sm btn-outline-primary">
               Invoices
             </NavLink>
           </div>
@@ -389,7 +389,7 @@ export default function AdminCreditNoteDetail() {
             />
           </div>
           <div className="mt-2">
-            <NavLink to="/tillflow/admin/credit-notes" className="small">
+            <NavLink to="/admin/credit-notes" className="small">
               Full credit notes list
             </NavLink>
           </div>
@@ -409,7 +409,7 @@ export default function AdminCreditNoteDetail() {
                     Download PDF
                   </button>
                   {row.invoiceId ? (
-                    <NavLink to={`/tillflow/admin/invoices/${row.invoiceId}`} className="btn btn-outline-secondary btn-sm">
+                    <NavLink to={`/admin/invoices/${row.invoiceId}`} className="btn btn-outline-secondary btn-sm">
                       Invoice {row.invoiceRef || row.invoiceId}
                     </NavLink>
                   ) : null}

@@ -109,7 +109,7 @@ function getInvoiceDefaultDueDays() {
   return 21;
 }
 
-const TILLFLOW_INVOICES_BASE = "/tillflow/admin/invoices";
+const TILLFLOW_INVOICES_BASE = "/admin/invoices";
 const TILLFLOW_SESSION_TOKEN_KEY = "tillflow_sanctum_token";
 const STORAGE_KEY = "retailpos_invoices_v1";
 
@@ -238,7 +238,7 @@ const Invoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { invoiceId: editRouteInvoiceId } = useParams();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const route = all_routes;
 
   const auth = useOptionalAuth();
@@ -2233,13 +2233,13 @@ const Invoice = () => {
                     Add Invoice
                   </button>
                   {inTillflowShell ? (
-                    <Link to="/tillflow/admin/invoice-payments" className="btn btn-outline-secondary">
+                    <Link to="/admin/invoice-payments" className="btn btn-outline-secondary">
                       <i className="feather icon-dollar-sign me-1" />
                       Invoice payments
                     </Link>
                   ) : null}
                   {inTillflowShell ? (
-                    <Link to="/tillflow/admin/quotations" className="btn btn-outline-primary">
+                    <Link to="/admin/quotations" className="btn btn-outline-primary">
                       <i className="ti ti-file-description me-1" />
                       Quotations
                     </Link>
@@ -2507,7 +2507,7 @@ const Invoice = () => {
                         <label className="form-label">Amount paid</label>
                         <div className="form-control bg-light small mb-0">
                           Totals come from{" "}
-                          <Link to="/tillflow/admin/invoice-payments" target="_blank" rel="noopener noreferrer">
+                          <Link to="/admin/invoice-payments" target="_blank" rel="noopener noreferrer">
                             recorded payments
                           </Link>
                           . Use <strong>Record payment</strong> on the invoice list.
@@ -2667,7 +2667,7 @@ const Invoice = () => {
                           {inTillflowShell ? (
                             <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-center">
                               <Link
-                                to="/tillflow/admin/add-product"
+                                to="/admin/add-product"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="tf-btn tf-btn--secondary quotation-crm-add-product-link d-inline-flex align-items-center justify-content-center gap-1 w-100 text-decoration-none text-nowrap">
@@ -2993,7 +2993,7 @@ const Invoice = () => {
                                     <td className="fw-medium">
                                       {inTillflowShell && p.id ? (
                                         <Link
-                                          to={`/tillflow/admin/invoice-payments/${p.id}`}
+                                          to={`/admin/invoice-payments/${p.id}`}
                                           className="text-primary"
                                           onClick={(e) => e.stopPropagation()}>
                                           {p.receipt_ref}

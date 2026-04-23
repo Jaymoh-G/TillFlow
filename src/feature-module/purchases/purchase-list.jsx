@@ -43,9 +43,9 @@ import {
 } from "../../utils/purchaseImport";
 
 const TILLFLOW_TOKEN_KEY = "tillflow_sanctum_token";
-const TILLFLOW_PURCHASES_BASE = "/tillflow/admin/purchases";
-const TILLFLOW_PURCHASE_RETURNS_BASE = "/tillflow/admin/purchase-returns";
-const TILLFLOW_PURCHASES_EDIT_RE = /\/tillflow\/admin\/purchases\/(\d+)\/edit$/;
+const TILLFLOW_PURCHASES_BASE = "/admin/purchases";
+const TILLFLOW_PURCHASE_RETURNS_BASE = "/admin/purchase-returns";
+const TILLFLOW_PURCHASES_EDIT_RE = /\/admin\/purchases\/(\d+)\/edit$/;
 
 function isValidEmail(s) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
@@ -211,7 +211,7 @@ const FALLBACK_SUPPLIER_OPTIONS = [
 const PurchasesList = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const purchasePathNorm = location.pathname.replace(/\/$/, "");
   const purchaseCreatePageActive =
     inTillflowShell && purchasePathNorm === `${TILLFLOW_PURCHASES_BASE}/new`;
@@ -1788,7 +1788,7 @@ const PurchasesList = () => {
                       {purchaseCrmLineItems && inTillflowShell ? (
                         <div className="col-12 col-md-auto d-flex justify-content-md-end align-items-center">
                           <Link
-                            to="/tillflow/admin/add-product"
+                            to="/admin/add-product"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="tf-btn tf-btn--secondary quotation-crm-add-product-link d-inline-flex align-items-center justify-content-center gap-1 w-100 text-decoration-none text-nowrap"
@@ -1809,7 +1809,7 @@ const PurchasesList = () => {
                       </p>
                       {inTillflowShell ? (
                         <Link
-                          to="/tillflow/admin/add-product"
+                          to="/admin/add-product"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="tf-btn tf-btn--secondary d-inline-flex align-items-center gap-1 text-decoration-none text-nowrap small">

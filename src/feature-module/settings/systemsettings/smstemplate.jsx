@@ -24,7 +24,7 @@ const MERGE_TAGS = [
 
 const Smstemplate = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [templates, setTemplates] = useState(() => ({ ...loadSystemSettings().smsTemplates }));
   const [openId, setOpenId] = useState(SMS_TEMPLATE_DEFS[0].id);

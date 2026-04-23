@@ -49,7 +49,7 @@ function ProposalRefCell({ row }) {
   }
   return (
     <Link
-      to={`/tillflow/admin/proposals/${encodeURIComponent(String(id))}/edit`}
+      to={`/admin/proposals/${encodeURIComponent(String(id))}/edit`}
       className="text-primary">
       {ref}
     </Link>
@@ -63,14 +63,14 @@ function CustomerPurchaseLineRefCell({ row }) {
   const invId = row.invoice_id;
   if (row.source === 'pos' && posId != null && Number(posId) > 0) {
     return (
-      <Link to={`/tillflow/admin/orders/${posId}`} className="text-primary">
+      <Link to={`/admin/orders/${posId}`} className="text-primary">
         {display}
       </Link>
     );
   }
   if (row.source === 'invoice' && invId != null && Number(invId) > 0) {
     return (
-      <Link to={`/tillflow/admin/invoices/${invId}`} className="text-primary">
+      <Link to={`/admin/invoices/${invId}`} className="text-primary">
         {display}
       </Link>
     );
@@ -611,7 +611,7 @@ export default function AdminReportRunner() {
     );
 
   if (!slug || !SLUGS.has(slug)) {
-    return <Navigate to="/tillflow/admin/reports" replace />;
+    return <Navigate to="/admin/reports" replace />;
   }
 
   if (slug === 'z-light') {

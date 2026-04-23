@@ -35,44 +35,44 @@ export default function AdminLayout() {
     /** @type {{ label: string; to: string; tiClass: string }[]} */
     const all = [];
     if (canQuotations) {
-      all.push({ label: 'Quotation', to: '/tillflow/admin/quotations/new', tiClass: 'ti-device-floppy' });
+      all.push({ label: 'Quotation', to: '/admin/quotations/new', tiClass: 'ti-device-floppy' });
     }
     if (canInvoices) {
-      all.push({ label: 'Invoice', to: '/tillflow/admin/invoices/new', tiClass: 'ti-file-invoice' });
+      all.push({ label: 'Invoice', to: '/admin/invoices/new', tiClass: 'ti-file-invoice' });
     }
     if (canInvoicePayments) {
-      all.push({ label: 'Payment', to: '/tillflow/admin/invoice-payments', tiClass: 'ti-currency-dollar' });
+      all.push({ label: 'Payment', to: '/admin/invoice-payments', tiClass: 'ti-currency-dollar' });
     }
     if (canPurchases) {
-      all.push({ label: 'Purchase', to: '/tillflow/admin/purchases/new', tiClass: 'ti-shopping-bag' });
+      all.push({ label: 'Purchase', to: '/admin/purchases/new', tiClass: 'ti-shopping-bag' });
     }
     if (canExpenses) {
-      all.push({ label: 'Expense', to: '/tillflow/admin/expenses', tiClass: 'ti-file-text' });
+      all.push({ label: 'Expense', to: '/admin/expenses', tiClass: 'ti-file-text' });
     }
     if (canDeliveryNotes) {
-      all.push({ label: 'Delivery note', to: '/tillflow/admin/delivery-notes', tiClass: 'ti-truck-delivery' });
+      all.push({ label: 'Delivery note', to: '/admin/delivery-notes', tiClass: 'ti-truck-delivery' });
     }
     if (canStockAdj) {
-      all.push({ label: 'Adjust Stock', to: '/tillflow/admin/stock-adjustment', tiClass: 'ti-adjustments-horizontal' });
+      all.push({ label: 'Adjust Stock', to: '/admin/stock-adjustment', tiClass: 'ti-adjustments-horizontal' });
     }
     if (canStockXfer) {
-      all.push({ label: 'Transfer Stock', to: '/tillflow/admin/stock-transfer', tiClass: 'ti-arrows-right-left' });
+      all.push({ label: 'Transfer Stock', to: '/admin/stock-transfer', tiClass: 'ti-arrows-right-left' });
     }
     if (canSalesReturns) {
-      all.push({ label: 'Sale return', to: '/tillflow/admin/sales-returns', tiClass: 'ti-copy' });
+      all.push({ label: 'Sale return', to: '/admin/sales-returns', tiClass: 'ti-copy' });
     }
     if (canUsers) {
       all.push({
         label: 'User',
-        to: '/tillflow/admin/settings/roles-permissions',
+        to: '/admin/settings/roles-permissions',
         tiClass: 'ti-user'
       });
     }
     if (canCustomers) {
-      all.push({ label: 'Customer', to: '/tillflow/admin/customers', tiClass: 'ti-users' });
+      all.push({ label: 'Customer', to: '/admin/customers', tiClass: 'ti-users' });
     }
     if (canSuppliers) {
-      all.push({ label: 'Supplier', to: '/tillflow/admin/suppliers', tiClass: 'ti-user-check' });
+      all.push({ label: 'Supplier', to: '/admin/suppliers', tiClass: 'ti-user-check' });
     }
     return all;
   }, [
@@ -96,7 +96,7 @@ export default function AdminLayout() {
 
   async function handleLogout() {
     await logout();
-    navigate('/tillflow/login', { replace: true });
+    navigate('/login', { replace: true });
   }
 
   return (
@@ -139,7 +139,7 @@ export default function AdminLayout() {
             ) : null}
             {canOrders ? (
               <Link
-                to="/tillflow/pos"
+                to="/pos"
                 className="tf-btn tf-btn--sm tf-admin__topbar-pos"
                 title="Open point of sale">
                 <i className="feather icon-shopping-cart tf-btn__icon" aria-hidden />
@@ -150,7 +150,7 @@ export default function AdminLayout() {
             <ThemeToggle />
             {user ? (
               <Link
-                to="/tillflow/admin/settings/profile"
+                to="/admin/settings/profile"
                 className="tf-admin__user tf-admin__user-link tf-admin__user-with-avatar"
                 title={user.email}>
                 {adminTopbarAvatarSrc ? (

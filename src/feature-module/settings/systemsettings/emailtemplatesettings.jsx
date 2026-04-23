@@ -30,7 +30,7 @@ const MERGE_TAGS = [
 
 const Emailtemplatesettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [templates, setTemplates] = useState(() => ({ ...loadSystemSettings().emailTemplates }));
   const [openId, setOpenId] = useState(EMAIL_TEMPLATE_DEFS[0].id);

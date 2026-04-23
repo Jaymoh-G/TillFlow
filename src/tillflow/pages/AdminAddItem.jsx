@@ -851,7 +851,7 @@ export default function AdminAddItem() {
           // Keep item save successful even when image endpoint is unavailable.
         }
       }
-      navigate('/tillflow/admin/items', { replace: false });
+      navigate('/admin/items', { replace: false });
     } catch (err) {
       if (err instanceof TillFlowApiError) {
         setFormError(err.message);
@@ -903,7 +903,7 @@ export default function AdminAddItem() {
           <ul className="table-top-head">
             <li>
               <div className="page-btn">
-                <Link to="/tillflow/admin/items" className="btn btn-secondary">
+                <Link to="/admin/items" className="btn btn-secondary">
                   <i className="feather icon-arrow-left me-2" />
                   Back to Items
                 </Link>
@@ -1014,7 +1014,7 @@ export default function AdminAddItem() {
                           <div className="mb-3">
                             <div className="add-newplus">
                               <label className="form-label mb-0">Category</label>
-                              <Link to="/tillflow/admin/categories">
+                              <Link to="/admin/categories">
                                 <i className="feather icon-plus-circle plus-down-add" />
                                 <span>Add New</span>
                               </Link>
@@ -1075,7 +1075,7 @@ export default function AdminAddItem() {
                           <div className="mb-3">
                             <div className="add-newplus">
                               <label className="form-label mb-0">Brand</label>
-                              <Link to="/tillflow/admin/brands">
+                              <Link to="/admin/brands">
                                 <i className="feather icon-plus-circle plus-down-add" />
                                 <span>Manage</span>
                               </Link>
@@ -1109,7 +1109,7 @@ export default function AdminAddItem() {
                                 Unit
                                 <span className="text-danger ms-1">*</span>
                               </label>
-                              <Link to="/tillflow/admin/units">
+                              <Link to="/admin/units">
                                 <i className="feather icon-plus-circle plus-down-add" />
                                 <span>Manage</span>
                               </Link>
@@ -1318,7 +1318,7 @@ export default function AdminAddItem() {
                             <p className="small text-muted mb-2">
                               No active variant attributes yet. Define attributes (e.g. Color, Size) and their allowed values under Variant attributes.
                             </p>
-                            <Link to="/tillflow/admin/variant-attributes" className="btn btn-sm btn-outline-primary">
+                            <Link to="/admin/variant-attributes" className="btn btn-sm btn-outline-primary">
                               Manage variant attributes
                             </Link>
                           </div>
@@ -1368,7 +1368,7 @@ export default function AdminAddItem() {
                                   Add variant
                                 </button>
                                 <Link
-                                  to="/tillflow/admin/variant-attributes"
+                                  to="/admin/variant-attributes"
                                   className="btn btn-sm btn-outline-secondary"
                                   title="Manage variant attributes"
                                 >
@@ -1686,7 +1686,7 @@ export default function AdminAddItem() {
                             <label className="form-label mb-0">
                               Warranty<span className="text-danger ms-1">*</span>
                             </label>
-                            <Link to="/tillflow/admin/warranties">
+                            <Link to="/admin/warranties">
                               <i className="feather icon-plus-circle plus-down-add" />
                               <span>Manage</span>
                             </Link>
@@ -1767,7 +1767,7 @@ export default function AdminAddItem() {
 
           <div className="col-lg-12 px-0">
             <div className="d-flex align-items-center justify-content-end mb-4 gap-2">
-              <Link to="/tillflow/admin/items" className="btn btn-secondary">
+              <Link to="/admin/items" className="btn btn-secondary">
                 Cancel
               </Link>
               <button type="submit" className="btn btn-primary" disabled={saving || !token || editLoading}>

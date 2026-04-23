@@ -2,31 +2,31 @@ import { REPORT_NAV_GROUPS } from '../config/reportsNavigation';
 import { TILLFLOW_ADMIN_SALES_NAV_PATH_RE } from '../offline/tillflowOfflinePolicy';
 
 export const INVENTORY_PATH_RE =
-  /\/tillflow\/admin\/(items|add-product|expired-items|low-stock|categories|brands|units|variant-attributes|warranties|print-barcode)(\/|$)/;
+  /\/admin\/(items|add-product|expired-items|low-stock|categories|brands|units|variant-attributes|warranties|print-barcode)(\/|$)/;
 export const MANAGE_STOCKS_PATH_RE =
-  /\/tillflow\/admin\/(stores|stock-adjustment|stock-transfer)(\/|$)/;
+  /\/admin\/(stores|stock-adjustment|stock-transfer)(\/|$)/;
 export const SALES_PATH_RE = TILLFLOW_ADMIN_SALES_NAV_PATH_RE;
 export const PEOPLE_PATH_RE =
-  /\/tillflow\/admin\/(customers|billers|suppliers|settings\/roles-permissions)(\/|$)/;
-export const PURCHASES_PATH_RE = /\/tillflow\/admin\/(purchases|purchase-returns)(\/|$)/;
+  /\/admin\/(customers|billers|suppliers|settings\/roles-permissions)(\/|$)/;
+export const PURCHASES_PATH_RE = /\/admin\/(purchases|purchase-returns)(\/|$)/;
 /** Reports menu + inventory report shortcuts (hub links) */
 export const REPORTS_SECTION_PATH_RE =
-  /\/tillflow\/admin\/(reports|expired-items|low-stock|activity-logs)(\/|$)/;
+  /\/admin\/(reports|expired-items|low-stock|activity-logs)(\/|$)/;
 
 export const SETTINGS_GENERAL_PATH_RE =
-  /\/tillflow\/admin\/settings\/(profile|security|notifications|connected-apps)(\/|$)/;
+  /\/admin\/settings\/(profile|security|notifications|connected-apps)(\/|$)/;
 export const SETTINGS_WEBSITE_PATH_RE =
-  /\/tillflow\/admin\/settings\/(company|preference|appearance|social-authentication)(\/|$)/;
+  /\/admin\/settings\/(company|preference|appearance|social-authentication)(\/|$)/;
 export const SETTINGS_APP_PATH_RE =
-  /\/tillflow\/admin\/settings\/(invoice|printer|pos|signatures|custom-fields)(\/|$)/;
+  /\/admin\/settings\/(invoice|printer|pos|signatures|custom-fields)(\/|$)/;
 export const SETTINGS_SYSTEM_PATH_RE =
-  /\/tillflow\/admin\/settings\/(system|automation|email|email-templates|sms-gateway|sms-templates|otp|gdpr)(\/|$)/;
+  /\/admin\/settings\/(system|automation|email|email-templates|sms-gateway|sms-templates|otp|gdpr)(\/|$)/;
 export const SETTINGS_FINANCIAL_PATH_RE =
-  /\/tillflow\/admin\/settings\/(payment-gateway|bank-accounts|tax-rates|currencies)(\/|$)/;
-export const SETTINGS_OTHER_PATH_RE = /\/tillflow\/admin\/settings\/(storage|ban-ip)(\/|$)/;
+  /\/admin\/settings\/(payment-gateway|bank-accounts|tax-rates|currencies)(\/|$)/;
+export const SETTINGS_OTHER_PATH_RE = /\/admin\/settings\/(storage|ban-ip)(\/|$)/;
 
 /** Platform owner console (packages, tenant subscribers). */
-export const PLATFORM_OWNER_PATH_RE = /\/tillflow\/platform-owner\//;
+export const PLATFORM_OWNER_PATH_RE = /\/platform-owner\//;
 
 /**
  * Which left-rail / tab panel should be active (DreamsPOS two-column sidebar pattern).
@@ -34,7 +34,7 @@ export const PLATFORM_OWNER_PATH_RE = /\/tillflow\/platform-owner\//;
  */
 export function pathnameToSidebarPanel(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
-  if (p === '/tillflow/admin') {
+  if (p === '/admin') {
     return 'dashboard';
   }
   if (PLATFORM_OWNER_PATH_RE.test(pathname)) {
@@ -58,7 +58,7 @@ export function pathnameToSidebarPanel(pathname) {
   if (REPORTS_SECTION_PATH_RE.test(pathname)) {
     return 'reports';
   }
-  if (pathname.startsWith('/tillflow/admin/settings')) {
+  if (pathname.startsWith('/admin/settings')) {
     return 'settings';
   }
   return null;
@@ -95,7 +95,7 @@ export function syncReportSubgroupFromPath(pathname, setReportSubgroupOpen) {
       }
       return next;
     });
-  } else if (norm === '/tillflow/admin/reports') {
+  } else if (norm === '/admin/reports') {
     setReportSubgroupOpen(Object.fromEntries(REPORT_NAV_GROUPS.map((g) => [g.id, false])));
   }
 }

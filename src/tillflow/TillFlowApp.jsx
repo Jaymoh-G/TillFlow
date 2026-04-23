@@ -114,7 +114,7 @@ export default function TillFlowApp() {
                 <Route path="platform-owner/subscribers" element={<Subscription />} />
                 <Route
                   path="platform-owner/subscription"
-                  element={<Navigate to="/tillflow/platform-owner/subscribers" replace />}
+                  element={<Navigate to="/platform-owner/subscribers" replace />}
                 />
                 <Route path="admin" element={<Outlet />}>
                   <Route index element={<AdminDashboard />} />
@@ -140,7 +140,7 @@ export default function TillFlowApp() {
                   }>
                   <Route
                     path="manage-stocks"
-                    element={<Navigate to="/tillflow/admin/stock-adjustment" replace />}
+                    element={<Navigate to="/admin/stock-adjustment" replace />}
                   />
                 </Route>
 
@@ -299,7 +299,7 @@ export default function TillFlowApp() {
               }>
               <Route index element={<PosRegister />} />
             </Route>
-            <Route path="*" element={<Navigate to="/tillflow" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </TillFlowRoot>
       </AuthProvider>

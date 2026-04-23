@@ -119,7 +119,7 @@ export default function AdminSidebarTwoColumn() {
 
   const syncSectionsToPath = useCallback((pathname) => {
     syncReportSubgroupFromPath(pathname, setReportSubgroupOpen);
-    if (pathname.startsWith('/tillflow/admin/settings')) {
+    if (pathname.startsWith('/admin/settings')) {
       if (SETTINGS_GENERAL_PATH_RE.test(pathname)) {
         setSettingsGeneralOpen(true);
       }
@@ -170,19 +170,19 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-sidebar-panel__title">Platform</div>
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               <NavLink
-                to="/tillflow/platform-owner/packages"
+                to="/platform-owner/packages"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-package tf-nav__icon" aria-hidden />
                 Packages
               </NavLink>
               <NavLink
-                to="/tillflow/platform-owner/companies"
+                to="/platform-owner/companies"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-briefcase tf-nav__icon" aria-hidden />
                 Companies
               </NavLink>
               <NavLink
-                to="/tillflow/platform-owner/subscribers"
+                to="/platform-owner/subscribers"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-users tf-nav__icon" aria-hidden />
                 Subscribers
@@ -195,13 +195,13 @@ export default function AdminSidebarTwoColumn() {
           <>
             <div className="tf-sidebar-panel__title">Main</div>
             <div className="tf-nav-group__body tf-nav-group__body--panel">
-              <NavLink to="/tillflow/admin" end className={({ isActive }) => (isActive ? 'active' : undefined)}>
+              <NavLink to="/admin" end className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-grid tf-nav__icon" aria-hidden />
                 Dashboard
               </NavLink>
               {canOrders ? (
                 <NavLink
-                  to="/tillflow/pos"
+                  to="/pos"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-monitor tf-nav__icon" aria-hidden />
                   Point of sale
@@ -209,16 +209,16 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canReports ? (
                 <NavLink
-                  to="/tillflow/admin/reports"
+                  to="/admin/reports"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/reports/') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/reports/') ? 'active' : undefined
                   }>
                   <i className="feather icon-pie-chart tf-nav__icon" aria-hidden />
                   Reports
                 </NavLink>
               ) : null}
               <NavLink
-                to="/tillflow/admin/settings/profile"
+                to="/admin/settings/profile"
                 className={({ isActive }) => (isActive ? 'active' : undefined)}>
                 <i className="feather icon-user tf-nav__icon" aria-hidden />
                 Profile
@@ -233,7 +233,7 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               {canItems ? (
                 <NavLink
-                  to="/tillflow/admin/items"
+                  to="/admin/items"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-package tf-nav__icon" aria-hidden />
                   Items
@@ -241,7 +241,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canItems ? (
                 <NavLink
-                  to="/tillflow/admin/add-product"
+                  to="/admin/add-product"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-plus-circle tf-nav__icon" aria-hidden />
                   Add item
@@ -249,7 +249,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canReports || canItems ? (
                 <NavLink
-                  to="/tillflow/admin/expired-items"
+                  to="/admin/expired-items"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-calendar tf-nav__icon" aria-hidden />
                   Expired items
@@ -257,33 +257,33 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canReports || canItems ? (
                 <NavLink
-                  to="/tillflow/admin/low-stock"
+                  to="/admin/low-stock"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-trending-down tf-nav__icon" aria-hidden />
                   Low stock
                 </NavLink>
               ) : null}
               {canMasters ? (
-                <NavLink to="/tillflow/admin/categories" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <NavLink to="/admin/categories" className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-tag tf-nav__icon" aria-hidden />
                   Categories
                 </NavLink>
               ) : null}
               {canMasters ? (
-                <NavLink to="/tillflow/admin/brands" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <NavLink to="/admin/brands" className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-award tf-nav__icon" aria-hidden />
                   Brands
                 </NavLink>
               ) : null}
               {canMasters ? (
-                <NavLink to="/tillflow/admin/units" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <NavLink to="/admin/units" className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-hash tf-nav__icon" aria-hidden />
                   Units
                 </NavLink>
               ) : null}
               {canMasters ? (
                 <NavLink
-                  to="/tillflow/admin/variant-attributes"
+                  to="/admin/variant-attributes"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-sliders tf-nav__icon" aria-hidden />
                   Variant attributes
@@ -291,7 +291,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canMasters ? (
                 <NavLink
-                  to="/tillflow/admin/warranties"
+                  to="/admin/warranties"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-shield tf-nav__icon" aria-hidden />
                   Warranties
@@ -299,7 +299,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canItems ? (
                 <NavLink
-                  to="/tillflow/admin/print-barcode"
+                  to="/admin/print-barcode"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-printer tf-nav__icon" aria-hidden />
                   Print barcode
@@ -315,7 +315,7 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               {canStores ? (
                 <NavLink
-                  to="/tillflow/admin/stores"
+                  to="/admin/stores"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-home tf-nav__icon" aria-hidden />
                   Stores
@@ -323,7 +323,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canStockAdj ? (
                 <NavLink
-                  to="/tillflow/admin/stock-adjustment"
+                  to="/admin/stock-adjustment"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-trending-up tf-nav__icon" aria-hidden />
                   Adjust Stock
@@ -331,7 +331,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canStockXfer ? (
                 <NavLink
-                  to="/tillflow/admin/stock-transfer"
+                  to="/admin/stock-transfer"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-corner-up-right tf-nav__icon" aria-hidden />
                   Transfer Stock
@@ -346,14 +346,14 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-sidebar-panel__title">Sales</div>
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               {canOrders ? (
-                <NavLink to="/tillflow/admin/orders" className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                <NavLink to="/admin/orders" className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-file-text tf-nav__icon" aria-hidden />
                   Orders
                 </NavLink>
               ) : null}
               {canQuotations ? (
                 <NavLink
-                  to="/tillflow/admin/quotations"
+                  to="/admin/quotations"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-clipboard tf-nav__icon" aria-hidden />
                   Quotations
@@ -361,9 +361,9 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canLeads ? (
                 <NavLink
-                  to="/tillflow/admin/leads"
+                  to="/admin/leads"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/leads') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/leads') ? 'active' : undefined
                   }>
                   <i className="feather icon-user-plus tf-nav__icon" aria-hidden />
                   Leads
@@ -371,9 +371,9 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canProposals ? (
                 <NavLink
-                  to="/tillflow/admin/proposals"
+                  to="/admin/proposals"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/proposals') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/proposals') ? 'active' : undefined
                   }>
                   <i className="feather icon-send tf-nav__icon" aria-hidden />
                   Proposals
@@ -381,9 +381,9 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canInvoices ? (
                 <NavLink
-                  to="/tillflow/admin/invoices"
+                  to="/admin/invoices"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/invoices/') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/invoices/') ? 'active' : undefined
                   }>
                   <i className="feather icon-credit-card tf-nav__icon" aria-hidden />
                   Invoices
@@ -391,9 +391,9 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canDeliveryNotes ? (
                 <NavLink
-                  to="/tillflow/admin/delivery-notes"
+                  to="/admin/delivery-notes"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/delivery-notes/') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/delivery-notes/') ? 'active' : undefined
                   }>
                   <i className="feather icon-truck tf-nav__icon" aria-hidden />
                   Delivery notes
@@ -401,9 +401,9 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canCreditNotes ? (
                 <NavLink
-                  to="/tillflow/admin/credit-notes"
+                  to="/admin/credit-notes"
                   className={({ isActive }) =>
-                    isActive || location.pathname.startsWith('/tillflow/admin/credit-notes/') ? 'active' : undefined
+                    isActive || location.pathname.startsWith('/admin/credit-notes/') ? 'active' : undefined
                   }>
                   <i className="feather icon-file-minus tf-nav__icon" aria-hidden />
                   Credit notes
@@ -411,7 +411,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canInvoicePayments ? (
                 <NavLink
-                  to="/tillflow/admin/invoice-payments"
+                  to="/admin/invoice-payments"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-dollar-sign tf-nav__icon" aria-hidden />
                   Invoice payments
@@ -419,7 +419,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canSalesReturns ? (
                 <NavLink
-                  to="/tillflow/admin/sales-returns"
+                  to="/admin/sales-returns"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-repeat tf-nav__icon" aria-hidden />
                   Sales returns
@@ -435,7 +435,7 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               {canCustomers ? (
                 <NavLink
-                  to="/tillflow/admin/customers"
+                  to="/admin/customers"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-users tf-nav__icon" aria-hidden />
                   Customers
@@ -443,7 +443,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canBillers ? (
                 <NavLink
-                  to="/tillflow/admin/billers"
+                  to="/admin/billers"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-user-check tf-nav__icon" aria-hidden />
                   Sellers
@@ -451,7 +451,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canSuppliers ? (
                 <NavLink
-                  to="/tillflow/admin/suppliers"
+                  to="/admin/suppliers"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-truck tf-nav__icon" aria-hidden />
                   Suppliers
@@ -459,7 +459,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canUsers ? (
                 <NavLink
-                  to="/tillflow/admin/settings/roles-permissions"
+                  to="/admin/settings/roles-permissions"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-users tf-nav__icon" aria-hidden />
                   Roles & permissions
@@ -475,7 +475,7 @@ export default function AdminSidebarTwoColumn() {
             <div className="tf-nav-group__body tf-nav-group__body--panel">
               {canPurchases ? (
                 <NavLink
-                  to="/tillflow/admin/purchases"
+                  to="/admin/purchases"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-download tf-nav__icon" aria-hidden />
                   Purchases
@@ -483,7 +483,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canPurReturns ? (
                 <NavLink
-                  to="/tillflow/admin/purchase-returns"
+                  to="/admin/purchase-returns"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-refresh-ccw tf-nav__icon" aria-hidden />
                   Purchase returns
@@ -491,7 +491,7 @@ export default function AdminSidebarTwoColumn() {
               ) : null}
               {canExpenses ? (
                 <NavLink
-                  to="/tillflow/admin/expenses"
+                  to="/admin/expenses"
                   className={({ isActive }) => (isActive ? 'active' : undefined)}>
                   <i className="feather icon-dollar-sign tf-nav__icon" aria-hidden />
                   Expenses
@@ -552,7 +552,7 @@ export default function AdminSidebarTwoColumn() {
       </div>
       <div className="tf-admin__sidebar-panel">
         <div className="tf-sidebar-logo">
-          <Link to="/tillflow" className="tf-brand tf-brand--link">
+          <Link to="/" className="tf-brand tf-brand--link">
             <BreezeTechLogo className="tf-brand__logo" />
             <span className="tf-brand__product">TillFlow</span>
           </Link>

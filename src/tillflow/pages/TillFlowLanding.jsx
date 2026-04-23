@@ -17,7 +17,7 @@ export default function TillFlowLanding() {
         Sign in for the back office (Sanctum). POS stays open for register UI work.
       </p>
       <div className="tf-landing__grid">
-        <Link to="/tillflow/admin" className="tf-card">
+        <Link to="/admin" className="tf-card">
           <p className="tf-card__label">
             <i className="feather icon-home" aria-hidden />
             Back office
@@ -25,7 +25,7 @@ export default function TillFlowLanding() {
           <h2 className="tf-card__title">Admin</h2>
           <p className="tf-card__desc">Dashboard (API health) and products — redirects to sign-in when needed.</p>
         </Link>
-        <Link to="/tillflow/pos" className="tf-card">
+        <Link to="/pos" className="tf-card">
           <p className="tf-card__label">
             <i className="feather icon-tablet" aria-hidden />
             Front line
@@ -35,7 +35,7 @@ export default function TillFlowLanding() {
         </Link>
       </div>
       <p style={{ marginTop: '2rem', fontSize: '0.85rem', color: 'var(--tf-muted)' }}>
-        <Link to="/tillflow/login">Admin sign in</Link>
+        <Link to="/login">Admin sign in</Link>
         {' · '}
         Legacy template <Link to="/signin">/signin</Link>
       </p>

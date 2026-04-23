@@ -21,7 +21,7 @@ function parseRowDate(s) {
 
 const PosOrder = () => {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const [sourceRows] = useState(() => [...posOrderData]);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [rows, setRows] = useState(10);
@@ -339,7 +339,7 @@ const PosOrder = () => {
                 Add sale
               </Link>
               <Link
-                to={inTillflowShell ? "/tillflow/pos" : all_routes.pos}
+                to={inTillflowShell ? "/pos" : all_routes.pos}
                 className="btn btn-outline-primary">
                 <i className="ti ti-device-laptop me-1" />
                 Open POS

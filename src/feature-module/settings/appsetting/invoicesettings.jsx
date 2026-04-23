@@ -25,7 +25,7 @@ const ROUNDOFF_OPTIONS = [
 
 const InvoiceSettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [form, setForm] = useState(() => loadAppSettings().invoice);
   const [baseline, setBaseline] = useState(() => loadAppSettings().invoice);

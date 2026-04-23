@@ -34,7 +34,7 @@ function ModalFrame({ title, onClose, children, footer }) {
 
 const EmailSettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [all, setAll] = useState(loadSystemSettings);
   const [savedMsg, setSavedMsg] = useState("");

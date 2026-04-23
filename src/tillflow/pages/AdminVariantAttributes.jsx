@@ -436,7 +436,7 @@ export default function AdminVariantAttributes() {
             )}
           </div>
           <div className="page-btn import">
-            <Link to="/tillflow/admin/add-product" className="btn btn-secondary color">
+            <Link to="/admin/add-product" className="btn btn-secondary color">
               <i className="feather icon-package me-2" />
               Add item
             </Link>

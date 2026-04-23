@@ -71,7 +71,7 @@ const emptyForm = () => ({
 
 const CustomFields = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [rows, setRows] = useState(() => loadAppSettings().customFields);
   const [savedMsg, setSavedMsg] = useState("");

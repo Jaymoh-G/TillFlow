@@ -29,7 +29,7 @@ const DURATION_OPTIONS = [
 
 const OtpSettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [all, setAll] = useState(loadSystemSettings);
   const [baseline, setBaseline] = useState(loadSystemSettings);

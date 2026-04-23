@@ -219,10 +219,10 @@ export default function AdminProposals() {
       const body = buildPayload();
       if (isNew) {
         await createProposalRequest(token, body);
-        navigate('/tillflow/admin/proposals');
+        navigate('/admin/proposals');
       } else if (editId) {
         await updateProposalRequest(token, editId, body);
-        navigate('/tillflow/admin/proposals');
+        navigate('/admin/proposals');
       }
     } catch (e) {
       setFormError(e instanceof TillFlowApiError ? e.message : e?.message || 'Could not save proposal.');
@@ -285,12 +285,12 @@ export default function AdminProposals() {
       if (convertTo === 'quotation' && qid != null) {
         setAcceptSuccess(null);
         window.setTimeout(() => {
-          navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(qid))}/edit`);
+          navigate(`/admin/quotations/${encodeURIComponent(String(qid))}/edit`);
         }, 100);
       } else if (convertTo === 'invoice' && invId != null) {
         setAcceptSuccess(null);
         window.setTimeout(() => {
-          navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(invId))}/edit`);
+          navigate(`/admin/invoices/${encodeURIComponent(String(invId))}/edit`);
         }, 100);
       } else {
         setAcceptSuccess({
@@ -332,7 +332,7 @@ export default function AdminProposals() {
               <h6>Lines and totals match quotations</h6>
             </div>
             <div className="page-btn">
-              <Link to="/tillflow/admin/proposals" className="btn btn-outline-secondary">
+              <Link to="/admin/proposals" className="btn btn-outline-secondary">
                 Back to list
               </Link>
             </div>
@@ -526,7 +526,7 @@ export default function AdminProposals() {
             <h6>Send to leads or customers; convert to quotation or invoice</h6>
           </div>
           <div className="page-btn">
-            <Link to="/tillflow/admin/proposals/new" className="btn btn-primary">
+            <Link to="/admin/proposals/new" className="btn btn-primary">
               New Proposal
             </Link>
           </div>
@@ -580,7 +580,7 @@ export default function AdminProposals() {
                         </td>
                         <td className="text-end tabular-nums">{formatMoney(p.total_amount)}</td>
                         <td className="text-end text-nowrap">
-                          <Link to={`/tillflow/admin/proposals/${p.id}/edit`} className="btn btn-sm btn-outline-secondary me-1">
+                          <Link to={`/admin/proposals/${p.id}/edit`} className="btn btn-sm btn-outline-secondary me-1">
                             Edit
                           </Link>
                           {p.status !== 'Accepted' ? (
@@ -761,7 +761,7 @@ export default function AdminProposals() {
               onClick={() => {
                 const id = acceptSuccess.invoiceId;
                 setAcceptSuccess(null);
-                navigate(`/tillflow/admin/invoices/${encodeURIComponent(String(id))}/edit`);
+                navigate(`/admin/invoices/${encodeURIComponent(String(id))}/edit`);
               }}>
               Open invoice
             </button>
@@ -773,7 +773,7 @@ export default function AdminProposals() {
               onClick={() => {
                 const id = acceptSuccess.quotationId;
                 setAcceptSuccess(null);
-                navigate(`/tillflow/admin/quotations/${encodeURIComponent(String(id))}/edit`);
+                navigate(`/admin/quotations/${encodeURIComponent(String(id))}/edit`);
               }}>
               Open quotation
             </button>

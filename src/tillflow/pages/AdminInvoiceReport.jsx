@@ -126,7 +126,7 @@ export default function AdminInvoiceReport() {
       field: 'invoice_ref',
       header: 'Invoice Number',
       body: (row) => (
-        <Link to={`/tillflow/admin/invoices/${row.invoice_id}`} className="text-primary">
+        <Link to={`/admin/invoices/${row.invoice_id}`} className="text-primary">
           {row.invoice_ref}
         </Link>
       )

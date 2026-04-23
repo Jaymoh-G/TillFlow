@@ -133,12 +133,12 @@ export default function AdminLeadDetail() {
             <h6>{lead?.name ?? '—'}</h6>
           </div>
           <div className="page-btn d-flex flex-wrap gap-2">
-            <Link to="/tillflow/admin/leads" className="btn btn-outline-secondary">
+            <Link to="/admin/leads" className="btn btn-outline-secondary">
               Back to leads
             </Link>
             {lead?.id ? (
               <Link
-                to={`/tillflow/admin/proposals/new?leadId=${encodeURIComponent(String(lead.id))}`}
+                to={`/admin/proposals/new?leadId=${encodeURIComponent(String(lead.id))}`}
                 className="btn btn-primary">
                 New Proposal
               </Link>
@@ -244,7 +244,7 @@ export default function AdminLeadDetail() {
                           <dt className="text-muted fw-normal mb-1">Customer</dt>
                           <dd className="mb-0">
                             <span className="badge bg-success me-2">Converted</span>
-                            <Link to="/tillflow/admin/customers" className="small">
+                            <Link to="/admin/customers" className="small">
                               View customers
                             </Link>
                             <span className="text-muted small ms-1">(#{lead.converted_customer_id})</span>
@@ -324,13 +324,13 @@ export default function AdminLeadDetail() {
                               <td className="text-end text-nowrap">
                                 {canOpenProposalEdit ? (
                                   <Link
-                                    to={`/tillflow/admin/proposals/${encodeURIComponent(String(p.id))}/edit`}
+                                    to={`/admin/proposals/${encodeURIComponent(String(p.id))}/edit`}
                                     className="btn btn-sm btn-outline-primary">
                                     Open
                                   </Link>
                                 ) : (
                                   <Link
-                                    to={`/tillflow/admin/proposals/${encodeURIComponent(String(p.id))}`}
+                                    to={`/admin/proposals/${encodeURIComponent(String(p.id))}`}
                                     className="btn btn-sm btn-outline-secondary">
                                     View
                                   </Link>

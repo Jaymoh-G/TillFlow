@@ -19,7 +19,7 @@ export default function RequirePermission({ anyOf = [], allOf = [], children }) 
   }
 
   if (!user) {
-    return <Navigate to="/tillflow/login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const okAny = anyOf.length === 0 || hasAnyPermission(anyOf);

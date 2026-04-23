@@ -1,6 +1,6 @@
 /**
  * Apply DreamsPOS theme attributes from localStorage before first paint.
- * Mirrors ThemeSettings so routes that never mount FeatureModule (e.g. /tillflow/*) still get
+ * Mirrors ThemeSettings so routes that never mount FeatureModule (e.g. /*) still get
  * consistent html/body data-* attributes when returning to template routes.
  */
 export function bootstrapThemeDomFromStorage() {

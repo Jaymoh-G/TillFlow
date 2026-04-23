@@ -17,16 +17,16 @@ export default function AdminOfflineWait() {
         </p>
         <ul className="tf-offline-wait__links">
           <li>
-            <Link to="/tillflow/admin/orders">Orders</Link>
+            <Link to="/admin/orders">Orders</Link>
           </li>
           <li>
-            <Link to="/tillflow/admin/quotations">Quotations</Link>
+            <Link to="/admin/quotations">Quotations</Link>
           </li>
           <li>
-            <Link to="/tillflow/admin/sales-returns">Sales returns</Link>
+            <Link to="/admin/sales-returns">Sales returns</Link>
           </li>
           <li>
-            <Link to="/tillflow/pos">POS register</Link>
+            <Link to="/pos">POS register</Link>
           </li>
         </ul>
       </div>

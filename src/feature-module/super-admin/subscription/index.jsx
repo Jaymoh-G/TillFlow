@@ -58,7 +58,7 @@ export default function Subscription() {
         return;
       }
       try {
-        const me = await tillflowFetch('/auth/me', { token: tok });
+        const me = await tillflowFetch('/tillflow/auth/me', { token: tok });
         if (cancelled) {
           return;
         }
@@ -156,7 +156,7 @@ export default function Subscription() {
   }
 
   if (!allowed) {
-    return <Navigate to="/tillflow/login" replace state={{ from: '/tillflow/platform-owner/subscribers' }} />;
+    return <Navigate to="/login" replace state={{ from: '/platform-owner/subscribers' }} />;
   }
 
   return (
@@ -207,7 +207,7 @@ export default function Subscription() {
               </button>
             </div>
             <div className="col text-end">
-              <Link to="/tillflow/platform-owner/packages" className="btn btn-outline-primary">
+              <Link to="/platform-owner/packages" className="btn btn-outline-primary">
                 Plans / packages
               </Link>
             </div>

@@ -49,8 +49,215 @@ const emptyCreate = {
   company_email: '',
   company_phone: '',
   company_website: '',
-  company_address_line: ''
+  company_address_line: '',
+  primary_contact_name: '',
+  invite_primary_contact: true
 };
+
+function normalizeEmail(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizePhone(value) {
+  return String(value ?? '').trim();
+}
+
+function websiteHref(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) {
+    return '';
+  }
+  if (/^https?:\/\//i.test(s)) {
+    return s;
+  }
+  return `https://${s}`;
+}
+
+function formatDetailDate(iso) {
+  if (!iso) {
+    return '—';
+  }
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return '—';
+    }
+    return d.toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return '—';
+  }
+}
+
+function DetailField({ label, children, className = 'col-md-6' }) {
+  return (
+    <div className={className}>
+      <div className="text-muted small mb-1">{label}</div>
+      <div>{children ?? '—'}</div>
+    </div>
+  );
+}
+
+/** @param {{ tenant: Record<string, unknown> }} props */
+function PlatformTenantDetailView({ tenant }) {
+  const status = tenant.status === 'suspended' ? 'Suspended' : 'Active';
+  const badgeClass =
+    tenant.status === 'suspended' ? 'badge-danger' : 'badge-success';
+  const subs = Array.isArray(tenant.subscriptions) ? tenant.subscriptions : [];
+
+  return (
+    <div>
+      <div className="d-flex align-items-start justify-content-between gap-2 mb-3">
+        <div>
+          <h6 className="mb-1">{tenant.name || '—'}</h6>
+          <span className="text-muted small">ID {tenant.id}</span>
+        </div>
+        <span className={`badge ${badgeClass} badge-xs d-inline-flex align-items-center`}>
+          <i className="ti ti-point-filled me-1" />
+          {status}
+        </span>
+      </div>
+
+      {tenant.suspended_reason ? (
+        <div className="alert alert-warning py-2 px-3 small mb-3" role="status">
+          <strong>Suspension reason:</strong> {String(tenant.suspended_reason)}
+        </div>
+      ) : null}
+
+      <h6 className="text-uppercase text-muted small mb-2">Profile</h6>
+      <div className="row g-2 mb-3">
+        <DetailField label="Slug">{tenant.slug}</DetailField>
+        <DetailField label="Created">{formatDetailDate(tenant.created_at)}</DetailField>
+        <DetailField label="Last active">{formatDetailDate(tenant.last_active_at)}</DetailField>
+      </div>
+
+      <h6 className="text-uppercase text-muted small mb-2">Contact</h6>
+      <div className="row g-2 mb-3">
+        <DetailField label="Email">
+          {tenant.company_email ? (
+            <a href={`mailto:${tenant.company_email}`}>{String(tenant.company_email)}</a>
+          ) : (
+            '—'
+          )}
+        </DetailField>
+        <DetailField label="Phone">{tenant.company_phone}</DetailField>
+        <DetailField label="Fax">{tenant.company_fax}</DetailField>
+        <DetailField label="Website">
+          {tenant.company_website ? (
+            <a href={websiteHref(tenant.company_website)} target="_blank" rel="noopener noreferrer">
+              {String(tenant.company_website)}
+            </a>
+          ) : (
+            '—'
+          )}
+        </DetailField>
+      </div>
+
+      <h6 className="text-uppercase text-muted small mb-2">Address</h6>
+      <div className="row g-2 mb-3">
+        <DetailField className="col-12" label="Street / line">
+          {tenant.company_address_line}
+        </DetailField>
+        <DetailField label="City">{tenant.company_city}</DetailField>
+        <DetailField label="State / region">{tenant.company_state}</DetailField>
+        <DetailField label="Postal code">{tenant.company_postal_code}</DetailField>
+        <DetailField label="Country">{tenant.company_country}</DetailField>
+      </div>
+
+      <h6 className="text-uppercase text-muted small mb-2">Subscription</h6>
+      <div className="row g-2 mb-3">
+        <DetailField label="Current plan">
+          {tenant.current_plan && typeof tenant.current_plan === 'object'
+            ? tenant.current_plan.name
+            : '—'}
+        </DetailField>
+        <DetailField label="Renews / ends">{formatDetailDate(tenant.subscription_ends_at)}</DetailField>
+      </div>
+
+      {subs.length > 0 ? (
+        <>
+          <h6 className="text-uppercase text-muted small mb-2">History</h6>
+          <div className="table-responsive border rounded">
+            <table className="table table-sm table-striped mb-0 small">
+              <thead>
+                <tr>
+                  <th>Plan</th>
+                  <th>Status</th>
+                  <th>Starts</th>
+                  <th>Ends</th>
+                  <th>Extra stores</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subs.map((s) => (
+                  <tr key={String(s.id)}>
+                    <td>{s.plan && typeof s.plan === 'object' ? s.plan.name : '—'}</td>
+                    <td>{s.status}</td>
+                    <td>{formatDetailDate(s.starts_at)}</td>
+                    <td>{formatDetailDate(s.ends_at)}</td>
+                    <td>{s.purchased_extra_stores ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {subs.some((s) => Array.isArray(s.payments) && s.payments.length > 0) ? (
+            <div className="mt-3">
+              <h6 className="text-uppercase text-muted small mb-2">Payments</h6>
+              {subs.map((s) => {
+                const payments = Array.isArray(s.payments) ? s.payments : [];
+                if (!payments.length) {
+                  return null;
+                }
+                const planName = s.plan && typeof s.plan === 'object' ? s.plan.name : 'Subscription';
+                return (
+                  <div key={`pay-${String(s.id)}`} className="mb-3">
+                    <div className="small text-muted mb-1">{planName}</div>
+                    <div className="table-responsive border rounded">
+                      <table className="table table-sm mb-0 small">
+                        <thead>
+                          <tr>
+                            <th>Amount</th>
+                            <th>Paid</th>
+                            <th>Method</th>
+                            <th>Reference</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payments.map((p) => (
+                            <tr key={String(p.id)}>
+                              <td>
+                                {p.amount != null && p.currency
+                                  ? `${p.currency} ${Number(p.amount).toFixed(2)}`
+                                  : p.amount != null
+                                    ? String(p.amount)
+                                    : '—'}
+                              </td>
+                              <td>{formatDetailDate(p.paid_at)}</td>
+                              <td>{p.method ?? '—'}</td>
+                              <td>{p.reference ?? '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 export default function PlatformCompanies() {
   const [booting, setBooting] = useState(true);
@@ -177,6 +384,28 @@ export default function PlatformCompanies() {
 
   const submitCreate = async (e) => {
     e.preventDefault();
+    if (createForm.invite_primary_contact && !normalizeEmail(createForm.company_email)) {
+      window.alert('Company email is required when sending an invitation to the primary contact.');
+      return;
+    }
+    const email = normalizeEmail(createForm.company_email);
+    const phone = normalizePhone(createForm.company_phone);
+    const duplicateEmail = email
+      ? (apiTenants || []).some((t) => normalizeEmail(t.company_email) === email)
+      : false;
+    const duplicatePhone = phone
+      ? (apiTenants || []).some((t) => normalizePhone(t.company_phone) === phone)
+      : false;
+    if (duplicateEmail || duplicatePhone) {
+      const msg = [
+        duplicateEmail ? 'Company email must be unique.' : null,
+        duplicatePhone ? 'Company phone must be unique.' : null
+      ]
+        .filter(Boolean)
+        .join(' ');
+      window.alert(msg);
+      return;
+    }
     setSaving(true);
     try {
       await createPlatformTenant({
@@ -185,13 +414,28 @@ export default function PlatformCompanies() {
         company_email: createForm.company_email || undefined,
         company_phone: createForm.company_phone || undefined,
         company_website: createForm.company_website || undefined,
-        company_address_line: createForm.company_address_line || undefined
+        company_address_line: createForm.company_address_line || undefined,
+        invite_primary_contact: createForm.invite_primary_contact,
+        primary_contact_name: createForm.primary_contact_name?.trim() || undefined
       });
       setShowAdd(false);
       setCreateForm(emptyCreate);
       await load();
     } catch (err) {
-      window.alert(err instanceof TillFlowApiError ? err.message : 'Could not create company.');
+      let msg = 'Could not create company.';
+      if (err instanceof TillFlowApiError) {
+        msg = err.message;
+        const errs = err.data?.errors;
+        if (errs && typeof errs === 'object') {
+          const flat = Object.values(errs)
+            .flat()
+            .filter((x) => typeof x === 'string' && x.length);
+          if (flat.length) {
+            msg = String(flat[0]);
+          }
+        }
+      }
+      window.alert(msg);
     } finally {
       setSaving(false);
     }
@@ -200,6 +444,24 @@ export default function PlatformCompanies() {
   const submitEdit = async (e) => {
     e.preventDefault();
     if (!editId) {
+      return;
+    }
+    const email = normalizeEmail(editForm.company_email);
+    const phone = normalizePhone(editForm.company_phone);
+    const duplicateEmail = email
+      ? (apiTenants || []).some((t) => Number(t.id) !== Number(editId) && normalizeEmail(t.company_email) === email)
+      : false;
+    const duplicatePhone = phone
+      ? (apiTenants || []).some((t) => Number(t.id) !== Number(editId) && normalizePhone(t.company_phone) === phone)
+      : false;
+    if (duplicateEmail || duplicatePhone) {
+      const msg = [
+        duplicateEmail ? 'Company email must be unique.' : null,
+        duplicatePhone ? 'Company phone must be unique.' : null
+      ]
+        .filter(Boolean)
+        .join(' ');
+      window.alert(msg);
       return;
     }
     setSaving(true);
@@ -273,7 +535,7 @@ export default function PlatformCompanies() {
   }
 
   if (!allowed) {
-    return <Navigate to="/tillflow/admin" replace />;
+    return <Navigate to="/admin" replace />;
   }
 
   return (
@@ -284,7 +546,10 @@ export default function PlatformCompanies() {
             <div className="add-item d-flex">
               <div className="page-title">
                 <h4>Companies</h4>
-                <h6>Subscriber organizations (tenants)</h6>
+                <h6>
+                  Subscriber organizations — primary contact is invited with the Tenant role; they can add users
+                  after sign-in.
+                </h6>
               </div>
             </div>
             <ul className="table-top-head">
@@ -384,10 +649,33 @@ export default function PlatformCompanies() {
                   onChange={(e) => setCreateForm((f) => ({ ...f, slug: e.target.value }))}
                 />
               </div>
+              <div className="col-md-12">
+                <Form.Check
+                  type="checkbox"
+                  id="tf-invite-primary"
+                  checked={createForm.invite_primary_contact}
+                  onChange={(e) =>
+                    setCreateForm((f) => ({ ...f, invite_primary_contact: e.target.checked }))
+                  }
+                  label="Send invitation to company email (Tenant role — can manage company profile and invite users)"
+                />
+              </div>
+              <div className="col-md-12">
+                <Form.Label>Primary contact name (optional)</Form.Label>
+                <Form.Control
+                  placeholder="Defaults to company name if empty"
+                  value={createForm.primary_contact_name}
+                  disabled={!createForm.invite_primary_contact}
+                  onChange={(e) =>
+                    setCreateForm((f) => ({ ...f, primary_contact_name: e.target.value }))
+                  }
+                />
+              </div>
               <div className="col-md-6">
-                <Form.Label>Company email</Form.Label>
+                <Form.Label>Company email{createForm.invite_primary_contact ? ' *' : ''}</Form.Label>
                 <Form.Control
                   type="email"
+                  required={createForm.invite_primary_contact}
                   value={createForm.company_email}
                   onChange={(e) => setCreateForm((f) => ({ ...f, company_email: e.target.value }))}
                 />
@@ -506,9 +794,7 @@ export default function PlatformCompanies() {
               <Spinner animation="border" />
             </div>
           ) : viewTenant ? (
-            <pre className="small mb-0" style={{ maxHeight: 400, overflow: 'auto' }}>
-              {JSON.stringify(viewTenant, null, 2)}
-            </pre>
+            <PlatformTenantDetailView tenant={viewTenant} />
           ) : (
             <p className="text-muted mb-0">Could not load detail.</p>
           )}

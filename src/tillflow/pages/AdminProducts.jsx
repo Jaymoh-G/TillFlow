@@ -734,7 +734,7 @@ export default function AdminProducts() {
             ) : (
               <>
                 <Link
-                  to={`/tillflow/admin/items/${p.id}/edit`}
+                  to={`/admin/items/${p.id}/edit`}
                   className="me-2 p-2 d-flex align-items-center border rounded bg-transparent text-reset"
                   title="Edit">
                   <i className="feather icon-edit" />
@@ -815,7 +815,7 @@ export default function AdminProducts() {
                 Add New Item
               </span>
             ) : (
-              <Link to="/tillflow/admin/add-product" className="btn btn-primary">
+              <Link to="/admin/add-product" className="btn btn-primary">
                 <i className="feather icon-plus-circle me-1" />
                 Add New Item
               </Link>

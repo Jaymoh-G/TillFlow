@@ -33,7 +33,7 @@ export default function TillFlowInviteAccept() {
         password,
         password_confirmation: passwordConfirmation,
       });
-      navigate('/tillflow/login', {
+      navigate('/login', {
         replace: true,
         state: { inviteAccepted: true },
       });
@@ -123,7 +123,7 @@ export default function TillFlowInviteAccept() {
       </form>
 
       <p style={{ textAlign: 'center', marginTop: '1.25rem' }}>
-        <Link to="/tillflow/login">Back to sign in</Link>
+        <Link to="/login">Back to sign in</Link>
       </p>
     </div>
   );

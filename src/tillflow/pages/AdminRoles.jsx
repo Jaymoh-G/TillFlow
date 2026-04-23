@@ -6,8 +6,8 @@ import { useAuth } from '../auth/AuthContext';
 import { buildPermissionGroups } from '../utils/permissionGroups';
 import Forbidden from './Forbidden';
 
-/** Four-column permission matrix (left → right). Must match API role slugs. */
-const PERMISSION_MATRIX_SLUGS = ['cashier', 'manager', 'owner', 'admin'];
+/** Permission matrix columns (left → right). Must match API role slugs. */
+const PERMISSION_MATRIX_SLUGS = ['cashier', 'manager', 'tenant', 'owner', 'admin'];
 
 function titleForMatrixSlug(slug) {
   return String(slug ?? '')
@@ -17,7 +17,7 @@ function titleForMatrixSlug(slug) {
 }
 
 /** Column order for the Users-by-role board (unknown slugs sort after these). */
-const ROLE_COLUMN_SLUG_ORDER = ['cashier', 'manager', 'owner', 'admin'];
+const ROLE_COLUMN_SLUG_ORDER = ['cashier', 'manager', 'tenant', 'owner', 'admin'];
 
 function sortRolesForUserColumns(roles) {
   const rank = (slug) => {

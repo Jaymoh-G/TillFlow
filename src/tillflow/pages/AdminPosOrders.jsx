@@ -306,7 +306,7 @@ export default function AdminPosOrders() {
         header: "Receipt",
         field: "order_no",
         body: (row) => (
-          <Link to={`/tillflow/admin/orders/${row.id}`} className="fw-medium text-nowrap">
+          <Link to={`/admin/orders/${row.id}`} className="fw-medium text-nowrap">
             {row.order_no || `#${row.id}`}
           </Link>
         )
@@ -399,7 +399,7 @@ export default function AdminPosOrders() {
               <i className="ti ti-dots-vertical" />
             </Dropdown.Toggle>
             <Dropdown.Menu>
-              <Dropdown.Item as="button" type="button" onClick={() => navigate(`/tillflow/admin/orders/${row.id}`)}>
+              <Dropdown.Item as="button" type="button" onClick={() => navigate(`/admin/orders/${row.id}`)}>
                 <i className="ti ti-eye me-2 text-dark" />
                 View
               </Dropdown.Item>
@@ -456,7 +456,7 @@ export default function AdminPosOrders() {
                 onImport={() => setShowImport(true)}
               />
               <div className="page-btn d-flex flex-wrap gap-2 m-0">
-                <Link to="/tillflow/pos" className="btn btn-primary text-white">
+                <Link to="/pos" className="btn btn-primary text-white">
                   <i className="feather icon-shopping-cart me-1" />
                   POS
                 </Link>

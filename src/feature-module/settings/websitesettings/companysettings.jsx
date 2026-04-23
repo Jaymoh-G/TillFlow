@@ -278,7 +278,7 @@ const CompanySettings = () => {
   };
 
   const showTillflowBackLink =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin/");
 
   return (
     <>
@@ -305,7 +305,7 @@ const CompanySettings = () => {
                     <div className="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
                       <h4 className="fs-18 fw-bold mb-0">Company Settings</h4>
                       {showTillflowBackLink ? (
-                        <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm flex-shrink-0">
+                        <Link to="/admin" className="btn btn-outline-secondary btn-sm flex-shrink-0">
                           Back to admin
                         </Link>
                       ) : null}

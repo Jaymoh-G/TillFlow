@@ -82,7 +82,7 @@ export default function TillFlowForgotPassword() {
       </form>
 
       <p style={{ marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--tf-muted)' }}>
-        <Link to="/tillflow/login">← Back to sign in</Link>
+        <Link to="/login">← Back to sign in</Link>
       </p>
     </div>
   );

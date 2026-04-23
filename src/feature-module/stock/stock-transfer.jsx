@@ -110,7 +110,7 @@ const SORT_OPTIONS = [
 
 const StockTransfer = () => {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const stores = useStores();
 
   const auth = useOptionalAuth();
@@ -918,7 +918,7 @@ const StockTransfer = () => {
               <Link
                 to={
                   inTillflowShell
-                    ? "/tillflow/admin/stores"
+                    ? "/admin/stores"
                     : "/manage-stores"
                 }
                 className="btn btn-outline-secondary">
@@ -927,7 +927,7 @@ const StockTransfer = () => {
               </Link>
               {inTillflowShell ? (
                 <Link
-                  to="/tillflow/admin/stock-adjustment"
+                  to="/admin/stock-adjustment"
                   className="btn btn-outline-secondary">
                   <i className="feather icon-trending-up me-1" />
                   Adjust Stock

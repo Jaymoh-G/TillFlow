@@ -48,7 +48,7 @@ function ModalFrame({ title, onClose, children, footer }) {
 
 const PrinterSettings = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [printers, setPrinters] = useState(() => loadAppSettings().printers);
   const [savedMsg, setSavedMsg] = useState("");

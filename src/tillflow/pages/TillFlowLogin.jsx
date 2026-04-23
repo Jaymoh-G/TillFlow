@@ -9,7 +9,7 @@ export default function TillFlowLogin() {
   const { login, token, user, bootstrapping } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from || '/tillflow/admin';
+  const from = location.state?.from || '/admin';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -96,7 +96,7 @@ export default function TillFlowLogin() {
         </label>
 
         <p style={{ textAlign: 'right', marginTop: '-0.25rem', marginBottom: '0.5rem' }}>
-          <Link to="/tillflow/forgot-password">Forgot password?</Link>
+          <Link to="/forgot-password">Forgot password?</Link>
         </p>
 
         <button className="tf-btn tf-btn--primary" type="submit" disabled={submitting}>
@@ -105,7 +105,7 @@ export default function TillFlowLogin() {
       </form>
 
       <p style={{ marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--tf-muted)' }}>
-        <Link to="/tillflow">← Back to hub</Link>
+        <Link to="/">← Back to hub</Link>
       </p>
     </div>
   );

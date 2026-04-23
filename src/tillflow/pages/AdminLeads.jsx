@@ -368,13 +368,13 @@ export default function AdminLeads() {
                               <Dropdown.Menu popperConfig={{ strategy: 'fixed' }} renderOnMount>
                                 <Dropdown.Item
                                   as={Link}
-                                  to={`/tillflow/admin/leads/${encodeURIComponent(String(r.id))}`}>
+                                  to={`/admin/leads/${encodeURIComponent(String(r.id))}`}>
                                   <i className="ti ti-eye me-2 text-dark" aria-hidden />
                                   View
                                 </Dropdown.Item>
                                 <Dropdown.Item
                                   as={Link}
-                                  to={`/tillflow/admin/proposals/new?leadId=${encodeURIComponent(String(r.id))}`}>
+                                  to={`/admin/proposals/new?leadId=${encodeURIComponent(String(r.id))}`}>
                                   <i className="ti ti-file-text me-2 text-dark" aria-hidden />
                                   New Proposal
                                 </Dropdown.Item>

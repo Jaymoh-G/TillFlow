@@ -115,47 +115,47 @@ export function mapActivityLogToNotificationItem(log) {
     title = "Invoice payment";
     const pid = paymentId ?? subjectId;
     if (pid != null && !Number.isNaN(pid)) {
-      to = `/tillflow/admin/invoice-payments/${pid}`;
+      to = `/admin/invoice-payments/${pid}`;
     }
   } else if (action === "invoice.customer_viewed") {
     title = "Invoice viewed by customer";
     const iid = invoiceId ?? (subjectType === "Invoice" ? subjectId : null);
     if (iid != null && !Number.isNaN(iid)) {
-      to = `/tillflow/admin/invoices/${iid}`;
+      to = `/admin/invoices/${iid}`;
     }
   } else if (action.startsWith("invoice.")) {
     title = "Invoice";
     const iid = invoiceId ?? (subjectType === "Invoice" ? subjectId : null);
     if (iid != null && !Number.isNaN(iid)) {
-      to = `/tillflow/admin/invoices/${iid}`;
+      to = `/admin/invoices/${iid}`;
     }
   } else if (action === "quotation.customer_viewed") {
     title = "Quotation viewed by customer";
     const qid = quotationId ?? (subjectType === "Quotation" ? subjectId : null);
     if (qid != null && !Number.isNaN(qid)) {
-      to = `/tillflow/admin/quotations/${qid}`;
+      to = `/admin/quotations/${qid}`;
     }
   } else if (action.startsWith("quotation.")) {
     title = "Quotation";
     const qid = quotationId ?? (subjectType === "Quotation" ? subjectId : null);
     if (qid != null && !Number.isNaN(qid)) {
-      to = `/tillflow/admin/quotations/${qid}`;
+      to = `/admin/quotations/${qid}`;
     }
   } else if (action === "proposal.customer_viewed") {
     title = "Proposal viewed by customer";
     const pid = proposalId ?? (subjectType === "Proposal" ? subjectId : null);
     if (pid != null && !Number.isNaN(pid)) {
-      to = `/tillflow/admin/proposals/${pid}`;
+      to = `/admin/proposals/${pid}`;
     }
   } else if (action.startsWith("proposal.")) {
     title = "Proposal";
     const pid = proposalId ?? (subjectType === "Proposal" ? subjectId : null);
     if (pid != null && !Number.isNaN(pid)) {
-      to = `/tillflow/admin/proposals/${pid}`;
+      to = `/admin/proposals/${pid}`;
     }
   } else if (action.startsWith("customer.")) {
     title = "Customer";
-    to = "/tillflow/admin/customers";
+    to = "/admin/customers";
   }
 
   if (!detail) {

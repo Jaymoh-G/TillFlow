@@ -8,7 +8,7 @@ const ConnectedApps = () => {
   const routes = all_routes;
 
   const showTillflowBackLink =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin/");
 
   const securityPath = showTillflowBackLink ? routes.tillflowAdminSecurity : routes.securitysettings;
 
@@ -36,7 +36,7 @@ const ConnectedApps = () => {
                   <div className="card-header d-flex flex-wrap align-items-center gap-2 justify-content-between">
                     <h4 className="fs-18 fw-bold mb-0">Connected apps</h4>
                     {showTillflowBackLink ? (
-                      <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm">
+                      <Link to="/admin" className="btn btn-outline-secondary btn-sm">
                         Back to admin
                       </Link>
                     ) : null}

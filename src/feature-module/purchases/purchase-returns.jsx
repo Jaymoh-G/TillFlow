@@ -60,7 +60,7 @@ function nextPurchaseReturnRefLocal(list) {
 
 const PurchaseReturns = () => {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const auth = useOptionalAuth();
   const token = auth?.token ?? (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("tillflow_sanctum_token") : null);
   const shouldUseDemoReturns = !inTillflowShell && !token;

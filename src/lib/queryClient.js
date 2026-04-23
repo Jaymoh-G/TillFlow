@@ -14,7 +14,7 @@ export const DEFAULT_STALE_TIME_MS = 5 * 60 * 1000;
  * - Optional: after a successful fetch or save, write the same payload to localStorage as a cold-load
  *   cache; on startup use `placeholderData` / `initialData` from localStorage, then let the query revalidate.
  *
- * Offline (TillFlow): sales/quoting routes in `tillflow/offline/tillflowOfflinePolicy.js` plus `/tillflow/pos`.
+ * Offline (TillFlow): sales/quoting routes in `tillflow/offline/tillflowOfflinePolicy.js` plus `/pos`.
  *
  * Tenant UI settings: API `GET/PATCH /tenant/ui-settings` (see `tillflow/tenantUiSettings/`) with localStorage
  * as read-through cache; PATCH requires `tenant.manage`.

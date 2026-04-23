@@ -38,7 +38,7 @@ function ModalFrame({ title, onClose, children, footer }) {
 
 const SmsGateway = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
   const { token } = useAuth();
 
   const [all, setAll] = useState(loadSystemSettings);

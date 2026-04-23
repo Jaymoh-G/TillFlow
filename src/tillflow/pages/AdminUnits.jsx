@@ -404,7 +404,7 @@ export default function AdminUnits() {
             )}
           </div>
           <div className="page-btn">
-            <Link to="/tillflow/admin/add-product" className="btn btn-secondary">
+            <Link to="/admin/add-product" className="btn btn-secondary">
               Add item
             </Link>
           </div>

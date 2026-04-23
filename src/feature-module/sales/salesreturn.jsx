@@ -23,7 +23,7 @@ function parseRowDate(s) {
 
 const SalesReturn = () => {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const route = all_routes;
 
   const [sourceRows] = useState(() => [...salesReturnListData]);
@@ -268,7 +268,7 @@ const SalesReturn = () => {
     []
   );
 
-  const invoicesPath = inTillflowShell ? "/tillflow/admin/invoices" : route.invoice;
+  const invoicesPath = inTillflowShell ? "/admin/invoices" : route.invoice;
 
   return (
     <div>

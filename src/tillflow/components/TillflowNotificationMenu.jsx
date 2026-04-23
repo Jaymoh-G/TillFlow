@@ -103,7 +103,7 @@ export default function TillflowNotificationMenu({ className = "" }) {
       <div className="dropdown-menu dropdown-menu-end notifications tf-notif-menu__panel">
         <div className="topnav-dropdown-header d-flex align-items-center justify-content-between gap-2">
           <h5 className="notification-title mb-0">Notifications</h5>
-          <Link to="/tillflow/admin/notifications" className="clear-noti text-primary small">
+          <Link to="/admin/notifications" className="clear-noti text-primary small">
             View all
           </Link>
         </div>

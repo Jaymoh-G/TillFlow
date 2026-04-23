@@ -20,7 +20,7 @@ const AppRouter = () => {
     return (
       <Routes>
         <Route
-          path="/tillflow/*"
+          path="/*"
           element={
             <Suspense fallback={<div className="tillflow-root" style={{ padding: "2rem" }}>Loading TillFlow…</div>}>
               <TillFlowApp />

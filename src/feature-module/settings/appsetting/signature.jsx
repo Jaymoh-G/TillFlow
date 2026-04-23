@@ -42,7 +42,7 @@ const emptyForm = () => ({
 
 const Signature = () => {
   const location = useLocation();
-  const isTillflow = location.pathname.startsWith("/tillflow/admin");
+  const isTillflow = location.pathname.startsWith("/admin");
 
   const [rows, setRows] = useState(() => loadAppSettings().signatures);
   const [savedMsg, setSavedMsg] = useState("");

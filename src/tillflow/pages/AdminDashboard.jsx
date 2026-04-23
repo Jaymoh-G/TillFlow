@@ -12,7 +12,7 @@ export default function AdminDashboard() {
       hideFooter
       hideRecentSales
       tillflowToken={token}
-      customerListPath="/tillflow/admin/customers"
+      customerListPath="/admin/customers"
     />
   );
 }

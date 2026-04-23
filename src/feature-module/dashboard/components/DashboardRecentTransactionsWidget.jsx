@@ -272,7 +272,7 @@ export default function DashboardRecentTransactionsWidget({
                 avatarSrc={resolveMediaUrl(r.avatar_url)}
                 name={r.customer_name || "—"}
                 refCode={r.reference ? String(r.reference) : "—"}
-                nameTo={`/tillflow/admin/proposals/${encodeURIComponent(String(r.id))}/edit`}
+                nameTo={`/admin/proposals/${encodeURIComponent(String(r.id))}/edit`}
               />
             ),
             status: (

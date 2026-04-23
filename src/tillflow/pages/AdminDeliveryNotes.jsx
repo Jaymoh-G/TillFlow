@@ -103,7 +103,7 @@ export default function AdminDeliveryNotes() {
         header: "Delivery note",
         field: "deliveryNoteNo",
         body: (row) => (
-          <Link to={`/tillflow/admin/delivery-notes/${row.apiId}`} className="fw-medium">
+          <Link to={`/admin/delivery-notes/${row.apiId}`} className="fw-medium">
             {row.deliveryNoteNo}
           </Link>
         )
@@ -113,7 +113,7 @@ export default function AdminDeliveryNotes() {
         field: "invoiceRef",
         body: (row) =>
           row.invoiceId ? (
-            <Link to={`/tillflow/admin/invoices/${row.invoiceId}`}>{row.invoiceRef || `Invoice #${row.invoiceId}`}</Link>
+            <Link to={`/admin/invoices/${row.invoiceId}`}>{row.invoiceRef || `Invoice #${row.invoiceId}`}</Link>
           ) : (
             row.invoiceRef || "—"
           )
@@ -151,19 +151,19 @@ export default function AdminDeliveryNotes() {
                 <i className="ti ti-dots-vertical" />
               </Dropdown.Toggle>
               <Dropdown.Menu>
-                <Dropdown.Item as={Link} to={`/tillflow/admin/delivery-notes/${row.apiId}`}>
+                <Dropdown.Item as={Link} to={`/admin/delivery-notes/${row.apiId}`}>
                   <i className="ti ti-eye me-2 text-dark" />
                   View
                 </Dropdown.Item>
                 {row.invoiceId ? (
-                  <Dropdown.Item as={Link} to={`/tillflow/admin/invoices/${row.invoiceId}`}>
+                  <Dropdown.Item as={Link} to={`/admin/invoices/${row.invoiceId}`}>
                     <i className="ti ti-file-invoice me-2 text-dark" />
                     View invoice
                   </Dropdown.Item>
                 ) : null}
                 <Dropdown.Item
                   as={Link}
-                  to={`/tillflow/admin/delivery-notes/${row.apiId}?emailCustomer=1`}
+                  to={`/admin/delivery-notes/${row.apiId}?emailCustomer=1`}
                   disabled={String(row.status ?? "") === "Cancelled" || !String(row.customerEmail ?? "").trim()}>
                   <i className="ti ti-send me-2 text-dark" />
                   Send to customer
@@ -171,7 +171,7 @@ export default function AdminDeliveryNotes() {
                 <Dropdown.Divider />
                 <Dropdown.Item
                   as={Link}
-                  to={`/tillflow/admin/delivery-notes/${row.apiId}?cancel=1`}
+                  to={`/admin/delivery-notes/${row.apiId}?cancel=1`}
                   className="text-danger"
                   disabled={String(row.status ?? "") === "Cancelled"}>
                   <i className="ti ti-trash me-2" />
@@ -230,7 +230,7 @@ export default function AdminDeliveryNotes() {
                 }
                 onImport={token ? () => setShowImport(true) : undefined}
               />
-              <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+              <Link to="/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
                 Invoices
               </Link>

@@ -1,6 +1,6 @@
 /**
  * Thermal-style POS receipt print: hidden iframe with the receipt DOM clone + current
- * app stylesheets, then window.print(). Matches post-sale print on /tillflow/pos.
+ * app stylesheets, then window.print(). Matches post-sale print on /pos.
  *
  * @param {HTMLElement} element Receipt root (e.g. `.tf-pos-receipt`)
  * @param {string} [title] Print job / document title

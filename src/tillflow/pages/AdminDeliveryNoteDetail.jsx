@@ -149,7 +149,7 @@ export default function AdminDeliveryNoteDetail() {
         header: "Note",
         field: "deliveryNoteNo",
         body: (item) => (
-          <Link to={`/tillflow/admin/delivery-notes/${item.apiId}`} className="fw-medium text-nowrap">
+          <Link to={`/admin/delivery-notes/${item.apiId}`} className="fw-medium text-nowrap">
             {item.deliveryNoteNo}
           </Link>
         )
@@ -168,7 +168,7 @@ export default function AdminDeliveryNoteDetail() {
         field: "invoiceRef",
         body: (item) =>
           item.invoiceId ? (
-            <Link to={`/tillflow/admin/invoices/${item.invoiceId}`} className="small">
+            <Link to={`/admin/invoices/${item.invoiceId}`} className="small">
               {item.invoiceRef || item.invoiceId}
             </Link>
           ) : (
@@ -372,7 +372,7 @@ export default function AdminDeliveryNoteDetail() {
         <aside className="tf-admin-invoice-detail__list">
           <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
             <h5 className="tf-heading mb-0">Delivery notes</h5>
-            <NavLink to="/tillflow/admin/invoices" className="btn btn-sm btn-outline-primary">
+            <NavLink to="/admin/invoices" className="btn btn-sm btn-outline-primary">
               Invoices
             </NavLink>
           </div>
@@ -393,7 +393,7 @@ export default function AdminDeliveryNoteDetail() {
             />
           </div>
           <div className="mt-2">
-            <NavLink to="/tillflow/admin/delivery-notes" className="small">
+            <NavLink to="/admin/delivery-notes" className="small">
               Full delivery notes list
             </NavLink>
           </div>
@@ -413,7 +413,7 @@ export default function AdminDeliveryNoteDetail() {
                     Download PDF
                   </button>
                   {row.invoiceId ? (
-                    <NavLink to={`/tillflow/admin/invoices/${row.invoiceId}`} className="btn btn-outline-secondary btn-sm">
+                    <NavLink to={`/admin/invoices/${row.invoiceId}`} className="btn btn-outline-secondary btn-sm">
                       Invoice {row.invoiceRef || row.invoiceId}
                     </NavLink>
                   ) : null}

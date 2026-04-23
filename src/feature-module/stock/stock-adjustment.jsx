@@ -138,7 +138,7 @@ function mapApiRow(a) {
 
 const StockAdjustment = () => {
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const auth = useOptionalAuth();
   const token = auth?.token ?? readTillflowStoredToken();
   const recordAsLabel = auth?.user?.name?.trim() || null;
@@ -674,7 +674,7 @@ const StockAdjustment = () => {
             />
             <div className="page-btn d-flex gap-2 flex-wrap">
               {liveMode && (
-                <Link to="/tillflow/admin/items" className="btn btn-outline-secondary">
+                <Link to="/admin/items" className="btn btn-outline-secondary">
                   <i className="feather icon-package me-1" />
                   Item list
                 </Link>

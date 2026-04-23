@@ -10,7 +10,7 @@ export default function Forbidden({ title = 'No permission', detail }) {
         {detail ||
           'Your account does not have access to this area. Ask an administrator to update your role.'}
       </p>
-      <Link to="/tillflow/admin" className="tf-btn tf-btn--primary tf-btn--sm">
+      <Link to="/admin" className="tf-btn tf-btn--primary tf-btn--sm">
         Back to dashboard
       </Link>
     </div>

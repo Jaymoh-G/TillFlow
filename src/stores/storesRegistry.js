@@ -63,7 +63,7 @@ function ensureLocalStorageSeed() {
   if (typeof window === "undefined") {
     return;
   }
-  if (window.location.pathname.includes("/tillflow/admin")) {
+  if (window.location.pathname.includes("/admin")) {
     return;
   }
   const existing = parse(localStorage.getItem(LS_KEY));
@@ -94,7 +94,7 @@ export function loadStores() {
   }
   const list = parse(localStorage.getItem(LS_KEY));
   if (!list?.length) {
-    if (window.location.pathname.includes("/tillflow/admin")) {
+    if (window.location.pathname.includes("/admin")) {
       return EMPTY_SNAPSHOT;
     }
     ensureLocalStorageSeed();

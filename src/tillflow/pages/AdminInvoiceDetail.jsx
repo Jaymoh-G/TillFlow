@@ -195,7 +195,7 @@ export default function AdminInvoiceDetail() {
         header: "Invoice",
         field: "invoiceno",
         body: (r) => (
-          <Link to={`/tillflow/admin/invoices/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
+          <Link to={`/admin/invoices/${r.apiId ?? r.id}`} className="fw-medium text-nowrap">
             {r.invoiceno}
           </Link>
         )
@@ -1116,7 +1116,7 @@ export default function AdminInvoiceDetail() {
       const newInv = data?.invoice;
       if (newInv?.id) {
         await loadList();
-        navigate(`/tillflow/admin/invoices/${newInv.id}`, { replace: false });
+        navigate(`/admin/invoices/${newInv.id}`, { replace: false });
       }
     } catch (e) {
       if (e instanceof TillFlowApiError) {
@@ -1209,7 +1209,7 @@ export default function AdminInvoiceDetail() {
         <aside className="tf-admin-invoice-detail__list">
           <div className="d-flex align-items-center justify-content-between gap-2 mb-3">
             <h5 className="tf-heading mb-0">Invoices</h5>
-            <NavLink to="/tillflow/admin/invoices/new" className="btn btn-sm btn-outline-primary">
+            <NavLink to="/admin/invoices/new" className="btn btn-sm btn-outline-primary">
               New
             </NavLink>
           </div>
@@ -1229,7 +1229,7 @@ export default function AdminInvoiceDetail() {
             />
           </div>
           <div className="mt-2">
-            <NavLink to="/tillflow/admin/invoices" className="small">
+            <NavLink to="/admin/invoices" className="small">
               Full invoice list
             </NavLink>
           </div>
@@ -1266,7 +1266,7 @@ export default function AdminInvoiceDetail() {
                     type="button"
                     className="btn btn-outline-primary btn-sm"
                     disabled={isCancelled || !detailRow?.apiId}
-                    onClick={() => navigate(`/tillflow/admin/invoices/${detailRow.apiId}/edit`)}>
+                    onClick={() => navigate(`/admin/invoices/${detailRow.apiId}/edit`)}>
                     <i className="ti ti-edit me-1" />
                     Edit
                   </button>
@@ -1491,7 +1491,7 @@ export default function AdminInvoiceDetail() {
                           {(detailRow.payments ?? []).map((p) => (
                               <tr key={p.id}>
                                 <td className="fw-medium">
-                                  <Link to={`/tillflow/admin/invoice-payments/${p.id}`}>{p.receipt_ref}</Link>
+                                  <Link to={`/admin/invoice-payments/${p.id}`}>{p.receipt_ref}</Link>
                                 </td>
                                 <td className="small">{formatReceiptPaidAtDisplay(p.paid_at)}</td>
                                 <td>{paymentMethodLabel(p.payment_method)}</td>
@@ -1575,7 +1575,7 @@ export default function AdminInvoiceDetail() {
                                 </span>
                               </td>
                               <td className="text-end">
-                                <Link to={`/tillflow/admin/delivery-notes/${note.apiId}`} className="btn btn-link btn-sm py-0">
+                                <Link to={`/admin/delivery-notes/${note.apiId}`} className="btn btn-link btn-sm py-0">
                                   Open
                                 </Link>
                               </td>
@@ -1641,7 +1641,7 @@ export default function AdminInvoiceDetail() {
                                 </span>
                               </td>
                               <td className="text-end">
-                                <Link to={`/tillflow/admin/credit-notes/${note.apiId}`} className="btn btn-link btn-sm py-0">
+                                <Link to={`/admin/credit-notes/${note.apiId}`} className="btn btn-link btn-sm py-0">
                                   Open
                                 </Link>
                               </td>

@@ -279,7 +279,7 @@ export default function AdminInvoicePayments() {
         header: "Receipt",
         field: "receipt_ref",
         body: (p) => (
-          <Link to={`/tillflow/admin/invoice-payments/${p.id}`} className="fw-medium">
+          <Link to={`/admin/invoice-payments/${p.id}`} className="fw-medium">
             {p.receipt_ref}
           </Link>
         )
@@ -288,7 +288,7 @@ export default function AdminInvoicePayments() {
       {
         header: "Invoice",
         field: "invoice_ref",
-        body: (p) => <Link to={`/tillflow/admin/invoices/${p.invoice_id}`}>{p.invoice_ref}</Link>
+        body: (p) => <Link to={`/admin/invoices/${p.invoice_id}`}>{p.invoice_ref}</Link>
       },
       { header: "Customer", field: "customer_name", body: (p) => p.customer_name || "—" },
       {
@@ -315,14 +315,14 @@ export default function AdminInvoicePayments() {
                 <i className="ti ti-dots-vertical" />
               </Dropdown.Toggle>
               <Dropdown.Menu popperConfig={{ strategy: "fixed" }} renderOnMount>
-                <Dropdown.Item as={Link} to={`/tillflow/admin/invoice-payments/${p.id}`}>
+                <Dropdown.Item as={Link} to={`/admin/invoice-payments/${p.id}`}>
                   <i className="ti ti-eye text-dark" aria-hidden />
                   View
                 </Dropdown.Item>
                 <Dropdown.Item
                   as="button"
                   type="button"
-                  onClick={() => navigate(`/tillflow/admin/invoices/${p.invoice_id}?emailCustomer=1`)}>
+                  onClick={() => navigate(`/admin/invoices/${p.invoice_id}?emailCustomer=1`)}>
                   <i className="ti ti-send text-dark" aria-hidden />
                   Send to customer
                 </Dropdown.Item>
@@ -369,7 +369,7 @@ export default function AdminInvoicePayments() {
                 }
                 onImport={token ? () => setShowImport(true) : undefined}
               />
-              <Link to="/tillflow/admin/invoices" className="btn btn-outline-primary">
+              <Link to="/admin/invoices" className="btn btn-outline-primary">
                 <i className="feather icon-arrow-left me-1" />
                 Invoices
               </Link>

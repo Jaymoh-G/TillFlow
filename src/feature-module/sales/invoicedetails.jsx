@@ -74,7 +74,7 @@ const DEMO_INVOICE = {
 const Invoicedetails = () => {
   const route = all_routes;
   const location = useLocation();
-  const inTillflowShell = location.pathname.includes("/tillflow/admin");
+  const inTillflowShell = location.pathname.includes("/admin");
   const printRootRef = useRef(null);
   const [invoicePdfPreviewUrl, setInvoicePdfPreviewUrl] = useState(null);
 
@@ -152,7 +152,7 @@ const Invoicedetails = () => {
     }
   }, []);
 
-  const backHref = inTillflowShell ? "/tillflow/admin/invoices" : route.invoice;
+  const backHref = inTillflowShell ? "/admin/invoices" : route.invoice;
 
   return (
     <div>

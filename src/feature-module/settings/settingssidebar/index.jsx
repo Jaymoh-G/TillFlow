@@ -5,85 +5,85 @@ import { Link, useLocation } from "react-router-dom";
 const SettingsSideBar = (props) => {
   const route = all_routes;
   const location = useLocation();
-  const profileSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const profileSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminProfile
     : route.generalsettings;
-  const companySettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const companySettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminCompanySettings
     : route.companysettings;
-  const securitySettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const securitySettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSecurity
     : route.securitysettings;
-  const systemSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const systemSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSystemSettings
     : route.systemsettings;
-  const automationSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const automationSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminAutomationSettings
     : route.systemsettings;
-  const preferenceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const preferenceSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminPreference
     : route.preference;
-  const appearanceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const appearanceSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminAppearance
     : route.appearance;
-  const socialAuthSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const socialAuthSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSocialAuth
     : route.socialauthendication;
-  const notificationSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const notificationSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminNotification
     : route.notification;
-  const connectedAppsSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const connectedAppsSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminConnectedApps
     : route.connectedapps;
-  const invoiceSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const invoiceSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminInvoiceSettings
     : route.invoicesettings;
-  const printerSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const printerSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminPrinterSettings
     : route.printersettings;
-  const posSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const posSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminPosSettings
     : route.possettings;
-  const signaturesSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const signaturesSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSignatures
     : route.signatures;
-  const customFieldsSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const customFieldsSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminCustomFields
     : route.customfields;
-  const emailSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const emailSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminEmailSettings
     : route.emailsettings;
-  const emailTemplatesPath = location.pathname.startsWith("/tillflow/admin")
+  const emailTemplatesPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminEmailTemplates
     : route.emailtemplate;
-  const smsGatewayPath = location.pathname.startsWith("/tillflow/admin")
+  const smsGatewayPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSmsGateway
     : route.smssettings;
-  const smsTemplatesPath = location.pathname.startsWith("/tillflow/admin")
+  const smsTemplatesPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminSmsTemplates
     : route.smstemplate;
-  const otpSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const otpSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminOtpSettings
     : route.otpsettings;
-  const gdprSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const gdprSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminGdprSettings
     : route.gdbrsettings;
-  const paymentGatewayPath = location.pathname.startsWith("/tillflow/admin")
+  const paymentGatewayPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminPaymentGateway
     : route.paymentgateway;
-  const bankAccountsPath = location.pathname.startsWith("/tillflow/admin")
+  const bankAccountsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminBankAccounts
     : route.banksettingsgrid;
-  const taxRatesPath = location.pathname.startsWith("/tillflow/admin")
+  const taxRatesPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminTaxRates
     : route.taxrates;
-  const currencySettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const currencySettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminCurrencySettings
     : route.currencysettings;
-  const storageSettingsPath = location.pathname.startsWith("/tillflow/admin")
+  const storageSettingsPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminStorageSettings
     : route.storagesettings;
-  const banIpAddressPath = location.pathname.startsWith("/tillflow/admin")
+  const banIpAddressPath = location.pathname.startsWith("/admin")
     ? route.tillflowAdminBanIpAddress
     : route.banipaddress;
 

@@ -1,5 +1,5 @@
 /**
- * Shared reports navigation: admin sidebar + /tillflow/admin/reports hub widgets.
+ * Shared reports navigation: admin sidebar + /admin/reports hub widgets.
  * Keep paths and labels aligned when adding reports.
  *
  * `navAnyOf`: show the link only if the user has at least one of these permission slugs
@@ -27,42 +27,42 @@ export const REPORT_NAV_GROUPS = [
     label: 'Sales & POS',
     items: [
       {
-        to: '/tillflow/admin/reports/pos-sales',
+        to: '/admin/reports/pos-sales',
         label: 'POS sales',
         icon: 'icon-shopping-bag',
         note: 'POS orders in the selected period',
         navAnyOf: NAV.POS,
       },
       {
-        to: '/tillflow/admin/reports/best-sellers',
+        to: '/admin/reports/best-sellers',
         label: 'Best sellers',
         icon: 'icon-award',
         note: 'Top products by revenue in the selected period',
         navAnyOf: NAV.POS,
       },
       {
-        to: '/tillflow/admin/reports/payment-breakdown',
+        to: '/admin/reports/payment-breakdown',
         label: 'Payment breakdown',
         icon: 'icon-credit-card',
         note: 'Payments by tender type',
         navAnyOf: NAV.POS,
       },
       {
-        to: '/tillflow/admin/reports/tax-report',
+        to: '/admin/reports/tax-report',
         label: 'Tax report',
         icon: 'icon-percent',
         note: 'Tax by rate from POS line items',
         navAnyOf: NAV.POS,
       },
       {
-        to: '/tillflow/admin/reports/z-light',
+        to: '/admin/reports/z-light',
         label: 'End of day (Z)',
         icon: 'icon-clock',
         note: 'Light Z from transactional data (no cash drawer)',
         navAnyOf: NAV.POS,
       },
       {
-        to: '/tillflow/admin/reports/employee-sales',
+        to: '/admin/reports/employee-sales',
         label: 'Employee sales',
         icon: 'icon-user',
         note: 'Sales by cashier / employee',
@@ -75,14 +75,14 @@ export const REPORT_NAV_GROUPS = [
     label: 'Returns',
     items: [
       {
-        to: '/tillflow/admin/reports/return-summary',
+        to: '/admin/reports/return-summary',
         label: 'Return summary',
         icon: 'icon-repeat',
         note: 'Sales returns in the selected period',
         navAnyOf: NAV.RETURNS,
       },
       {
-        to: '/tillflow/admin/reports/returns-by-staff',
+        to: '/admin/reports/returns-by-staff',
         label: 'Returns by staff',
         icon: 'icon-user-check',
         note: 'Returns processed by staff',
@@ -95,28 +95,28 @@ export const REPORT_NAV_GROUPS = [
     label: 'Invoices & customers',
     items: [
       {
-        to: '/tillflow/admin/reports/invoice-report',
+        to: '/admin/reports/invoice-report',
         label: 'Invoice report',
         icon: 'icon-file-text',
         note: 'Outstanding balances and invoice activity',
         navAnyOf: NAV.INVOICES,
       },
       {
-        to: '/tillflow/admin/reports/customer-report',
+        to: '/admin/reports/customer-report',
         label: 'Customer report',
         icon: 'icon-users',
         note: 'Customer spend and transaction counts',
         navAnyOf: NAV.CUSTOMERS,
       },
       {
-        to: '/tillflow/admin/reports/customer-purchase-lines',
+        to: '/admin/reports/customer-purchase-lines',
         label: 'Customer purchase lines',
         icon: 'icon-align-left',
         note: 'Line-level history for one customer',
         navAnyOf: NAV.CUSTOMERS,
       },
       {
-        to: '/tillflow/admin/reports/proposal-report',
+        to: '/admin/reports/proposal-report',
         label: 'Proposal report',
         icon: 'icon-file-plus',
         note: 'Proposals in the selected period (by proposed date)',
@@ -129,14 +129,14 @@ export const REPORT_NAV_GROUPS = [
     label: 'Purchasing & expenses',
     items: [
       {
-        to: '/tillflow/admin/reports/supplier-purchases',
+        to: '/admin/reports/supplier-purchases',
         label: 'Supplier purchases',
         icon: 'icon-truck',
         note: 'Purchase documents in the selected period',
         navAnyOf: NAV.PURCHASES,
       },
       {
-        to: '/tillflow/admin/reports/expense-report',
+        to: '/admin/reports/expense-report',
         label: 'Expense report',
         icon: 'icon-dollar-sign',
         note: 'Expenses in the selected period',
@@ -149,21 +149,21 @@ export const REPORT_NAV_GROUPS = [
     label: 'Financial',
     items: [
       {
-        to: '/tillflow/admin/reports/income-report',
+        to: '/admin/reports/income-report',
         label: 'Income summary',
         icon: 'icon-trending-up',
         note: 'Income summary (POS and invoices)',
         navAnyOf: NAV.FINANCIAL,
       },
       {
-        to: '/tillflow/admin/reports/profit-loss',
+        to: '/admin/reports/profit-loss',
         label: 'Profit & loss',
         icon: 'icon-bar-chart-2',
         note: 'Profit & loss (estimated)',
         navAnyOf: NAV.FINANCIAL,
       },
       {
-        to: '/tillflow/admin/reports/annual-report',
+        to: '/admin/reports/annual-report',
         label: 'Annual report',
         icon: 'icon-calendar',
         note: 'Revenue and estimated profit / loss for the selected year',
@@ -176,21 +176,21 @@ export const REPORT_NAV_GROUPS = [
     label: 'Inventory',
     items: [
       {
-        to: '/tillflow/admin/reports/stock-history',
+        to: '/admin/reports/stock-history',
         label: 'Stock history',
         icon: 'icon-layers',
         note: 'Stock adjustments and transfer lines',
         navAnyOf: NAV.STOCK_HISTORY,
       },
       {
-        to: '/tillflow/admin/expired-items',
+        to: '/admin/expired-items',
         label: 'Expired items',
         icon: 'icon-alert-circle',
         note: 'Products past expiry date',
         navAnyOf: NAV.ITEMS_OR_REPORTS,
       },
       {
-        to: '/tillflow/admin/low-stock',
+        to: '/admin/low-stock',
         label: 'Low stock',
         icon: 'icon-trending-down',
         note: 'Items below reorder threshold',

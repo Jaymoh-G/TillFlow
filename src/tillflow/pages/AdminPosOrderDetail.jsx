@@ -19,7 +19,7 @@ import {
 } from "../api/posOrders";
 import { useAuth } from "../auth/AuthContext";
 
-const POS_ORDERS_LIST_PATH = "/tillflow/admin/orders";
+const POS_ORDERS_LIST_PATH = "/admin/orders";
 
 function formatKes(n) {
   const x = Number(n);
@@ -163,7 +163,7 @@ export default function AdminPosOrderDetail() {
         field: "order_no",
         body: (o) => (
           <NavLink
-            to={`/tillflow/admin/orders/${o.id}`}
+            to={`/admin/orders/${o.id}`}
             className={({ isActive }) => (isActive ? "fw-semibold text-primary" : "fw-medium")}>
             {o.order_no || `#${o.id}`}
           </NavLink>

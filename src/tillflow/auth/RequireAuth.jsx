@@ -10,7 +10,7 @@ export default function RequireAuth() {
   }
 
   if (!token) {
-    return <Navigate to="/tillflow/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;

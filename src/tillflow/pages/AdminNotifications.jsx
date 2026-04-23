@@ -119,7 +119,7 @@ export default function AdminNotifications() {
 
       <p className="text-muted small mb-3">
         For a detailed table view, see{" "}
-        <Link to="/tillflow/admin/activity-logs">Activity log</Link>.
+        <Link to="/admin/activity-logs">Activity log</Link>.
       </p>
 
       {loading ? (

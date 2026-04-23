@@ -215,7 +215,7 @@ const SecuritySettings = () => {
   };
 
   const showTillflowBackLink =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/tillflow/admin/");
+    typeof window !== "undefined" && window.location.pathname.startsWith("/admin/");
 
   const lastChangedLabel = (() => {
     if (loadingUserMeta && passwordChangedAt == null) {
@@ -249,7 +249,7 @@ const SecuritySettings = () => {
                   <div className="card-header d-flex flex-wrap align-items-center gap-2 justify-content-between">
                     <h4 className="fs-18 fw-bold mb-0">Security</h4>
                     {showTillflowBackLink ? (
-                      <Link to="/tillflow/admin" className="btn btn-outline-secondary btn-sm">
+                      <Link to="/admin" className="btn btn-outline-secondary btn-sm">
                         Back to admin
                       </Link>
                     ) : null}

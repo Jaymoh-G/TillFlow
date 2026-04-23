@@ -18,8 +18,8 @@ function unitLabel(row) {
  */
 export default function DashboardLowStockBanner({
   token,
-  stockAdjustmentPath = "/tillflow/admin/stock-adjustment",
-  lowStockListPath = "/tillflow/admin/low-stock"
+  stockAdjustmentPath = "/admin/stock-adjustment",
+  lowStockListPath = "/admin/low-stock"
 }) {
   const [items, setItems] = useState([]);
 
